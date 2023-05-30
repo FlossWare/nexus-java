@@ -1,2 +1,2 @@
 # nexus
-Command line too to interact with Sonatype Nexus
+Command line tool to interact with Sonatype Nexus
