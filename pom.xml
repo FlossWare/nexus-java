@@ -1,0 +1,31 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>org.flossware</groupId>
+    <artifactId>nexus</artifactId>
+    <version>1.0</version>
+
+    <name>nexus</name>
+    <description>Command line tool to interact with Sonatype Nexus</description>
+
+    <packaging>jar</packaging>
+
+    <url>https://github.com/FlossWare/nexus</url>
+
+    <properties>
+        <java.version>17</java.version>
+
+        <junit_junit>3.8.1</junit_junit>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>${junit_junit}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>
