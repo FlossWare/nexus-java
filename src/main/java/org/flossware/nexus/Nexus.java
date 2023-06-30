@@ -45,7 +45,7 @@ public class Nexus {
     }
 
     List<RepoRecord> queryRepo(final RestTemplate rest, final String repo) {
-        final String baseUrl = "http://" + creds.getUrl() + "/service/rest/v1/components?repository=" + repo;
+        final String baseUrl = creds.getUrl() + "/service/rest/v1/components?repository=" + repo;
         String url = baseUrl;
 
         String continuousToken = "";
@@ -62,37 +62,77 @@ public class Nexus {
     }
 
     void list(final RestTemplate rest, final String repo) {
-        for (RepoRecord repoRecord : queryRepo(rest, repo)) {
+        final List<RepoRecord> repoRecords = queryRepo(rest, repo);
+
+        long fileSize = 0;
+
+        for (RepoRecord repoRecord : repoRecords) {
             System.out.printf("%s  %15d  %s\n", repoRecord.id(), repoRecord.fileSize(), repoRecord.path());
+
+            fileSize += repoRecord.fileSize();
         }
+
+        System.out.println("\n\nTotal components:  " + repoRecords.size());
+        System.out.println("Total size:        " + fileSize + "\n\n");
     }
 
     void listWithFilter(final RestTemplate rest, final String repo, final String regEx) {
-        for (RepoRecord repoRecord : queryRepo(rest, repo)) {
+        final List<RepoRecord> repoRecords = queryRepo(rest, repo);
+
+        int matches = 0;
+        long fileSize = 0;
+
+        for (RepoRecord repoRecord : repoRecords) {
             if (repoRecord.path().matches(regEx)) {
                 System.out.printf("%s  %15d  %s\n", repoRecord.id(), repoRecord.fileSize(), repoRecord.path());
+                matches++;
+
+                fileSize += repoRecord.fileSize();
             }
         }
+
+
+        System.out.println("\n\nTotal components:  " + repoRecords.size());
+        System.out.println("Matches:           " + matches);
+        System.out.println("Total size:        " + fileSize + "\n\n");
     }
 
     void delete(final RestTemplate rest, final String repo) {
-        final String baseUrl = "http://" + creds.getUrl() + "/service/rest/v1/components/";
+        final String baseUrl = creds.getUrl() + "/service/rest/v1/components/";
+
+        int total = 0;
+        long fileSize = 0;
 
         for (RepoRecord repoRecord : queryRepo(rest, repo)) {
             System.out.println("Deleting [" + repoRecord.path() + "] -> " + baseUrl + repoRecord.id());
             rest.delete(baseUrl + repoRecord.id());
+
+            total++;
+            fileSize += repoRecord.fileSize();
         }
+
+        System.out.println("\n\nTotal deleted:  " + total);
+        System.out.println("Total size:    " + fileSize + "\n\n");
     }
 
     void deleteWithFilter(final RestTemplate rest, final String repo, final String regEx) {
-        final String baseUrl = "http://" + creds.getUrl() + "/service/rest/v1/components/";
+        final String baseUrl = creds.getUrl() + "/service/rest/v1/components/";
+
+        int total = 0;
+        long fileSize = 0;
 
         for (RepoRecord repoRecord : queryRepo(rest, repo)) {
             if (repoRecord.path().matches(regEx)) {
                 System.out.println("Deleting [" + repoRecord.path() + "]");
                 rest.delete(baseUrl + repoRecord.id());
+
+                total++;
+                fileSize += repoRecord.fileSize();
             }
         }
+
+        System.out.println("\n\nTotal deleted: " + total);
+        System.out.println("Total size:    " + fileSize + "\n\n");
     }
 
     @Bean
