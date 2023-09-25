@@ -4,5 +4,6 @@
 
 #./mvnw clean install $* exec:java -Dexec.mainClass=org.flossware.nexus.Nexus
 
-./mvnw clean install $*
-java -jar target/nexus-1.0.jar
+#./mvnw clean install $*
+./mvnw clean install -DskipTests
+java -jar target/nexus-1.0.jar $*

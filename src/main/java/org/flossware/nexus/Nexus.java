@@ -1,7 +1,10 @@
 package org.flossware.nexus;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,10 +30,15 @@ public class Nexus {
         }
     }
 
-    String queryRepoForUrl(final RestTemplate rest, final String url, final List<RepoRecord> repoRecords) {
+    String queryRepoForUrl(final RestTemplate rest, final String url, final List<RepoRecord> repoRecords) throws Exception {
         System.out.println("URL:  " + url);
 
-        final JSONObject repoJson = new JSONObject(rest.getForObject(url, String.class));
+        ObjectMapper mapper = new ObjectMapper();
+        Map<String, Object> map = mapper.readValue(rest.getForObject(url, String.class), new TypeReference<Map<String,Object>>(){});
+
+
+//        final JSONObject repoJson = new JSONObject(rest.getForObject(url, String.class));
+        final JSONObject repoJson = new JSONObject(map);
 
         JSONArray items = repoJson.getJSONArray("items");
 
@@ -44,7 +52,7 @@ public class Nexus {
         return repoJson.isNull("continuationToken") ? null : repoJson.getString("continuationToken");
     }
 
-    List<RepoRecord> queryRepo(final RestTemplate rest, final String repo) {
+    List<RepoRecord> queryRepo(final RestTemplate rest, final String repo) throws Exception {
         final String baseUrl = creds.getUrl() + "/service/rest/v1/components?repository=" + repo;
         String url = baseUrl;
 
@@ -61,7 +69,7 @@ public class Nexus {
         return repoRecords;
     }
 
-    void list(final RestTemplate rest, final String repo) {
+    void list(final RestTemplate rest, final String repo) throws Exception {
         final List<RepoRecord> repoRecords = queryRepo(rest, repo);
 
         long fileSize = 0;
@@ -76,7 +84,7 @@ public class Nexus {
         System.out.println("Total size:        " + fileSize + "\n\n");
     }
 
-    void listWithFilter(final RestTemplate rest, final String repo, final String regEx) {
+    void listWithFilter(final RestTemplate rest, final String repo, final String regEx) throws Exception {
         final List<RepoRecord> repoRecords = queryRepo(rest, repo);
 
         int matches = 0;
@@ -97,7 +105,7 @@ public class Nexus {
         System.out.println("Total size:        " + fileSize + "\n\n");
     }
 
-    void delete(final RestTemplate rest, final String repo) {
+    void delete(final RestTemplate rest, final String repo) throws Exception {
         final String baseUrl = creds.getUrl() + "/service/rest/v1/components/";
 
         int total = 0;
@@ -115,7 +123,7 @@ public class Nexus {
         System.out.println("Total size:    " + fileSize + "\n\n");
     }
 
-    void deleteWithFilter(final RestTemplate rest, final String repo, final String regEx) {
+    void deleteWithFilter(final RestTemplate rest, final String repo, final String regEx) throws Exception {
         final String baseUrl = creds.getUrl() + "/service/rest/v1/components/";
 
         int total = 0;
