@@ -1,4 +1,4 @@
-package org.flossware.nexus;
+package org.flossware.jnexus;
 
 import org.flossware.jcurses.api.*;
 import org.flossware.jcurses.ffi.NcursesBridge;
@@ -18,7 +18,7 @@ import java.util.List;
  * @author sfloess
  * @since 1.0
  */
-public class NexusUI {
+public class JNexusUI {
     private static final List<Component> focusableComponents = new ArrayList<>();
     private static int currentFocus = 0;
     private static boolean running = true;

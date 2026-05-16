@@ -1,4 +1,4 @@
-# Nexus CLI - Versioning Guide
+# JNexus CLI - Versioning Guide
 
 ## Version Format: X.Y
 
@@ -86,9 +86,9 @@ git push origin v2.0
 ### SCM Configuration
 ```xml
 <scm>
-    <connection>scm:git:https://github.com/FlossWare/nexus.git</connection>
-    <developerConnection>scm:git:https://github.com/FlossWare/nexus.git</developerConnection>
-    <url>https://github.com/FlossWare/nexus</url>
+    <connection>scm:git:https://github.com/FlossWare/jnexus.git</connection>
+    <developerConnection>scm:git:https://github.com/FlossWare/jnexus.git</developerConnection>
+    <url>https://github.com/FlossWare/jnexus</url>
 </scm>
 ```
 

@@ -106,7 +106,7 @@ Core service layer functionality:
 - **NexusClient.java**: ~90% (17 tests)
 - **NexusService.java**: ~95% (18 tests)
 - **RepoRecord.java**: 100% (covered in tests)
-- **Nexus.java**: Manual testing only
+- **JNexus.java**: Manual testing only
 
 ### By Functionality
 - Configuration loading: ✅ Comprehensive
@@ -132,7 +132,7 @@ Core service layer functionality:
 
 ## Areas Not Covered by Automated Tests
 
-1. **CLI Interaction** (Nexus.java)
+1. **CLI Interaction** (JNexus.java)
    - User input prompts
    - Console confirmation dialogs
    - Command-line parsing (covered by Picocli)

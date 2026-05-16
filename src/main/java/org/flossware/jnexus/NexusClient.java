@@ -1,4 +1,4 @@
-package org.flossware.nexus;
+package org.flossware.jnexus;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;

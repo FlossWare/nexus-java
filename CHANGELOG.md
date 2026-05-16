@@ -42,7 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0] - 2026-05-16
 
 ### Added
-- Initial release of Nexus CLI tool
+- Initial release of JNexus CLI tool
 - Java 21 support
 - `list` command to display repository components
 - `delete` command to remove repository components

@@ -1,6 +1,6 @@
-# Contributing to Nexus CLI
+# Contributing to JNexus CLI
 
-Thank you for your interest in contributing to the Nexus CLI tool! This document provides guidelines and instructions for contributing.
+Thank you for your interest in contributing to the JNexus CLI tool! This document provides guidelines and instructions for contributing.
 
 ## Table of Contents
 
@@ -51,20 +51,20 @@ Thank you for your interest in contributing to the Nexus CLI tool! This document
 ### Running Locally
 
 ```bash
-java -jar target/nexus-1.0-jar-with-dependencies.jar --help
+java -jar target/jnexus-1.0-jar-with-dependencies.jar --help
 ```
 
 ## Project Structure
 
 ```
-src/main/java/org/flossware/nexus/
-├── Nexus.java          # CLI entry point with Picocli commands
+src/main/java/org/flossware/jnexus/
+├── JNexus.java          # CLI entry point with Picocli commands
 ├── NexusClient.java    # HTTP client for Nexus API
 ├── NexusService.java   # Business logic layer
 ├── Credentials.java    # Configuration management
 └── RepoRecord.java     # Data model
 
-src/test/java/org/flossware/nexus/
+src/test/java/org/flossware/jnexus/
 ├── NexusServiceTest.java           # Service layer tests
 ├── NexusServiceAdvancedTest.java   # Advanced service scenarios
 ├── NexusClientTest.java            # Basic client tests
@@ -190,7 +190,7 @@ Types:
 
 When reporting bugs, please include:
 
-- Nexus CLI version: `java -jar nexus-1.0-jar-with-dependencies.jar --version`
+- JNexus CLI version: `java -jar jnexus-1.0-jar-with-dependencies.jar --version`
 - Java version: `java -version`
 - Operating system
 - Steps to reproduce the issue
@@ -233,7 +233,7 @@ Run with remote debugging enabled:
 
 ```bash
 java -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005 \
-  -jar target/nexus-1.0-jar-with-dependencies.jar list my-repo
+  -jar target/jnexus-1.0-jar-with-dependencies.jar list my-repo
 ```
 
 Then attach your IDE debugger to port 5005.
@@ -287,4 +287,4 @@ For detailed CI/CD documentation, see [CI-CD.md](CI-CD.md).
 If you have questions about contributing, please open an issue with the
 `question` label, and we'll be happy to help!
 
-Thank you for contributing to Nexus CLI!
+Thank you for contributing to JNexus CLI!

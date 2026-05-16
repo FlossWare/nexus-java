@@ -1,4 +1,4 @@
-package org.flossware.nexus;
+package org.flossware.jnexus;
 
 import org.junit.jupiter.api.Test;
 

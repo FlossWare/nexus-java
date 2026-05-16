@@ -1,4 +1,4 @@
-package org.flossware.nexus;
+package org.flossware.jnexus;
 
 /**
  * Represents a repository component record from Nexus.

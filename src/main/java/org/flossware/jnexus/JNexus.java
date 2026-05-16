@@ -1,4 +1,4 @@
-package org.flossware.nexus;
+package org.flossware.jnexus;
 
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
@@ -24,16 +24,16 @@ import java.util.concurrent.Callable;
  * @since 1.0
  */
 @Command(
-    name = "nexus",
+    name = "jnexus",
     description = "CLI tool for interacting with Sonatype Nexus repositories",
     mixinStandardHelpOptions = true,
-    version = "nexus 1.0",
+    version = "jnexus 1.0",
     subcommands = {
-        Nexus.ListCommand.class,
-        Nexus.DeleteCommand.class
+        JNexus.ListCommand.class,
+        JNexus.DeleteCommand.class
     }
 )
-public class Nexus implements Callable<Integer> {
+public class JNexus implements Callable<Integer> {
 
     /**
      * Executes when the tool is run without a subcommand.
@@ -194,7 +194,7 @@ public class Nexus implements Callable<Integer> {
      * @param args command-line arguments
      */
     public static void main(String[] args) {
-        int exitCode = new CommandLine(new Nexus()).execute(args);
+        int exitCode = new CommandLine(new JNexus()).execute(args);
         System.exit(exitCode);
     }
 }

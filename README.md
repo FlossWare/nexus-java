@@ -1,4 +1,4 @@
-# Nexus CLI Tool
+# JNexus CLI Tool
 
 A Java 21 command-line tool for interacting with Sonatype Nexus repositories. Supports listing and deleting components with optional regex filtering.
 
@@ -27,7 +27,7 @@ A Java 21 command-line tool for interacting with Sonatype Nexus repositories. Su
 ./mvnw clean package
 ```
 
-This creates an executable JAR at `target/nexus-1.0-jar-with-dependencies.jar`.
+This creates an executable JAR at `target/jnexus-1.0-jar-with-dependencies.jar`.
 
 ## Configuration
 
@@ -50,7 +50,7 @@ export NEXUS_PASSWORD=your-password-or-token
 
 2. Copy the example properties file:
    ```bash
-   cp src/main/resources/nexus.properties.example ~/.flossware/nexus/nexus.properties
+   cp src/main/resources/jnexus.properties.example ~/.flossware/nexus/nexus.properties
    ```
 
 3. Edit `~/.flossware/nexus/nexus.properties` with your credentials:
@@ -69,14 +69,14 @@ export NEXUS_PASSWORD=your-password-or-token
 
 ## Usage
 
-The Nexus CLI provides two interfaces: a command-line interface (CLI) and an interactive terminal UI.
+The JNexus CLI provides two interfaces: a command-line interface (CLI) and an interactive terminal UI.
 
 ### Terminal UI (Interactive)
 
 The terminal UI provides a full-screen ncurses interface for interacting with Nexus:
 
 ```bash
-./nexus-ui.sh
+./jnexus-ui.sh
 ```
 
 **Requirements:**
@@ -103,13 +103,13 @@ The terminal UI provides a full-screen ncurses interface for interacting with Ne
 For scripting and automation, use the traditional CLI:
 
 ```bash
-./nexus.sh <command> [options]
+./jnexus.sh <command> [options]
 ```
 
 Or execute the JAR directly:
 
 ```bash
-java -jar target/nexus-1.0-jar-with-dependencies.jar <command> [options]
+java -jar target/jnexus-1.0-jar-with-dependencies.jar <command> [options]
 ```
 
 ### Commands
@@ -118,12 +118,12 @@ java -jar target/nexus-1.0-jar-with-dependencies.jar <command> [options]
 
 List all components in a repository:
 ```bash
-./nexus.sh list my-repository
+./jnexus.sh list my-repository
 ```
 
 List components matching a regex pattern:
 ```bash
-./nexus.sh list my-repository ".*SNAPSHOT.*"
+./jnexus.sh list my-repository ".*SNAPSHOT.*"
 ```
 
 #### Delete components
@@ -132,22 +132,22 @@ List components matching a regex pattern:
 
 Preview what would be deleted (dry-run):
 ```bash
-./nexus.sh delete --dry-run my-repository
+./jnexus.sh delete --dry-run my-repository
 ```
 
 Delete all components in a repository (with confirmation):
 ```bash
-./nexus.sh delete my-repository
+./jnexus.sh delete my-repository
 ```
 
 Delete components matching a regex pattern:
 ```bash
-./nexus.sh delete my-repository ".*-1\.0\.0-SNAPSHOT.*"
+./jnexus.sh delete my-repository ".*-1\.0\.0-SNAPSHOT.*"
 ```
 
 Skip confirmation prompt:
 ```bash
-./nexus.sh delete --yes my-repository ".*SNAPSHOT.*"
+./jnexus.sh delete --yes my-repository ".*SNAPSHOT.*"
 ```
 
 ### Options
@@ -161,16 +161,16 @@ Skip confirmation prompt:
 
 ```bash
 # List all snapshots in the releases repository
-./nexus.sh list releases ".*SNAPSHOT.*"
+./jnexus.sh list releases ".*SNAPSHOT.*"
 
 # Dry-run: see what would be deleted
-./nexus.sh delete --dry-run snapshots ".*-2023.*"
+./jnexus.sh delete --dry-run snapshots ".*-2023.*"
 
 # Delete old snapshot versions (with confirmation)
-./nexus.sh delete snapshots ".*-1\.0\..*-SNAPSHOT.*"
+./jnexus.sh delete snapshots ".*-1\.0\..*-SNAPSHOT.*"
 
 # Delete all components in a repository (skip confirmation)
-./nexus.sh delete --yes old-repository
+./jnexus.sh delete --yes old-repository
 ```
 
 ## Development
@@ -190,14 +190,14 @@ Skip confirmation prompt:
 ### Project Structure
 
 ```
-src/main/java/org/flossware/nexus/
-├── Nexus.java          # Main CLI entry point with Picocli commands
+src/main/java/org/flossware/jnexus/
+├── JNexus.java          # Main CLI entry point with Picocli commands
 ├── NexusClient.java    # HTTP client for Nexus API
 ├── NexusService.java   # Business logic for list/delete operations
 ├── Credentials.java    # Configuration management
 └── RepoRecord.java     # Data model for repository components
 
-src/test/java/org/flossware/nexus/
+src/test/java/org/flossware/jnexus/
 ├── NexusServiceTest.java  # Unit tests for business logic
 └── NexusClientTest.java   # Tests for client and data models
 ```

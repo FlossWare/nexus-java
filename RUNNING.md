@@ -1,6 +1,6 @@
-# Running Nexus CLI
+# Running JNexus CLI
 
-This guide explains how to run the different interfaces of the Nexus CLI tool.
+This guide explains how to run the different interfaces of the JNexus CLI tool.
 
 ## Prerequisites
 
@@ -10,7 +10,7 @@ This guide explains how to run the different interfaces of the Nexus CLI tool.
 ./mvnw clean package
 ```
 
-This creates `target/nexus-1.0-jar-with-dependencies.jar`.
+This creates `target/jnexus-1.0-jar-with-dependencies.jar`.
 
 ### 2. Configure Credentials
 
@@ -26,7 +26,7 @@ export NEXUS_PASSWORD=your-password
 **Properties File:**
 ```bash
 mkdir -p ~/.flossware/nexus
-cp src/main/resources/nexus.properties.example ~/.flossware/nexus/nexus.properties
+cp src/main/resources/jnexus.properties.example ~/.flossware/nexus/nexus.properties
 # Edit the file with your credentials
 nano ~/.flossware/nexus/nexus.properties
 ```
@@ -68,7 +68,7 @@ sudo pacman -S ncurses
 The terminal UI provides an interactive full-screen interface:
 
 ```bash
-./nexus-ui.sh
+./jnexus-ui.sh
 ```
 
 ### Terminal UI Controls
@@ -108,7 +108,7 @@ The terminal UI provides an interactive full-screen interface:
 
 1. **Start the application:**
    ```bash
-   ./nexus-ui.sh
+   ./jnexus-ui.sh
    ```
 
 2. **Navigate to the Repository field** (use TAB)
@@ -160,13 +160,13 @@ For scripting and automation, use the CLI:
 ### Using the wrapper script
 
 ```bash
-./nexus.sh <command> [options]
+./jnexus.sh <command> [options]
 ```
 
 ### Direct JAR execution
 
 ```bash
-java -jar target/nexus-1.0-jar-with-dependencies.jar <command> [options]
+java -jar target/jnexus-1.0-jar-with-dependencies.jar <command> [options]
 ```
 
 ### CLI Commands
@@ -175,12 +175,12 @@ java -jar target/nexus-1.0-jar-with-dependencies.jar <command> [options]
 
 List all components in a repository:
 ```bash
-./nexus.sh list my-repository
+./jnexus.sh list my-repository
 ```
 
 List components matching a regex pattern:
 ```bash
-./nexus.sh list my-repository ".*SNAPSHOT.*"
+./jnexus.sh list my-repository ".*SNAPSHOT.*"
 ```
 
 #### Delete components
@@ -189,22 +189,22 @@ List components matching a regex pattern:
 
 Preview what would be deleted:
 ```bash
-./nexus.sh delete --dry-run my-repository
+./jnexus.sh delete --dry-run my-repository
 ```
 
 Delete all components in a repository (with confirmation):
 ```bash
-./nexus.sh delete my-repository
+./jnexus.sh delete my-repository
 ```
 
 Delete components matching a regex pattern:
 ```bash
-./nexus.sh delete my-repository ".*-1\.0\.0-SNAPSHOT.*"
+./jnexus.sh delete my-repository ".*-1\.0\.0-SNAPSHOT.*"
 ```
 
 Skip confirmation prompt:
 ```bash
-./nexus.sh delete --yes my-repository ".*SNAPSHOT.*"
+./jnexus.sh delete --yes my-repository ".*SNAPSHOT.*"
 ```
 
 ### CLI Options
@@ -220,16 +220,16 @@ Skip confirmation prompt:
 
 ```bash
 # List all snapshots
-./nexus.sh list releases ".*SNAPSHOT.*"
+./jnexus.sh list releases ".*SNAPSHOT.*"
 
 # Preview deletion
-./nexus.sh delete --dry-run snapshots ".*-2023.*"
+./jnexus.sh delete --dry-run snapshots ".*-2023.*"
 
 # Delete with confirmation
-./nexus.sh delete snapshots ".*-1\.0\..*-SNAPSHOT.*"
+./jnexus.sh delete snapshots ".*-1\.0\..*-SNAPSHOT.*"
 
 # Automated deletion (use with caution!)
-./nexus.sh delete --yes old-repository
+./jnexus.sh delete --yes old-repository
 ```
 
 ## Troubleshooting
@@ -256,7 +256,7 @@ Skip confirmation prompt:
 
 **Error: "Could not find or load main class"**
 - Run `./mvnw clean package` to rebuild
-- Verify `target/nexus-1.0-jar-with-dependencies.jar` exists
+- Verify `target/jnexus-1.0-jar-with-dependencies.jar` exists
 
 **Error: "Connection refused" or "Unknown host"**
 - Verify NEXUS_URL is correct and accessible
@@ -273,15 +273,15 @@ Skip confirmation prompt:
 ```bash
 java --enable-preview --enable-native-access=ALL-UNNAMED \
     -Xmx512m \
-    -cp target/nexus-1.0-jar-with-dependencies.jar \
-    org.flossware.nexus.NexusUI
+    -cp target/jnexus-1.0-jar-with-dependencies.jar \
+    org.flossware.jnexus.JNexusUI
 ```
 
 ### Running CLI with custom Java options
 
 ```bash
 java -Xmx512m \
-    -jar target/nexus-1.0-jar-with-dependencies.jar \
+    -jar target/jnexus-1.0-jar-with-dependencies.jar \
     list my-repository
 ```
 
@@ -291,7 +291,7 @@ java -Xmx512m \
 NEXUS_URL=https://other-nexus.com \
 NEXUS_USER=admin \
 NEXUS_PASSWORD=secret \
-./nexus.sh list test-repo
+./jnexus.sh list test-repo
 ```
 
 ## Questions?

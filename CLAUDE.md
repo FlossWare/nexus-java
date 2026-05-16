@@ -1,8 +1,8 @@
-# Nexus CLI - Codebase Documentation for AI Assistants
+# JNexus CLI - Codebase Documentation for AI Assistants
 
 ## Project Overview
 
-**Nexus CLI** is a Java 21 command-line tool for managing components in Sonatype Nexus Repository Manager. It provides list and delete operations with regex filtering, safety features, and minimal dependencies.
+**JNexus CLI** is a Java 21 command-line tool for managing components in Sonatype Nexus Repository Manager. It provides list and delete operations with regex filtering, safety features, and minimal dependencies.
 
 ## Key Architectural Decisions
 
@@ -22,7 +22,7 @@
 
 ### Layered Architecture
 ```
-CLI Layer (Nexus.java)
+CLI Layer (JNexus.java)
     ↓
 Service Layer (NexusService.java)
     ↓
@@ -32,11 +32,11 @@ HTTP/Nexus API
 ```
 
 ### Separation of Concerns
-- **Nexus.java**: CLI parsing, user interaction, command routing
+- **JNexus.java**: CLI parsing, user interaction, command routing
 - **NexusService.java**: Business logic, filtering, statistics, output formatting
 - **NexusClient.java**: HTTP communication, pagination, JSON parsing
 - **Credentials.java**: Configuration management (env vars → properties file) + optional UI defaults
-- **NexusUI.java**: Terminal UI using jcurses, pre-populated with default values from Credentials
+- **JNexusUI.java**: Terminal UI using jcurses, pre-populated with default values from Credentials
 - **RepoRecord.java**: Immutable data model (Java record)
 
 ## Design Patterns
@@ -169,7 +169,7 @@ nexus.default.dryrun=true
 ## Common Development Tasks
 
 ### Adding a New Command
-1. Create subclass in `Nexus.java` implementing `Callable<Integer>`
+1. Create subclass in `JNexus.java` implementing `Callable<Integer>`
 2. Add `@Command` annotation with name and description
 3. Add to `subcommands` array in main `@Command`
 4. Add method to `NexusService.java` for business logic
@@ -180,7 +180,7 @@ nexus.default.dryrun=true
 2. Add method to `NexusService.java` for business logic and output
 3. Add unit tests in `NexusServiceTest.java`
 4. Add integration test in `NexusClientIntegrationTest.java`
-5. Add command in `Nexus.java` to expose functionality
+5. Add command in `JNexus.java` to expose functionality
 
 ### Modifying JSON Parsing
 - JSON response parsed via Jackson → Map → JSONObject
@@ -231,11 +231,11 @@ nexus.default.dryrun=true
 
 ### Artifacts
 - `nexus-1.0.jar`: Thin JAR (18KB, requires classpath)
-- `nexus-1.0-jar-with-dependencies.jar`: Fat JAR (2.7MB, standalone)
+- `jnexus-1.0-jar-with-dependencies.jar`: Fat JAR (2.7MB, standalone)
 
 ### Running
 ```bash
-java -jar target/nexus-1.0-jar-with-dependencies.jar [command] [options]
+java -jar target/jnexus-1.0-jar-with-dependencies.jar [command] [options]
 ```
 
 ## Future Enhancements (Not Yet Implemented)
@@ -263,7 +263,7 @@ java -jar target/nexus-1.0-jar-with-dependencies.jar [command] [options]
 ### Remote Debugging
 ```bash
 java -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=5005 \
-  -jar target/nexus-1.0-jar-with-dependencies.jar list my-repo
+  -jar target/jnexus-1.0-jar-with-dependencies.jar list my-repo
 ```
 
 ### Verbose Output
