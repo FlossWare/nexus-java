@@ -35,7 +35,8 @@ HTTP/Nexus API
 - **Nexus.java**: CLI parsing, user interaction, command routing
 - **NexusService.java**: Business logic, filtering, statistics, output formatting
 - **NexusClient.java**: HTTP communication, pagination, JSON parsing
-- **Credentials.java**: Configuration management (env vars → properties file)
+- **Credentials.java**: Configuration management (env vars → properties file) + optional UI defaults
+- **NexusUI.java**: Terminal UI using jcurses, pre-populated with default values from Credentials
 - **RepoRecord.java**: Immutable data model (Java record)
 
 ## Design Patterns
@@ -66,6 +67,29 @@ HTTP/Nexus API
 ### Authentication
 - HTTP Basic Auth via Authorization header
 - Base64 encoding: `Base64.getEncoder().encodeToString((user + ":" + password).getBytes())`
+
+### Configuration
+**Credentials.java** loads configuration from multiple sources:
+- **Required fields**: `nexus.url`, `nexus.user`, `nexus.password`
+  - Environment variables: `NEXUS_URL`, `NEXUS_USER`, `NEXUS_PASSWORD` (highest priority)
+  - Properties file: `~/.flossware/nexus/nexus.properties`
+- **Optional UI defaults**: `nexus.default.repository`, `nexus.default.regex`, `nexus.default.dryrun`
+  - Only loaded from properties file
+  - Pre-populate terminal UI fields on startup
+  - Empty strings and `true` used as defaults if not specified
+
+**Example properties file:**
+```properties
+# Required
+nexus.url=https://nexus.example.com
+nexus.user=admin
+nexus.password=secret
+
+# Optional UI defaults
+nexus.default.repository=maven-releases
+nexus.default.regex=.*SNAPSHOT.*
+nexus.default.dryrun=true
+```
 
 ### Error Handling
 - Service layer catches individual delete failures and continues processing

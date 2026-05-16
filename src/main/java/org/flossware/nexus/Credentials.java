@@ -29,6 +29,11 @@ public class Credentials {
     private final String user;
     private final String password;
 
+    // Optional UI defaults
+    private final String defaultRepository;
+    private final String defaultRegex;
+    private final boolean defaultDryRun;
+
     /**
      * Constructs a new Credentials instance by loading configuration from
      * environment variables or properties file.
@@ -45,11 +50,16 @@ public class Credentials {
         String user = System.getenv("NEXUS_USER");
         String password = System.getenv("NEXUS_PASSWORD");
 
+        // Load from properties file if any required field is missing
+        Properties props = new Properties();
         if (url == null || user == null || password == null) {
-            Properties props = loadPropertiesFile();
+            props = loadPropertiesFile();
             url = props.getProperty("nexus.url", url);
             user = props.getProperty("nexus.user", user);
             password = props.getProperty("nexus.password", password);
+        } else {
+            // Even if env vars are set, load properties for optional UI defaults
+            props = loadPropertiesFile();
         }
 
         if (url == null || url.isBlank()) {
@@ -73,6 +83,11 @@ public class Credentials {
         this.url = url;
         this.user = user;
         this.password = password;
+
+        // Load optional UI defaults from properties file
+        this.defaultRepository = props.getProperty("nexus.default.repository", "");
+        this.defaultRegex = props.getProperty("nexus.default.regex", "");
+        this.defaultDryRun = Boolean.parseBoolean(props.getProperty("nexus.default.dryrun", "true"));
     }
 
     /**
@@ -126,5 +141,32 @@ public class Credentials {
      */
     public String getPassword() {
         return password;
+    }
+
+    /**
+     * Gets the default repository name for the UI.
+     *
+     * @return the default repository name, or empty string if not configured
+     */
+    public String getDefaultRepository() {
+        return defaultRepository;
+    }
+
+    /**
+     * Gets the default regex filter for the UI.
+     *
+     * @return the default regex filter, or empty string if not configured
+     */
+    public String getDefaultRegex() {
+        return defaultRegex;
+    }
+
+    /**
+     * Gets the default dry-run mode for the UI.
+     *
+     * @return true if dry-run should be enabled by default, false otherwise
+     */
+    public boolean isDefaultDryRun() {
+        return defaultDryRun;
     }
 }

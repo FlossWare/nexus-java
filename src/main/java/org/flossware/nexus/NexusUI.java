@@ -44,6 +44,7 @@ public class NexusUI {
     // Services
     private static NexusClient client;
     private static NexusService service;
+    private static Credentials credentials;
 
     public static void main(String[] args) throws Throwable {
         if (!NcursesBridge.isAvailable()) {
@@ -57,7 +58,7 @@ public class NexusUI {
 
         try {
             // Initialize Nexus client
-            Credentials credentials = new Credentials();
+            credentials = new Credentials();
             client = new NexusClient(credentials);
             service = new NexusService(client);
         } catch (Exception e) {
@@ -114,7 +115,7 @@ public class NexusUI {
         repositoryField = new JTextField();
         repositoryField.setLocation(20, 7);
         repositoryField.setSize(40, 1);
-        repositoryField.setText("");
+        repositoryField.setText(credentials.getDefaultRepository());
         focusableComponents.add(repositoryField);
 
         // Regex filter field
@@ -125,14 +126,14 @@ public class NexusUI {
         regexField = new JTextField();
         regexField.setLocation(20, 9);
         regexField.setSize(40, 1);
-        regexField.setText("");
+        regexField.setText(credentials.getDefaultRegex());
         focusableComponents.add(regexField);
 
         // Dry run checkbox
         dryRunCheckbox = new JCheckbox("Dry Run (preview only)");
         dryRunCheckbox.setLocation(65, 9);
         dryRunCheckbox.setSize(30, 1);
-        dryRunCheckbox.setChecked(true);
+        dryRunCheckbox.setChecked(credentials.isDefaultDryRun());
         focusableComponents.add(dryRunCheckbox);
 
         // Buttons

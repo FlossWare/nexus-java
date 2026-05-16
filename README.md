@@ -58,7 +58,14 @@ export NEXUS_PASSWORD=your-password-or-token
    nexus.url=https://your-nexus-server.com
    nexus.user=your-username
    nexus.password=your-password-or-token
+   
+   # Optional: UI default values (uncomment to use)
+   #nexus.default.repository=maven-releases
+   #nexus.default.regex=.*SNAPSHOT.*
+   #nexus.default.dryrun=true
    ```
+   
+   The optional defaults will pre-populate the terminal UI fields on startup.
 
 ## Usage
 

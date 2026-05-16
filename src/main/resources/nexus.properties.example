@@ -1,11 +1,20 @@
 # Nexus Configuration
 # Copy this file to ~/.flossware/nexus/nexus.properties and update with your credentials
 
-# Nexus server URL (without trailing slash)
+# Required: Nexus server URL (without trailing slash)
 nexus.url=https://your-nexus-server.com
 
-# Nexus username
+# Required: Nexus username
 nexus.user=your-username
 
-# Nexus password or token
+# Required: Nexus password or token
 nexus.password=your-password-or-token
+
+# Optional: Default repository name for UI
+#nexus.default.repository=maven-releases
+
+# Optional: Default regex filter for UI
+#nexus.default.regex=.*SNAPSHOT.*
+
+# Optional: Default dry-run mode for UI (true/false)
+#nexus.default.dryrun=true

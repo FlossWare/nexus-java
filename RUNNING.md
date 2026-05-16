@@ -31,6 +31,21 @@ cp src/main/resources/nexus.properties.example ~/.flossware/nexus/nexus.properti
 nano ~/.flossware/nexus/nexus.properties
 ```
 
+The properties file also supports optional UI defaults:
+```properties
+# Required credentials
+nexus.url=https://your-nexus-server.com
+nexus.user=your-username
+nexus.password=your-password
+
+# Optional UI defaults (uncomment to use)
+nexus.default.repository=maven-releases
+nexus.default.regex=.*SNAPSHOT.*
+nexus.default.dryrun=true
+```
+
+When configured, the terminal UI will pre-populate these values on startup.
+
 ### 3. For Terminal UI: Install ncurses
 
 **Ubuntu/Debian:**
