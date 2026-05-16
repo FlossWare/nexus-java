@@ -1,191 +1,200 @@
 package org.flossware.nexus;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import org.json.JSONArray;
-import org.json.JSONObject;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.CommandLineRunner;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.web.client.RestTemplateBuilder;
-import org.springframework.context.annotation.Bean;
-import org.springframework.web.client.RestTemplate;
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.Parameters;
 
-@SpringBootApplication
-public class Nexus {
+import java.util.concurrent.Callable;
 
-    @Autowired
-    Credentials creds;
+/**
+ * Command-line interface for interacting with Sonatype Nexus repositories.
+ * <p>
+ * This is the main entry point for the Nexus CLI tool. It provides two subcommands:
+ * </p>
+ * <ul>
+ *   <li><strong>list</strong> - List components in a repository with optional filtering</li>
+ *   <li><strong>delete</strong> - Delete components from a repository with safety features</li>
+ * </ul>
+ * <p>
+ * The tool uses Picocli for command-line parsing and supports standard help and version options.
+ * </p>
+ *
+ * @author sfloess
+ * @since 1.0
+ */
+@Command(
+    name = "nexus",
+    description = "CLI tool for interacting with Sonatype Nexus repositories",
+    mixinStandardHelpOptions = true,
+    version = "nexus 1.0",
+    subcommands = {
+        Nexus.ListCommand.class,
+        Nexus.DeleteCommand.class
+    }
+)
+public class Nexus implements Callable<Integer> {
 
-    void queryRepoItems(final JSONArray items, final List<RepoRecord> repoRecords) {
-        for (int item = 0; item < items.length(); item++) {
-            final String id = items.getJSONObject(item).getString("id");
-            final JSONArray assets = items.getJSONObject(item).getJSONArray("assets");
-
-            repoRecords.add(new RepoRecord(id, assets.getJSONObject(0).getInt("fileSize"), assets.getJSONObject(0).getString("path")));
-        }
+    /**
+     * Executes when the tool is run without a subcommand.
+     * Displays usage information.
+     *
+     * @return exit code 0
+     */
+    @Override
+    public Integer call() {
+        CommandLine.usage(this, System.out);
+        return 0;
     }
 
-    String queryRepoForUrl(final RestTemplate rest, final String url, final List<RepoRecord> repoRecords) throws Exception {
-        System.out.println("URL:  " + url);
+    /**
+     * Subcommand for listing components in a Nexus repository.
+     * <p>
+     * Lists all components in the specified repository, or only those matching
+     * the optional regex filter pattern. Displays component ID, file size, and path.
+     * </p>
+     */
+    @Command(
+        name = "list",
+        description = "List components in a Nexus repository"
+    )
+    static class ListCommand implements Callable<Integer> {
+        @Parameters(index = "0", description = "Repository name")
+        private String repository;
 
-        ObjectMapper mapper = new ObjectMapper();
-        Map<String, Object> map = mapper.readValue(rest.getForObject(url, String.class), new TypeReference<Map<String,Object>>(){});
+        @Parameters(index = "1", arity = "0..1", description = "Optional regex filter for component paths")
+        private String regexFilter;
 
+        /**
+         * Executes the list command.
+         * <p>
+         * Loads credentials, creates client and service instances, and lists
+         * components from the specified repository.
+         * </p>
+         *
+         * @return exit code: 0 for success, 1 for error
+         */
+        @Override
+        public Integer call() {
+            try {
+                Credentials credentials = new Credentials();
+                NexusClient client = new NexusClient(credentials);
+                NexusService service = new NexusService(client);
 
-//        final JSONObject repoJson = new JSONObject(rest.getForObject(url, String.class));
-        final JSONObject repoJson = new JSONObject(map);
+                System.out.println("Listing components in repository: " + repository);
+                if (regexFilter != null) {
+                    System.out.println("Filter: " + regexFilter);
+                }
+                System.out.println();
 
-        JSONArray items = repoJson.getJSONArray("items");
-
-        for (int item = 0; item < items.length(); item++) {
-            final String id = items.getJSONObject(item).getString("id");
-            final JSONArray assets = items.getJSONObject(item).getJSONArray("assets");
-
-            repoRecords.add(new RepoRecord(id, assets.getJSONObject(0).getInt("fileSize"), assets.getJSONObject(0).getString("path")));
-        }
-
-        return repoJson.isNull("continuationToken") ? null : repoJson.getString("continuationToken");
-    }
-
-    List<RepoRecord> queryRepo(final RestTemplate rest, final String repo) throws Exception {
-        final String baseUrl = creds.getUrl() + "/service/rest/v1/components?repository=" + repo;
-        String url = baseUrl;
-
-        String continuousToken = "";
-
-        List<RepoRecord> repoRecords = new LinkedList<>();
-
-        while(continuousToken != null) {
-            continuousToken = queryRepoForUrl(rest, url, repoRecords);
-
-            url = baseUrl + "&continuationToken=" + continuousToken;
-        }
-
-        return repoRecords;
-    }
-
-    void list(final RestTemplate rest, final String repo) throws Exception {
-        final List<RepoRecord> repoRecords = queryRepo(rest, repo);
-
-        long fileSize = 0;
-
-        for (RepoRecord repoRecord : repoRecords) {
-            System.out.printf("%s  %15d  %s\n", repoRecord.id(), repoRecord.fileSize(), repoRecord.path());
-
-            fileSize += repoRecord.fileSize();
-        }
-
-        System.out.println("\n\nTotal components:  " + repoRecords.size());
-        System.out.println("Total size:        " + fileSize + "\n\n");
-    }
-
-    void listWithFilter(final RestTemplate rest, final String repo, final String regEx) throws Exception {
-        final List<RepoRecord> repoRecords = queryRepo(rest, repo);
-
-        int matches = 0;
-        long fileSize = 0;
-
-        for (RepoRecord repoRecord : repoRecords) {
-            if (repoRecord.path().matches(regEx)) {
-                System.out.printf("%s  %15d  %s\n", repoRecord.id(), repoRecord.fileSize(), repoRecord.path());
-                matches++;
-
-                fileSize += repoRecord.fileSize();
+                service.listRepository(repository, regexFilter);
+                return 0;
+            } catch (Exception e) {
+                System.err.println("Error: " + e.getMessage());
+                e.printStackTrace();
+                return 1;
             }
         }
-
-
-        System.out.println("\n\nTotal components:  " + repoRecords.size());
-        System.out.println("Matches:           " + matches);
-        System.out.println("Total size:        " + fileSize + "\n\n");
     }
 
-    void delete(final RestTemplate rest, final String repo) throws Exception {
-        final String baseUrl = creds.getUrl() + "/service/rest/v1/components/";
+    /**
+     * Subcommand for deleting components from a Nexus repository.
+     * <p>
+     * Deletes components from the specified repository, with optional filtering
+     * and safety features including:
+     * </p>
+     * <ul>
+     *   <li>Confirmation prompts (unless --yes is used)</li>
+     *   <li>Dry-run mode to preview deletions (--dry-run)</li>
+     *   <li>Regex filtering to target specific components</li>
+     * </ul>
+     */
+    @Command(
+        name = "delete",
+        description = "Delete components from a Nexus repository"
+    )
+    static class DeleteCommand implements Callable<Integer> {
+        @Parameters(index = "0", description = "Repository name")
+        private String repository;
 
-        int total = 0;
-        long fileSize = 0;
+        @Parameters(index = "1", arity = "0..1", description = "Optional regex filter for component paths to delete")
+        private String regexFilter;
 
-        for (RepoRecord repoRecord : queryRepo(rest, repo)) {
-            System.out.println("Deleting [" + repoRecord.path() + "] -> " + baseUrl + repoRecord.id());
-            rest.delete(baseUrl + repoRecord.id());
+        @Option(
+            names = {"-n", "--dry-run"},
+            description = "Show what would be deleted without actually deleting"
+        )
+        private boolean dryRun;
 
-            total++;
-            fileSize += repoRecord.fileSize();
-        }
+        @Option(
+            names = {"-y", "--yes"},
+            description = "Skip confirmation prompt"
+        )
+        private boolean skipConfirmation;
 
-        System.out.println("\n\nTotal deleted:  " + total);
-        System.out.println("Total size:    " + fileSize + "\n\n");
-    }
+        /**
+         * Executes the delete command.
+         * <p>
+         * Prompts for confirmation (unless --yes or --dry-run), loads credentials,
+         * creates client and service instances, and deletes components from the
+         * specified repository.
+         * </p>
+         *
+         * @return exit code: 0 for success or user cancellation, 1 for error
+         */
+        @Override
+        public Integer call() {
+            try {
+                if (!dryRun && !skipConfirmation) {
+                    System.out.println("WARNING: This will permanently delete components from repository: " + repository);
+                    if (regexFilter != null) {
+                        System.out.println("Filter: " + regexFilter);
+                    }
+                    System.out.print("Are you sure? (yes/no): ");
+                    String confirmation = System.console() != null
+                        ? System.console().readLine()
+                        : new java.util.Scanner(System.in).nextLine();
 
-    void deleteWithFilter(final RestTemplate rest, final String repo, final String regEx) throws Exception {
-        final String baseUrl = creds.getUrl() + "/service/rest/v1/components/";
+                    if (!"yes".equalsIgnoreCase(confirmation)) {
+                        System.out.println("Cancelled.");
+                        return 0;
+                    }
+                }
 
-        int total = 0;
-        long fileSize = 0;
+                Credentials credentials = new Credentials();
+                NexusClient client = new NexusClient(credentials);
+                NexusService service = new NexusService(client);
 
-        for (RepoRecord repoRecord : queryRepo(rest, repo)) {
-            if (repoRecord.path().matches(regEx)) {
-                System.out.println("Deleting [" + repoRecord.path() + "]");
-                rest.delete(baseUrl + repoRecord.id());
+                if (dryRun) {
+                    System.out.println("DRY RUN - No components will be deleted");
+                }
+                System.out.println("Repository: " + repository);
+                if (regexFilter != null) {
+                    System.out.println("Filter: " + regexFilter);
+                }
+                System.out.println();
 
-                total++;
-                fileSize += repoRecord.fileSize();
+                service.deleteFromRepository(repository, regexFilter, dryRun);
+                return 0;
+            } catch (Exception e) {
+                System.err.println("Error: " + e.getMessage());
+                e.printStackTrace();
+                return 1;
             }
         }
-
-        System.out.println("\n\nTotal deleted: " + total);
-        System.out.println("Total size:    " + fileSize + "\n\n");
     }
 
-    @Bean
-    public RestTemplate restTemplate(final RestTemplateBuilder builder) {
-            return builder.basicAuthentication(creds.getUser(), creds.getPassword()).build();
-    }
-
-    @Bean
-    public CommandLineRunner run(final RestTemplate restTemplate) throws Exception {
-            return args -> {
-                if (0 == args.length) {
-                    System.err.println("Provide command line args!");
-                    System.exit(1);
-                }
-
-                switch (args[0]) {
-                    case "list":
-                        System.out.println("Listing...");
-
-                        if (2 == args.length) {
-                            list(restTemplate, args[1]);
-                        } else {
-                            listWithFilter(restTemplate, args[1], args[2]);
-                        }
-
-                        break;
-
-                    case "delete":
-                        System.out.println("Deleting...");
-
-                        if (2 == args.length) {
-                            delete(restTemplate, args[1]);
-                        } else {
-                            deleteWithFilter(restTemplate, args[1], args[2]);
-                        }
-
-                        break;
-
-                    default:
-                        ;
-                }
-            };
-    }
-
-    public static void main(final String[] args) {
-        SpringApplication.run(Nexus.class, args);
+    /**
+     * Main entry point for the Nexus CLI tool.
+     * <p>
+     * Parses command-line arguments using Picocli and executes the appropriate
+     * subcommand. The exit code from the command is used as the process exit code.
+     * </p>
+     *
+     * @param args command-line arguments
+     */
+    public static void main(String[] args) {
+        int exitCode = new CommandLine(new Nexus()).execute(args);
+        System.exit(exitCode);
     }
 }

@@ -1,0 +1,120 @@
+# GitLab CI/CD Configuration for Nexus CLI
+# Runs on push to main branch, builds, tests, and deploys
+
+image: maven:3.9-eclipse-temurin-21
+
+variables:
+  MAVEN_OPTS: "-Dmaven.repo.local=.m2/repository"
+  MAVEN_CLI_OPTS: "--batch-mode --errors --fail-at-end --show-version"
+
+# Cache Maven dependencies
+cache:
+  paths:
+    - .m2/repository/
+
+stages:
+  - build
+  - test
+  - deploy
+  - release
+
+# Only run on main branch and skip if commit is from version bump
+workflow:
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main" && $CI_COMMIT_AUTHOR_EMAIL != "version-bump@flossware.org"'
+
+before_script:
+  - apt-get update -qq
+  - apt-get install -y git
+  # Configure git for version bumping
+  - git config --global user.name "Version Bump"
+  - git config --global user.email "version-bump@flossware.org"
+  # Prepare Maven settings for packagecloud
+  - mkdir -p ~/.m2
+  - |
+    cat > ~/.m2/settings.xml << 'EOF'
+    <settings>
+      <servers>
+        <server>
+          <id>packagecloud-flossware</id>
+          <configuration>
+            <httpHeaders>
+              <property>
+                <name>Authorization</name>
+                <value>Bearer ${PACKAGECLOUD_TOKEN}</value>
+              </property>
+            </httpHeaders>
+          </configuration>
+        </server>
+      </servers>
+    </settings>
+    EOF
+
+# Build stage
+build:
+  stage: build
+  script:
+    - mvn $MAVEN_CLI_OPTS clean compile
+  artifacts:
+    paths:
+      - target/
+    expire_in: 1 hour
+
+# Test stage
+test:
+  stage: test
+  script:
+    - mvn $MAVEN_CLI_OPTS test
+  artifacts:
+    when: always
+    reports:
+      junit:
+        - target/surefire-reports/TEST-*.xml
+    paths:
+      - target/surefire-reports/
+    expire_in: 1 week
+  coverage: '/Total.*?([0-9]{1,3})%/'
+
+# Package stage
+package:
+  stage: build
+  script:
+    - mvn $MAVEN_CLI_OPTS package -DskipTests
+  artifacts:
+    paths:
+      - target/*.jar
+    expire_in: 1 week
+
+# Deploy to packagecloud
+deploy:
+  stage: deploy
+  dependencies:
+    - package
+  script:
+    # Increment version
+    - mvn -U build-helper:parse-version versions:set -DnewVersion=\${parsedVersion.majorVersion}.\${parsedVersion.nextMinorVersion} versions:commit
+    # Deploy to packagecloud
+    - mvn $MAVEN_CLI_OPTS deploy -DskipTests
+  only:
+    - main
+  when: manual
+
+# Tag and release
+release:
+  stage: release
+  dependencies: []
+  script:
+    # Increment version
+    - mvn -U build-helper:parse-version versions:set -DnewVersion=\${parsedVersion.majorVersion}.\${parsedVersion.nextMinorVersion} versions:commit
+    # Commit version change
+    - git add pom.xml
+    - NEW_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+    - git commit -m "chore: bump version to ${NEW_VERSION} [ci skip]"
+    # Create tag
+    - git tag -a "v${NEW_VERSION}" -m "Release version ${NEW_VERSION}"
+    # Push changes (requires CI_PUSH_TOKEN with write access)
+    - git push https://oauth2:${CI_PUSH_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git HEAD:main
+    - git push https://oauth2:${CI_PUSH_TOKEN}@${CI_SERVER_HOST}/${CI_PROJECT_PATH}.git "v${NEW_VERSION}"
+  only:
+    - main
+  when: manual

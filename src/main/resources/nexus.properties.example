@@ -1,0 +1,11 @@
+# Nexus Configuration
+# Copy this file to ~/.flossware/nexus/nexus.properties and update with your credentials
+
+# Nexus server URL (without trailing slash)
+nexus.url=https://your-nexus-server.com
+
+# Nexus username
+nexus.user=your-username
+
+# Nexus password or token
+nexus.password=your-password-or-token
