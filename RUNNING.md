@@ -1,0 +1,258 @@
+# Running Nexus CLI
+
+This guide explains how to run the different interfaces of the Nexus CLI tool.
+
+## Prerequisites
+
+### 1. Build the Project
+
+```bash
+./mvnw clean package
+```
+
+This creates `target/nexus-1.0-jar-with-dependencies.jar`.
+
+### 2. Configure Credentials
+
+Choose one of these methods:
+
+**Environment Variables:**
+```bash
+export NEXUS_URL=https://your-nexus-server.com
+export NEXUS_USER=your-username
+export NEXUS_PASSWORD=your-password
+```
+
+**Properties File:**
+```bash
+mkdir -p ~/.flossware/nexus
+cp src/main/resources/nexus.properties.example ~/.flossware/nexus/nexus.properties
+# Edit the file with your credentials
+nano ~/.flossware/nexus/nexus.properties
+```
+
+### 3. For Terminal UI: Install ncurses
+
+**Ubuntu/Debian:**
+```bash
+sudo apt-get install libncurses-dev
+```
+
+**Fedora/RHEL:**
+```bash
+sudo dnf install ncurses-devel
+```
+
+**Arch Linux:**
+```bash
+sudo pacman -S ncurses
+```
+
+## Running the Terminal UI
+
+The terminal UI provides an interactive full-screen interface:
+
+```bash
+./nexus-ui.sh
+```
+
+### Terminal UI Controls
+
+| Key | Action |
+|-----|--------|
+| `TAB` | Move to next field/button |
+| `Shift+TAB` or `↑` | Move to previous field/button |
+| `↓` | Move to next field/button |
+| `SPACE` or `ENTER` | Activate focused button or toggle checkbox |
+| Type directly | Enter text in focused text field |
+| `Backspace` | Delete character in text field |
+| `Q` or `ESC` | Quit application |
+
+### Terminal UI Layout
+
+```
+┌─────────────────────────────────────────────────────────┐
+│ Nexus Repository Manager                                │
+│                                                          │
+│ Repository:  [________________]                          │
+│                                                          │
+│ Regex Filter: [________________]  [✓] Dry Run           │
+│                                                          │
+│ [List Components] [Delete Components] [Clear] [Quit]    │
+│                                                          │
+│ Status: Ready                                            │
+│                                                          │
+│ Results:                                                 │
+│ ┌────────────────────────────────────────────────────┐  │
+│ │ (Output appears here)                              │  │
+│ └────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Using the Terminal UI
+
+1. **Start the application:**
+   ```bash
+   ./nexus-ui.sh
+   ```
+
+2. **Navigate to the Repository field** (use TAB)
+
+3. **Type the repository name** (e.g., `maven-snapshots`)
+
+4. **Optionally, enter a regex filter** (e.g., `.*SNAPSHOT.*`)
+
+5. **Choose your operation:**
+   - TAB to "List Components" and press SPACE → Shows components
+   - TAB to "Delete Components" and press SPACE → Deletes (or previews with dry-run)
+
+6. **Check the Dry Run checkbox** (enabled by default) to preview deletions safely
+
+7. **View results** in the Results panel
+
+8. **Press Q or ESC** to quit
+
+## Running the Command-Line Interface (CLI)
+
+For scripting and automation, use the CLI:
+
+### Using the wrapper script
+
+```bash
+./nexus.sh <command> [options]
+```
+
+### Direct JAR execution
+
+```bash
+java -jar target/nexus-1.0-jar-with-dependencies.jar <command> [options]
+```
+
+### CLI Commands
+
+#### List components
+
+List all components in a repository:
+```bash
+./nexus.sh list my-repository
+```
+
+List components matching a regex pattern:
+```bash
+./nexus.sh list my-repository ".*SNAPSHOT.*"
+```
+
+#### Delete components
+
+**Always use --dry-run first!**
+
+Preview what would be deleted:
+```bash
+./nexus.sh delete --dry-run my-repository
+```
+
+Delete all components in a repository (with confirmation):
+```bash
+./nexus.sh delete my-repository
+```
+
+Delete components matching a regex pattern:
+```bash
+./nexus.sh delete my-repository ".*-1\.0\.0-SNAPSHOT.*"
+```
+
+Skip confirmation prompt:
+```bash
+./nexus.sh delete --yes my-repository ".*SNAPSHOT.*"
+```
+
+### CLI Options
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--help` | `-h` | Show help message |
+| `--version` | `-V` | Show version information |
+| `--dry-run` | `-n` | (Delete only) Preview deletions without executing |
+| `--yes` | `-y` | (Delete only) Skip confirmation prompt |
+
+### CLI Examples
+
+```bash
+# List all snapshots
+./nexus.sh list releases ".*SNAPSHOT.*"
+
+# Preview deletion
+./nexus.sh delete --dry-run snapshots ".*-2023.*"
+
+# Delete with confirmation
+./nexus.sh delete snapshots ".*-1\.0\..*-SNAPSHOT.*"
+
+# Automated deletion (use with caution!)
+./nexus.sh delete --yes old-repository
+```
+
+## Troubleshooting
+
+### Terminal UI Issues
+
+**Error: "ncurses library is not available!"**
+- Install ncurses development library (see Prerequisites above)
+
+**Error: "Failed to initialize Nexus client"**
+- Check credentials configuration
+- Verify NEXUS_URL, NEXUS_USER, NEXUS_PASSWORD are set
+- Or verify ~/.flossware/nexus/nexus.properties exists and is valid
+
+**Terminal display is garbled:**
+- Try resizing terminal to at least 120x40 characters
+- Check terminal emulator supports ncurses (most do)
+
+**Can't type in text fields:**
+- Make sure the field is focused (use TAB to navigate)
+- The focused field will have `>` and `<` markers
+
+### CLI Issues
+
+**Error: "Could not find or load main class"**
+- Run `./mvnw clean package` to rebuild
+- Verify `target/nexus-1.0-jar-with-dependencies.jar` exists
+
+**Error: "Connection refused" or "Unknown host"**
+- Verify NEXUS_URL is correct and accessible
+- Check network connectivity to Nexus server
+
+**Error: "401 Unauthorized"**
+- Verify NEXUS_USER and NEXUS_PASSWORD are correct
+- Check that user has appropriate permissions in Nexus
+
+## Advanced Usage
+
+### Running UI with custom Java options
+
+```bash
+java --enable-preview --enable-native-access=ALL-UNNAMED \
+    -Xmx512m \
+    -cp target/nexus-1.0-jar-with-dependencies.jar \
+    org.flossware.nexus.NexusUI
+```
+
+### Running CLI with custom Java options
+
+```bash
+java -Xmx512m \
+    -jar target/nexus-1.0-jar-with-dependencies.jar \
+    list my-repository
+```
+
+### Override credentials via environment for single command
+
+```bash
+NEXUS_URL=https://other-nexus.com \
+NEXUS_USER=admin \
+NEXUS_PASSWORD=secret \
+./nexus.sh list test-repo
+```
+
+## Questions?
+
+See [README.md](README.md) for general information or [CONTRIBUTING.md](CONTRIBUTING.md) for development details.

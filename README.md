@@ -59,13 +59,44 @@ export NEXUS_PASSWORD=your-password-or-token
 
 ## Usage
 
-### Using the wrapper script
+The Nexus CLI provides two interfaces: a command-line interface (CLI) and an interactive terminal UI.
+
+### Terminal UI (Interactive)
+
+The terminal UI provides a full-screen ncurses interface for interacting with Nexus:
+
+```bash
+./nexus-ui.sh
+```
+
+**Requirements:**
+- ncurses library installed:
+  - Ubuntu/Debian: `sudo apt-get install libncurses-dev`
+  - Fedora/RHEL: `sudo dnf install ncurses-devel`
+  - Arch: `sudo pacman -S ncurses`
+
+**Controls:**
+- `TAB` / Arrow keys: Navigate between fields
+- `SPACE` / `ENTER`: Activate buttons or toggle checkboxes
+- Type directly in text fields
+- `Q` / `ESC`: Quit
+
+**Features:**
+- Repository name and regex filter inputs
+- Dry-run checkbox for safe preview of deletions
+- List and Delete buttons for operations
+- Live results display
+- Status messages
+
+### Command-Line Interface (CLI)
+
+For scripting and automation, use the traditional CLI:
 
 ```bash
 ./nexus.sh <command> [options]
 ```
 
-### Direct JAR execution
+Or execute the JAR directly:
 
 ```bash
 java -jar target/nexus-1.0-jar-with-dependencies.jar <command> [options]
