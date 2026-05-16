@@ -32,6 +32,7 @@ public class NexusService {
      * Fetches all components from the repository and displays them to stdout.
      * If a regex filter is provided, only matching components are displayed,
      * but statistics include the total count of all components.
+     * Uses cached results if available.
      * </p>
      *
      * @param repository  the name of the repository to list from
@@ -40,7 +41,25 @@ public class NexusService {
      * @throws InterruptedException if the operation is interrupted
      */
     public void listRepository(String repository, String regexFilter) throws IOException, InterruptedException {
-        List<RepoRecord> allRecords = client.listComponents(repository);
+        listRepository(repository, regexFilter, false);
+    }
+
+    /**
+     * Lists components in a repository with optional cache refresh.
+     * <p>
+     * Fetches all components from the repository and displays them to stdout.
+     * If a regex filter is provided, only matching components are displayed,
+     * but statistics include the total count of all components.
+     * </p>
+     *
+     * @param repository  the name of the repository to list from
+     * @param regexFilter optional regex pattern to filter component paths (null for no filter)
+     * @param forceRefresh if true, bypasses cache and fetches fresh data
+     * @throws IOException          if an HTTP error occurs
+     * @throws InterruptedException if the operation is interrupted
+     */
+    public void listRepository(String repository, String regexFilter, boolean forceRefresh) throws IOException, InterruptedException {
+        List<RepoRecord> allRecords = client.listComponents(repository, forceRefresh);
 
         List<RepoRecord> filteredRecords = regexFilter == null
             ? allRecords
@@ -58,6 +77,7 @@ public class NexusService {
      * Fetches all components from the repository and deletes those that match the filter
      * (or all if no filter is specified). In dry-run mode, components that would be
      * deleted are displayed but no actual deletion occurs.
+     * Always fetches fresh data (bypasses cache) since repository state may have changed.
      * </p>
      * <p>
      * If deletion of individual components fails, the error is logged to stderr and
@@ -72,7 +92,8 @@ public class NexusService {
      */
     public void deleteFromRepository(String repository, String regexFilter, boolean dryRun)
             throws IOException, InterruptedException {
-        List<RepoRecord> allRecords = client.listComponents(repository);
+        // Always refresh for delete operations to get current state
+        List<RepoRecord> allRecords = client.listComponents(repository, true);
 
         List<RepoRecord> recordsToDelete = regexFilter == null
             ? allRecords
@@ -100,9 +121,42 @@ public class NexusService {
                 }
             }
             System.out.println("\nDeleted " + deleted + " of " + recordsToDelete.size() + " components");
+
+            // Clear cache after deletion since repository changed
+            client.clearCache(repository);
         }
 
         printStatistics(allRecords.size(), recordsToDelete);
+    }
+
+    /**
+     * Gets cache status for a repository.
+     *
+     * @param repository the repository name
+     * @return cache status string
+     */
+    public String getCacheStatus(String repository) {
+        if (client.isCached(repository)) {
+            long age = client.getCacheAge(repository);
+            return String.format("Cached (%ds old)", age);
+        }
+        return "Not cached";
+    }
+
+    /**
+     * Clears cache for a specific repository.
+     *
+     * @param repository the repository name
+     */
+    public void clearCache(String repository) {
+        client.clearCache(repository);
+    }
+
+    /**
+     * Clears all cached data.
+     */
+    public void clearAllCache() {
+        client.clearAllCache();
     }
 
     /**

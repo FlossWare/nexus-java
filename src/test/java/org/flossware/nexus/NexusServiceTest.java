@@ -12,7 +12,7 @@ import java.io.PrintStream;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -40,11 +40,11 @@ class NexusServiceTest {
             new RepoRecord("id2", 2000, "path/to/artifact2.jar")
         );
 
-        when(mockClient.listComponents("test-repo")).thenReturn(mockRecords);
+        when(mockClient.listComponents(eq("test-repo"), anyBoolean())).thenReturn(mockRecords);
 
         service.listRepository("test-repo", null);
 
-        verify(mockClient, times(1)).listComponents("test-repo");
+        verify(mockClient, times(1)).listComponents(eq("test-repo"), anyBoolean());
         String output = outputStream.toString();
         assertTrue(output.contains("artifact1.jar"));
         assertTrue(output.contains("artifact2.jar"));
@@ -59,11 +59,11 @@ class NexusServiceTest {
             new RepoRecord("id3", 3000, "path/to/artifact-2.0.0.jar")
         );
 
-        when(mockClient.listComponents("test-repo")).thenReturn(mockRecords);
+        when(mockClient.listComponents(eq("test-repo"), anyBoolean())).thenReturn(mockRecords);
 
         service.listRepository("test-repo", ".*SNAPSHOT.*");
 
-        verify(mockClient, times(1)).listComponents("test-repo");
+        verify(mockClient, times(1)).listComponents(eq("test-repo"), anyBoolean());
         String output = outputStream.toString();
         assertFalse(output.contains("artifact-1.0.0.jar"));
         assertTrue(output.contains("SNAPSHOT"));
@@ -76,11 +76,11 @@ class NexusServiceTest {
             new RepoRecord("id1", 1000, "path/to/artifact1.jar")
         );
 
-        when(mockClient.listComponents("test-repo")).thenReturn(mockRecords);
+        when(mockClient.listComponents(eq("test-repo"), anyBoolean())).thenReturn(mockRecords);
 
         service.deleteFromRepository("test-repo", null, true);
 
-        verify(mockClient, times(1)).listComponents("test-repo");
+        verify(mockClient, times(1)).listComponents(eq("test-repo"), anyBoolean());
         verify(mockClient, never()).deleteComponent(anyString());
 
         String output = outputStream.toString();
@@ -94,12 +94,12 @@ class NexusServiceTest {
             new RepoRecord("id2", 2000, "path/to/artifact2.jar")
         );
 
-        when(mockClient.listComponents("test-repo")).thenReturn(mockRecords);
+        when(mockClient.listComponents(eq("test-repo"), anyBoolean())).thenReturn(mockRecords);
         doNothing().when(mockClient).deleteComponent(anyString());
 
         service.deleteFromRepository("test-repo", null, false);
 
-        verify(mockClient, times(1)).listComponents("test-repo");
+        verify(mockClient, times(1)).listComponents(eq("test-repo"), anyBoolean());
         verify(mockClient, times(1)).deleteComponent("id1");
         verify(mockClient, times(1)).deleteComponent("id2");
 
@@ -115,12 +115,12 @@ class NexusServiceTest {
             new RepoRecord("id2", 2000, "path/to/artifact-SNAPSHOT.jar")
         );
 
-        when(mockClient.listComponents("test-repo")).thenReturn(mockRecords);
+        when(mockClient.listComponents(eq("test-repo"), anyBoolean())).thenReturn(mockRecords);
         doNothing().when(mockClient).deleteComponent(anyString());
 
         service.deleteFromRepository("test-repo", ".*SNAPSHOT.*", false);
 
-        verify(mockClient, times(1)).listComponents("test-repo");
+        verify(mockClient, times(1)).listComponents(eq("test-repo"), anyBoolean());
         verify(mockClient, times(1)).deleteComponent("id2");
         verify(mockClient, never()).deleteComponent("id1");
     }
@@ -131,11 +131,11 @@ class NexusServiceTest {
             new RepoRecord("id1", 1000, "path/to/artifact.jar")
         );
 
-        when(mockClient.listComponents("test-repo")).thenReturn(mockRecords);
+        when(mockClient.listComponents(eq("test-repo"), anyBoolean())).thenReturn(mockRecords);
 
         service.deleteFromRepository("test-repo", ".*SNAPSHOT.*", false);
 
-        verify(mockClient, times(1)).listComponents("test-repo");
+        verify(mockClient, times(1)).listComponents(eq("test-repo"), anyBoolean());
         verify(mockClient, never()).deleteComponent(anyString());
 
         String output = outputStream.toString();

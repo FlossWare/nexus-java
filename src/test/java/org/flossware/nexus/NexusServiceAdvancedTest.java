@@ -14,7 +14,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -48,11 +48,11 @@ class NexusServiceAdvancedTest {
 
     @Test
     void testListRepositoryWithEmptyResults() throws IOException, InterruptedException {
-        when(mockClient.listComponents("empty-repo")).thenReturn(new ArrayList<>());
+        when(mockClient.listComponents(eq("empty-repo"), anyBoolean())).thenReturn(new ArrayList<>());
 
         service.listRepository("empty-repo", null);
 
-        verify(mockClient, times(1)).listComponents("empty-repo");
+        verify(mockClient, times(1)).listComponents(eq("empty-repo"), anyBoolean());
         String output = outputStream.toString();
         assertTrue(output.contains("Total components in repository: 0"));
     }
@@ -64,7 +64,7 @@ class NexusServiceAdvancedTest {
             new RepoRecord("id2", 2000, "com/example/artifact-2.0.0.jar")
         );
 
-        when(mockClient.listComponents("test-repo")).thenReturn(mockRecords);
+        when(mockClient.listComponents(eq("test-repo"), anyBoolean())).thenReturn(mockRecords);
 
         service.listRepository("test-repo", ".*SNAPSHOT.*");
 
@@ -83,7 +83,7 @@ class NexusServiceAdvancedTest {
             new RepoRecord("id4", 4000, "com/other/lib-2.0.0-SNAPSHOT.jar")
         );
 
-        when(mockClient.listComponents("test-repo")).thenReturn(mockRecords);
+        when(mockClient.listComponents(eq("test-repo"), anyBoolean())).thenReturn(mockRecords);
 
         service.listRepository("test-repo", "com/example/.*-SNAPSHOT.*");
 
@@ -96,23 +96,23 @@ class NexusServiceAdvancedTest {
 
     @Test
     void testListRepositoryIOException() throws IOException, InterruptedException {
-        when(mockClient.listComponents("error-repo"))
+        when(mockClient.listComponents(eq("error-repo"), anyBoolean()))
             .thenThrow(new IOException("Network error"));
 
         assertThrows(IOException.class, () -> {
             service.listRepository("error-repo", null);
         });
 
-        verify(mockClient, times(1)).listComponents("error-repo");
+        verify(mockClient, times(1)).listComponents(eq("error-repo"), anyBoolean());
     }
 
     @Test
     void testDeleteFromRepositoryWithEmptyResults() throws IOException, InterruptedException {
-        when(mockClient.listComponents("empty-repo")).thenReturn(new ArrayList<>());
+        when(mockClient.listComponents(eq("empty-repo"), anyBoolean())).thenReturn(new ArrayList<>());
 
         service.deleteFromRepository("empty-repo", null, false);
 
-        verify(mockClient, times(1)).listComponents("empty-repo");
+        verify(mockClient, times(1)).listComponents(eq("empty-repo"), anyBoolean());
         verify(mockClient, never()).deleteComponent(anyString());
 
         String output = outputStream.toString();
@@ -127,7 +127,7 @@ class NexusServiceAdvancedTest {
             new RepoRecord("id3", 3000, "artifact3.jar")
         );
 
-        when(mockClient.listComponents("test-repo")).thenReturn(mockRecords);
+        when(mockClient.listComponents(eq("test-repo"), anyBoolean())).thenReturn(mockRecords);
         doNothing().when(mockClient).deleteComponent("id1");
         doThrow(new IOException("Delete failed")).when(mockClient).deleteComponent("id2");
         doNothing().when(mockClient).deleteComponent("id3");
@@ -153,11 +153,11 @@ class NexusServiceAdvancedTest {
             new RepoRecord("id3", 3000, "artifact3.jar")
         );
 
-        when(mockClient.listComponents("test-repo")).thenReturn(mockRecords);
+        when(mockClient.listComponents(eq("test-repo"), anyBoolean())).thenReturn(mockRecords);
 
         service.deleteFromRepository("test-repo", null, true);
 
-        verify(mockClient, times(1)).listComponents("test-repo");
+        verify(mockClient, times(1)).listComponents(eq("test-repo"), anyBoolean());
         verify(mockClient, never()).deleteComponent(anyString());
 
         String output = outputStream.toString();
@@ -176,12 +176,12 @@ class NexusServiceAdvancedTest {
             new RepoRecord("id4", 4000, "com/example/app-2.0.0.jar")
         );
 
-        when(mockClient.listComponents("test-repo")).thenReturn(mockRecords);
+        when(mockClient.listComponents(eq("test-repo"), anyBoolean())).thenReturn(mockRecords);
         doNothing().when(mockClient).deleteComponent(anyString());
 
         service.deleteFromRepository("test-repo", ".*SNAPSHOT.*", false);
 
-        verify(mockClient, times(1)).listComponents("test-repo");
+        verify(mockClient, times(1)).listComponents(eq("test-repo"), anyBoolean());
         verify(mockClient, times(1)).deleteComponent("id2");
         verify(mockClient, times(1)).deleteComponent("id3");
         verify(mockClient, never()).deleteComponent("id1");
@@ -198,12 +198,12 @@ class NexusServiceAdvancedTest {
             mockRecords.add(new RepoRecord("id" + i, i * 1000, "artifact" + i + ".jar"));
         }
 
-        when(mockClient.listComponents("large-repo")).thenReturn(mockRecords);
+        when(mockClient.listComponents(eq("large-repo"), anyBoolean())).thenReturn(mockRecords);
         doNothing().when(mockClient).deleteComponent(anyString());
 
         service.deleteFromRepository("large-repo", null, false);
 
-        verify(mockClient, times(1)).listComponents("large-repo");
+        verify(mockClient, times(1)).listComponents(eq("large-repo"), anyBoolean());
         verify(mockClient, times(100)).deleteComponent(anyString());
 
         String output = outputStream.toString();
@@ -218,7 +218,7 @@ class NexusServiceAdvancedTest {
             new RepoRecord("id3", 512 * 1024, "file3.jar")
         );
 
-        when(mockClient.listComponents("test-repo")).thenReturn(mockRecords);
+        when(mockClient.listComponents(eq("test-repo"), anyBoolean())).thenReturn(mockRecords);
 
         service.listRepository("test-repo", null);
 
@@ -233,7 +233,7 @@ class NexusServiceAdvancedTest {
             new RepoRecord("id1", 1000, "artifact.jar")
         );
 
-        when(mockClient.listComponents("test-repo")).thenReturn(mockRecords);
+        when(mockClient.listComponents(eq("test-repo"), anyBoolean())).thenReturn(mockRecords);
 
         assertThrows(Exception.class, () -> {
             service.deleteFromRepository("test-repo", "[invalid(regex", false);
@@ -246,7 +246,7 @@ class NexusServiceAdvancedTest {
             new RepoRecord("abc123", 1234567, "com/example/artifact-1.0.0.jar")
         );
 
-        when(mockClient.listComponents("test-repo")).thenReturn(mockRecords);
+        when(mockClient.listComponents(eq("test-repo"), anyBoolean())).thenReturn(mockRecords);
 
         service.listRepository("test-repo", null);
 

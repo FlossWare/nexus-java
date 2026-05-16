@@ -136,21 +136,27 @@ public class NexusUI {
         focusableComponents.add(dryRunCheckbox);
 
         // Buttons
-        JButton listButton = new JButton("List Components");
+        JButton listButton = new JButton("List");
         listButton.setLocation(4, 12);
-        listButton.setSize(20, 1);
-        listButton.addActionListener(() -> executeList());
+        listButton.setSize(10, 1);
+        listButton.addActionListener(() -> executeList(false));
         focusableComponents.add(listButton);
 
-        JButton deleteButton = new JButton("Delete Components");
-        deleteButton.setLocation(26, 12);
-        deleteButton.setSize(22, 1);
+        JButton refreshButton = new JButton("Refresh");
+        refreshButton.setLocation(16, 12);
+        refreshButton.setSize(12, 1);
+        refreshButton.addActionListener(() -> executeList(true));
+        focusableComponents.add(refreshButton);
+
+        JButton deleteButton = new JButton("Delete");
+        deleteButton.setLocation(30, 12);
+        deleteButton.setSize(12, 1);
         deleteButton.addActionListener(() -> executeDelete());
         focusableComponents.add(deleteButton);
 
-        JButton clearButton = new JButton("Clear Results");
-        clearButton.setLocation(50, 12);
-        clearButton.setSize(18, 1);
+        JButton clearButton = new JButton("Clear");
+        clearButton.setLocation(44, 12);
+        clearButton.setSize(10, 1);
         clearButton.addActionListener(() -> {
             setupResultsPanel();
             statusLabel.setText("Results cleared");
@@ -159,13 +165,13 @@ public class NexusUI {
         focusableComponents.add(clearButton);
 
         JButton quitButton = new JButton("Quit");
-        quitButton.setLocation(70, 12);
+        quitButton.setLocation(56, 12);
         quitButton.setSize(10, 1);
         quitButton.addActionListener(() -> running = false);
         focusableComponents.add(quitButton);
 
         // Status label
-        statusLabel = new JLabel("Ready - Enter repository name and press List or Delete");
+        statusLabel = new JLabel("Ready - List:cached, Refresh:bypass cache, Delete:always fresh");
         statusLabel.setLocation(4, 15);
         statusLabel.setSize(110, 1);
 
@@ -209,7 +215,7 @@ public class NexusUI {
         }
         resultLabels.clear();
 
-        JLabel placeholder = new JLabel("No results yet. Enter a repository name and click List Components.");
+        JLabel placeholder = new JLabel("No results. Enter repository and click List (uses cache) or Refresh (bypasses cache)");
         placeholder.setLocation(0, 0);
         placeholder.setSize(108, 1);
         resultsPanel.add(placeholder);
@@ -239,7 +245,7 @@ public class NexusUI {
         markDirty();
     }
 
-    private static void executeList() {
+    private static void executeList(boolean forceRefresh) {
         String repository = repositoryField.getText().trim();
         if (repository.isEmpty()) {
             statusLabel.setText("ERROR: Repository name is required");
@@ -252,7 +258,9 @@ public class NexusUI {
             regex = null;
         }
 
-        statusLabel.setText("Listing components from repository: " + repository + "...");
+        String cacheStatus = service.getCacheStatus(repository);
+        String mode = forceRefresh ? " (refreshing cache)" : " (" + cacheStatus + ")";
+        statusLabel.setText("Listing components from: " + repository + mode + "...");
         markDirty();
 
         try {
@@ -263,7 +271,7 @@ public class NexusUI {
             System.setOut(ps);
 
             try {
-                service.listRepository(repository, regex);
+                service.listRepository(repository, regex, forceRefresh);
             } finally {
                 System.out.flush();
                 System.setOut(oldOut);
@@ -271,7 +279,9 @@ public class NexusUI {
 
             String output = baos.toString();
             setResults(output);
-            statusLabel.setText("List completed successfully");
+
+            String newCacheStatus = service.getCacheStatus(repository);
+            statusLabel.setText("List completed - " + newCacheStatus);
         } catch (Exception e) {
             setResults("ERROR: " + e.getMessage());
             statusLabel.setText("List failed: " + e.getMessage());
