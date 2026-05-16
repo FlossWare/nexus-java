@@ -71,22 +71,22 @@ The terminal UI provides an interactive full-screen interface:
 ### Terminal UI Layout
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│ Nexus Repository Manager                                │
-│                                                          │
-│ Repository:  [________________]                          │
-│                                                          │
-│ Regex Filter: [________________]  [✓] Dry Run           │
-│                                                          │
-│ [List Components] [Delete Components] [Clear] [Quit]    │
-│                                                          │
-│ Status: Ready                                            │
-│                                                          │
-│ Results:                                                 │
-│ ┌────────────────────────────────────────────────────┐  │
-│ │ (Output appears here)                              │  │
-│ └────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────┐
+│ Nexus Repository Manager                                   │
+│                                                             │
+│ Repository:  [________________]                             │
+│                                                             │
+│ Regex Filter: [________________]  [✓] Dry Run              │
+│                                                             │
+│ [List] [Refresh] [Delete] [Clear] [Quit]                   │
+│                                                             │
+│ Status: Ready - List:cached, Refresh:bypass cache...       │
+│                                                             │
+│ Results:                                                    │
+│ ┌─────────────────────────────────────────────────────────┐│
+│ │ (Output appears here)                                   ││
+│ └─────────────────────────────────────────────────────────┘│
+└────────────────────────────────────────────────────────────┘
 ```
 
 ### Using the Terminal UI
@@ -103,14 +103,40 @@ The terminal UI provides an interactive full-screen interface:
 4. **Optionally, enter a regex filter** (e.g., `.*SNAPSHOT.*`)
 
 5. **Choose your operation:**
-   - TAB to "List Components" and press SPACE → Shows components
-   - TAB to "Delete Components" and press SPACE → Deletes (or previews with dry-run)
+   - **List** - Shows components (uses cached data if available, fast)
+   - **Refresh** - Shows components (always fetches fresh data, slower)
+   - **Delete** - Deletes components (always uses fresh data, clears cache after)
 
 6. **Check the Dry Run checkbox** (enabled by default) to preview deletions safely
 
 7. **View results** in the Results panel
+   - Status bar shows cache age: "Cached (23s old)" or "Not cached"
 
 8. **Press Q or ESC** to quit
+
+### Caching Behavior
+
+The UI uses intelligent caching to reduce server load:
+
+- **List button**: Uses cached results (5-minute TTL by default)
+  - First query fetches from server and caches results
+  - Subsequent queries within 5 minutes use cached data (instant response)
+  - Status shows: "List completed - Cached (Xs old)"
+
+- **Refresh button**: Always bypasses cache and fetches fresh data
+  - Use when you need current, up-to-date information
+  - Updates the cache with fresh results
+  - Status shows: "Cache MISS for repository: X - fetching from server"
+
+- **Delete operation**: Always uses fresh data and clears cache
+  - Ensures deletion operates on current repository state
+  - Cache invalidated after deletion to prevent stale data
+
+**Benefits:**
+- Faster responses for repeated queries
+- Reduced load on Nexus server
+- User control over data freshness
+- Automatic cache invalidation
 
 ## Running the Command-Line Interface (CLI)
 

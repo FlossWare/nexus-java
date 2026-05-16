@@ -49,6 +49,13 @@ HTTP/Nexus API
 ### Repository Pattern
 - NexusClient abstracts HTTP API details from business logic
 
+### Cache-Aside Pattern
+- Time-based caching in NexusClient with configurable TTL
+- Cache key: repository name
+- Cache value: List<RepoRecord> + timestamp
+- Default TTL: 5 minutes (300 seconds)
+- Thread-safe using ConcurrentHashMap
+
 ## Important Implementation Details
 
 ### Pagination
@@ -70,7 +77,53 @@ HTTP/Nexus API
 - Uses Java's `String.matches(regex)` method
 - Invalid regex throws PatternSyntaxException
 
+### Caching
+- Implemented in `NexusClient` using `ConcurrentHashMap<String, CacheEntry>`
+- **Cache key**: repository name (String)
+- **Cache value**: `CacheEntry(List<RepoRecord> records, Instant timestamp)`
+- **Default TTL**: 300 seconds (5 minutes)
+- **Thread safety**: ConcurrentHashMap ensures safe concurrent access
+- **Cache invalidation**: Automatic expiration after TTL, manual via `clearCache()`, auto-clear after deletions
+- **Bypass mechanism**: `listComponents(repo, true)` forces fresh fetch
+- **Disable caching**: Set TTL to 0 in constructor
+- **Defensive copies**: Cache returns new LinkedList to prevent external modification
+- **Cache status**: Methods `isCached()` and `getCacheAge()` for monitoring
+
+**Caching Strategy:**
+- List operations use cache by default (fast, may be slightly stale)
+- Delete operations always fetch fresh data (accuracy over speed)
+- Delete operations clear cache after completion (maintain consistency)
+- UI exposes both cached (List) and fresh (Refresh) operations
+
 ## Testing Strategy
+
+### Unit Tests (NexusServiceTest.java)
+- Mock NexusClient
+- Test filtering logic
+- Test statistics calculation
+- Test error handling
+
+### Cache Tests (NexusClientCacheTest.java)
+- Test cache hit/miss behavior
+- Test cache expiration after TTL
+- Test force refresh bypasses cache
+- Test cache per repository (isolation)
+- Test cache clearing (single and all)
+- Test cache status methods (isCached, getCacheAge)
+- Test cache disabled mode (TTL=0)
+- Test defensive copy behavior
+
+### Integration Tests (NexusClientIntegrationTest.java)
+- Use Java's built-in `com.sun.net.httpserver.HttpServer`
+- Test pagination with real HTTP
+- Test authentication headers
+- Test various HTTP status codes
+
+### Test Data Patterns
+- Use `@TempDir` for file system tests
+- Use `ByteArrayOutputStream` to capture console output
+- Mock HttpClient responses with Mockito
+- Use `AtomicInteger` to count HTTP requests in cache tests
 
 ### Unit Tests (NexusServiceTest.java)
 - Mock NexusClient

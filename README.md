@@ -7,6 +7,9 @@ A Java 21 command-line tool for interacting with Sonatype Nexus repositories. Su
 - List components in a repository with optional filtering
 - Delete components with safety features (confirmation prompts, dry-run mode)
 - Regex-based filtering for targeted operations
+- **Intelligent caching** with 5-minute TTL (reduces server load, faster responses)
+- Interactive terminal UI with ncurses (jcurses)
+- Command-line interface for scripting and automation
 - Fast startup and minimal dependencies
 - Support for environment variables or configuration file
 

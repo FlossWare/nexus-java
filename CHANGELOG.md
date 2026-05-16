@@ -5,7 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0] - 2026-05-15
+## [Unreleased]
+
+### Added
+- Interactive terminal UI using jcurses library
+- Ncurses-based full-screen interface with keyboard navigation
+- UI components: text fields, buttons, checkboxes, result panels
+- Separate "List" and "Refresh" buttons in UI for cache control
+- **Intelligent caching system** for Nexus API queries
+  - Time-based caching with 5-minute TTL (configurable)
+  - Thread-safe using ConcurrentHashMap
+  - Cache management methods: clearCache(), clearAllCache(), isCached(), getCacheAge()
+  - Force refresh option to bypass cache
+  - Automatic cache invalidation after delete operations
+  - Cache disabled mode (TTL=0)
+- Comprehensive cache testing (NexusClientCacheTest.java with 11 tests)
+- Cache status display in UI (shows cache age in seconds)
+- Updated documentation for caching and UI features
+
+### Changed
+- UI button layout simplified: "List Components" → "List", "Delete Components" → "Delete"
+- List operations now use cached data by default (faster response)
+- Delete operations always fetch fresh data (accuracy over speed)
+- Status bar shows cache state and age
+- NexusClient.listComponents() now has overload with forceRefresh parameter
+- NexusService methods updated to support cache control
+- Test suite updated to 55 tests total (44 original + 11 cache tests)
+
+### Technical Details
+- Cache-aside pattern implementation
+- Defensive copying to prevent external modification of cached data
+- Cache entries include timestamp for TTL calculation
+- Per-repository cache isolation
+- Cache hit/miss logging for monitoring
+
+## [1.0] - 2026-05-16
 
 ### Added
 - Initial release of Nexus CLI tool
