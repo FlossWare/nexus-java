@@ -1,7 +1,12 @@
 package org.flossware.jnexus;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.util.List;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 /**
  * Service layer for Nexus repository operations.
@@ -15,6 +20,8 @@ import java.util.List;
  * @since 1.0
  */
 public class NexusService {
+    private static final Logger logger = LoggerFactory.getLogger(NexusService.class);
+
     private final NexusClient client;
 
     /**
@@ -24,6 +31,23 @@ public class NexusService {
      */
     public NexusService(NexusClient client) {
         this.client = client;
+    }
+
+    /**
+     * Validates a regex pattern.
+     *
+     * @param regex the regex pattern to validate
+     * @throws IllegalArgumentException if the pattern is invalid
+     */
+    private void validateRegex(String regex) {
+        if (regex == null || regex.isEmpty()) {
+            return; // null or empty regex is valid (means no filtering)
+        }
+        try {
+            Pattern.compile(regex);
+        } catch (PatternSyntaxException e) {
+            throw new IllegalArgumentException("Invalid regex pattern: " + e.getMessage(), e);
+        }
     }
 
     /**
@@ -59,6 +83,8 @@ public class NexusService {
      * @throws InterruptedException if the operation is interrupted
      */
     public void listRepository(String repository, String regexFilter, boolean forceRefresh) throws IOException, InterruptedException {
+        validateRegex(regexFilter);
+
         List<RepoRecord> allRecords = client.listComponents(repository, forceRefresh);
 
         List<RepoRecord> filteredRecords = regexFilter == null
@@ -92,6 +118,8 @@ public class NexusService {
      */
     public void deleteFromRepository(String repository, String regexFilter, boolean dryRun)
             throws IOException, InterruptedException {
+        validateRegex(regexFilter);
+
         // Always refresh for delete operations to get current state
         List<RepoRecord> allRecords = client.listComponents(repository, true);
 
@@ -111,13 +139,21 @@ public class NexusService {
 
         if (!dryRun) {
             int deleted = 0;
+            int total = recordsToDelete.size();
+            boolean showProgress = total > 10; // Show progress for >10 components
+
             for (RepoRecord record : recordsToDelete) {
                 try {
                     client.deleteComponent(record.id());
                     deleted++;
-                    System.out.println("Deleted: " + record.path());
+                    logger.info("Deleted: {}", record.path());
+
+                    if (showProgress && deleted % 5 == 0) {
+                        System.out.printf("Progress: %d of %d components deleted (%.1f%%)%n",
+                            deleted, total, (deleted * 100.0 / total));
+                    }
                 } catch (IOException e) {
-                    System.err.println("Failed to delete " + record.path() + ": " + e.getMessage());
+                    logger.error("Failed to delete {}: {}", record.path(), e.getMessage());
                 }
             }
             System.out.println("\nDeleted " + deleted + " of " + recordsToDelete.size() + " components");

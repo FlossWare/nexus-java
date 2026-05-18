@@ -228,14 +228,9 @@ class NexusServiceAdvancedTest {
     }
 
     @Test
-    void testDeleteFromRepositoryInvalidRegex() throws IOException, InterruptedException {
-        List<RepoRecord> mockRecords = List.of(
-            new RepoRecord("id1", 1000, "artifact.jar")
-        );
-
-        when(mockClient.listComponents(eq("test-repo"), anyBoolean())).thenReturn(mockRecords);
-
-        assertThrows(Exception.class, () -> {
+    void testDeleteFromRepositoryInvalidRegex() {
+        // No need to stub listComponents - regex validation happens before the call
+        assertThrows(IllegalArgumentException.class, () -> {
             service.deleteFromRepository("test-repo", "[invalid(regex", false);
         });
     }

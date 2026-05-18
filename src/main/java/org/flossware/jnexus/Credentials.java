@@ -34,6 +34,9 @@ public class Credentials {
     private final String defaultRegex;
     private final boolean defaultDryRun;
 
+    // Optional HTTP configuration
+    private final int httpTimeoutSeconds;
+
     /**
      * Constructs a new Credentials instance by loading configuration from
      * environment variables or properties file.
@@ -88,6 +91,12 @@ public class Credentials {
         this.defaultRepository = props.getProperty("nexus.default.repository", "");
         this.defaultRegex = props.getProperty("nexus.default.regex", "");
         this.defaultDryRun = Boolean.parseBoolean(props.getProperty("nexus.default.dryrun", "true"));
+
+        // Load optional HTTP configuration
+        String timeoutEnv = System.getenv("NEXUS_HTTP_TIMEOUT");
+        String timeoutProp = props.getProperty("nexus.http.timeout.seconds");
+        String timeoutStr = timeoutEnv != null ? timeoutEnv : timeoutProp;
+        this.httpTimeoutSeconds = timeoutStr != null ? Integer.parseInt(timeoutStr) : 30;
     }
 
     /**
@@ -168,5 +177,14 @@ public class Credentials {
      */
     public boolean isDefaultDryRun() {
         return defaultDryRun;
+    }
+
+    /**
+     * Gets the HTTP connection timeout in seconds.
+     *
+     * @return the HTTP timeout in seconds (default: 30)
+     */
+    public int getHttpTimeoutSeconds() {
+        return httpTimeoutSeconds;
     }
 }

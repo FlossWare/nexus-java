@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- Console appender for standard output -->
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Console appender for debug messages (when verbose mode is enabled) -->
+    <appender name="DEBUG" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>[DEBUG] %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Root logger - default to INFO level -->
+    <root level="INFO">
+        <appender-ref ref="STDOUT" />
+    </root>
+
+    <!-- Fine-tune specific loggers -->
+    <logger name="org.flossware.jnexus.NexusClient" level="INFO" />
+    <logger name="org.flossware.jnexus.NexusService" level="INFO" />
+</configuration>

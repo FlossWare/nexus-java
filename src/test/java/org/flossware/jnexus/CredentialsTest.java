@@ -182,4 +182,65 @@ class CredentialsTest {
         assertEquals("admin", creds.getUser());
         assertEquals("secret123", creds.getPassword());
     }
+
+    @Test
+    void testHttpTimeoutDefaultValue(@TempDir Path tempDir) throws IOException {
+        Path configDir = tempDir.resolve(".flossware/nexus");
+        Files.createDirectories(configDir);
+        Path configFile = configDir.resolve("nexus.properties");
+        Files.writeString(configFile,
+            "nexus.url=https://test.nexus.com\n" +
+            "nexus.user=testuser\n" +
+            "nexus.password=testpass\n"
+        );
+
+        System.setProperty("user.home", tempDir.toString());
+
+        Credentials creds = new Credentials();
+
+        // Default timeout should be 30 seconds
+        assertEquals(30, creds.getHttpTimeoutSeconds());
+    }
+
+    @Test
+    void testHttpTimeoutFromProperties(@TempDir Path tempDir) throws IOException {
+        Path configDir = tempDir.resolve(".flossware/nexus");
+        Files.createDirectories(configDir);
+        Path configFile = configDir.resolve("nexus.properties");
+        Files.writeString(configFile,
+            "nexus.url=https://test.nexus.com\n" +
+            "nexus.user=testuser\n" +
+            "nexus.password=testpass\n" +
+            "nexus.http.timeout.seconds=60\n"
+        );
+
+        System.setProperty("user.home", tempDir.toString());
+
+        Credentials creds = new Credentials();
+
+        assertEquals(60, creds.getHttpTimeoutSeconds());
+    }
+
+    @Test
+    void testUIDefaultsFromProperties(@TempDir Path tempDir) throws IOException {
+        Path configDir = tempDir.resolve(".flossware/nexus");
+        Files.createDirectories(configDir);
+        Path configFile = configDir.resolve("nexus.properties");
+        Files.writeString(configFile,
+            "nexus.url=https://test.nexus.com\n" +
+            "nexus.user=testuser\n" +
+            "nexus.password=testpass\n" +
+            "nexus.default.repository=maven-releases\n" +
+            "nexus.default.regex=.*SNAPSHOT.*\n" +
+            "nexus.default.dryrun=false\n"
+        );
+
+        System.setProperty("user.home", tempDir.toString());
+
+        Credentials creds = new Credentials();
+
+        assertEquals("maven-releases", creds.getDefaultRepository());
+        assertEquals(".*SNAPSHOT.*", creds.getDefaultRegex());
+        assertFalse(creds.isDefaultDryRun());
+    }
 }

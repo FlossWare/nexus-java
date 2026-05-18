@@ -4,6 +4,8 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.URI;
@@ -34,6 +36,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * @since 1.0
  */
 public class NexusClient {
+    private static final Logger logger = LoggerFactory.getLogger(NexusClient.class);
+
     private final String baseUrl;
     private final HttpClient httpClient;
     private final String authHeader;
@@ -42,6 +46,10 @@ public class NexusClient {
     // Cache configuration
     private static final long DEFAULT_CACHE_TTL_SECONDS = 300; // 5 minutes
     private final long cacheTtlSeconds;
+
+    // Retry configuration
+    private static final int MAX_RETRIES = 3;
+    private static final long INITIAL_RETRY_DELAY_MS = 1000; // 1 second
 
     // Cache storage: repository -> CacheEntry
     private final Map<String, CacheEntry> cache = new ConcurrentHashMap<>();
@@ -71,8 +79,8 @@ public class NexusClient {
     /**
      * Constructs a new NexusClient with the provided credentials and custom cache TTL.
      * <p>
-     * Initializes the HTTP client with a 30-second connection timeout and
-     * prepares the Basic Authentication header.
+     * Initializes the HTTP client with the configured connection timeout (default 30 seconds)
+     * and prepares the Basic Authentication header.
      * </p>
      *
      * @param credentials the Nexus credentials containing URL, username, and password
@@ -87,7 +95,7 @@ public class NexusClient {
         this.authHeader = "Basic " + Base64.getEncoder().encodeToString(auth.getBytes());
 
         this.httpClient = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(30))
+            .connectTimeout(Duration.ofSeconds(credentials.getHttpTimeoutSeconds()))
             .build();
     }
 
@@ -127,14 +135,14 @@ public class NexusClient {
         if (!forceRefresh && cacheTtlSeconds > 0) {
             CacheEntry entry = cache.get(repository);
             if (entry != null && !entry.isExpired(cacheTtlSeconds)) {
-                System.out.println("Cache HIT for repository: " + repository + " (age: " +
-                    Duration.between(entry.timestamp(), Instant.now()).getSeconds() + "s)");
+                long age = Duration.between(entry.timestamp(), Instant.now()).getSeconds();
+                logger.debug("Cache HIT for repository: {} (age: {}s)", repository, age);
                 return new LinkedList<>(entry.records()); // Return copy to prevent modification
             }
         }
 
         // Cache miss or expired - fetch from server
-        System.out.println("Cache MISS for repository: " + repository + " - fetching from server");
+        logger.debug("Cache MISS for repository: {} - fetching from server", repository);
         List<RepoRecord> records = new LinkedList<>();
         String url = baseUrl + "/service/rest/v1/components?repository=" + repository;
         String continuationToken = null;
@@ -158,7 +166,7 @@ public class NexusClient {
     }
 
     /**
-     * Fetches a single page of components from the given URL.
+     * Fetches a single page of components from the given URL with retry logic.
      *
      * @param url the complete URL to fetch components from (including any continuation token)
      * @return a ComponentsResponse containing the records and optional continuation token
@@ -166,7 +174,7 @@ public class NexusClient {
      * @throws InterruptedException if the operation is interrupted
      */
     private ComponentsResponse fetchComponents(String url) throws IOException, InterruptedException {
-        System.out.println("Fetching: " + url);
+        logger.debug("Fetching: {}", url);
 
         HttpRequest request = HttpRequest.newBuilder()
             .uri(URI.create(url))
@@ -175,13 +183,44 @@ public class NexusClient {
             .GET()
             .build();
 
-        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        IOException lastException = null;
+        for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+            try {
+                HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
-        if (response.statusCode() != 200) {
-            throw new IOException("HTTP " + response.statusCode() + ": " + response.body());
+                if (response.statusCode() != 200) {
+                    throw new IOException("HTTP " + response.statusCode() + ": " + response.body());
+                }
+
+                return parseComponentsResponse(response.body());
+            } catch (IOException e) {
+                lastException = e;
+                if (attempt < MAX_RETRIES && isRetryable(e)) {
+                    long delay = INITIAL_RETRY_DELAY_MS * (1L << (attempt - 1)); // Exponential backoff
+                    logger.warn("Request failed (attempt {}/{}): {}. Retrying in {}ms...",
+                        attempt, MAX_RETRIES, e.getMessage(), delay);
+                    Thread.sleep(delay);
+                } else {
+                    break;
+                }
+            }
         }
 
-        return parseComponentsResponse(response.body());
+        throw lastException;
+    }
+
+    /**
+     * Determines if an exception is retryable.
+     *
+     * @param e the exception to check
+     * @return true if the exception is retryable, false otherwise
+     */
+    private boolean isRetryable(IOException e) {
+        String message = e.getMessage().toLowerCase();
+        // Retry on connection errors, timeouts, and 5xx server errors
+        return message.contains("timeout") ||
+               message.contains("connection") ||
+               message.contains("http 5");
     }
 
     /**
@@ -208,8 +247,10 @@ public class NexusClient {
             JSONArray assets = item.getJSONArray("assets");
 
             if (assets.length() > 0) {
+                // Note: Only processes the first asset per component
+                // Components can have multiple assets, but for simplicity we use the first
                 JSONObject asset = assets.getJSONObject(0);
-                int fileSize = asset.getInt("fileSize");
+                long fileSize = asset.getLong("fileSize");
                 String path = asset.getString("path");
                 records.add(new RepoRecord(id, fileSize, path));
             }
@@ -223,7 +264,7 @@ public class NexusClient {
     }
 
     /**
-     * Deletes a component from the Nexus repository.
+     * Deletes a component from the Nexus repository with retry logic.
      *
      * @param componentId the unique identifier of the component to delete
      * @throws IOException          if an HTTP error occurs (status code not 200 or 204)
@@ -238,11 +279,30 @@ public class NexusClient {
             .DELETE()
             .build();
 
-        HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+        IOException lastException = null;
+        for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+            try {
+                HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
-        if (response.statusCode() != 204 && response.statusCode() != 200) {
-            throw new IOException("Failed to delete component " + componentId + ": HTTP " + response.statusCode());
+                if (response.statusCode() != 204 && response.statusCode() != 200) {
+                    throw new IOException("Failed to delete component " + componentId + ": HTTP " + response.statusCode());
+                }
+
+                return; // Success
+            } catch (IOException e) {
+                lastException = e;
+                if (attempt < MAX_RETRIES && isRetryable(e)) {
+                    long delay = INITIAL_RETRY_DELAY_MS * (1L << (attempt - 1)); // Exponential backoff
+                    logger.warn("Delete failed for {} (attempt {}/{}): {}. Retrying in {}ms...",
+                        componentId, attempt, MAX_RETRIES, e.getMessage(), delay);
+                    Thread.sleep(delay);
+                } else {
+                    break;
+                }
+            }
         }
+
+        throw lastException;
     }
 
     /**
@@ -252,7 +312,7 @@ public class NexusClient {
      */
     public void clearCache(String repository) {
         cache.remove(repository);
-        System.out.println("Cache cleared for repository: " + repository);
+        logger.debug("Cache cleared for repository: {}", repository);
     }
 
     /**
@@ -261,7 +321,7 @@ public class NexusClient {
     public void clearAllCache() {
         int size = cache.size();
         cache.clear();
-        System.out.println("Cleared cache for " + size + " repositories");
+        logger.debug("Cleared cache for {} repositories", size);
     }
 
     /**

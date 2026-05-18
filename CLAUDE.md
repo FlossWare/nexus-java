@@ -16,13 +16,17 @@
 - **Picocli**: Lightweight CLI framework with subcommands and option parsing
 - **Java HttpClient**: Built-in HTTP/2 client (no external dependencies)
 - **Jackson**: Standard JSON processing
+- **Swing**: Modern GUI framework (built into JDK, no external dependencies)
+- **AWT**: Classic GUI framework (built into JDK, maximum compatibility)
+- **jcurses**: Terminal UI library for ncurses-based interface
+- **SLF4J + Logback**: Logging framework with proper log levels
 - **JUnit 5 + Mockito**: Modern testing stack
 
 ## Code Architecture
 
 ### Layered Architecture
 ```
-CLI Layer (JNexus.java)
+UI Layer (JNexus.java, JNexusSwing.java, JNexusAWT.java, JNexusUI.java)
     ↓
 Service Layer (NexusService.java)
     ↓
@@ -33,10 +37,12 @@ HTTP/Nexus API
 
 ### Separation of Concerns
 - **JNexus.java**: CLI parsing, user interaction, command routing
+- **JNexusSwing.java**: Modern Swing GUI (JFrame, JPanel, SwingWorker)
+- **JNexusAWT.java**: Classic AWT GUI (Frame, Button, TextField)
+- **JNexusUI.java**: Terminal UI using jcurses, pre-populated with default values from Credentials
 - **NexusService.java**: Business logic, filtering, statistics, output formatting
 - **NexusClient.java**: HTTP communication, pagination, JSON parsing
 - **Credentials.java**: Configuration management (env vars → properties file) + optional UI defaults
-- **JNexusUI.java**: Terminal UI using jcurses, pre-populated with default values from Credentials
 - **RepoRecord.java**: Immutable data model (Java record)
 
 ## Design Patterns
@@ -166,7 +172,73 @@ nexus.default.dryrun=true
 - Use `ByteArrayOutputStream` to capture console output
 - Mock HttpClient responses with Mockito
 
+## User Interfaces
+
+### Four UI Options
+
+1. **Swing GUI (JNexusSwing.java)**
+   - Modern graphical interface
+   - Uses SwingWorker for background tasks
+   - Native look and feel via UIManager
+   - Best for: Desktop users who prefer modern GUIs
+
+2. **AWT GUI (JNexusAWT.java)**
+   - Classic graphical interface
+   - Uses Thread for background tasks
+   - Pure AWT components (Frame, Button, etc.)
+   - Best for: Maximum compatibility, remote desktop, VNC
+
+3. **Terminal UI (JNexusUI.java)**
+   - Full-screen ncurses interface
+   - Uses jcurses library
+   - Keyboard navigation (TAB, arrows, SPACE, etc.)
+   - Best for: SSH sessions, terminal users, servers
+
+4. **CLI (JNexus.java)**
+   - Command-line interface
+   - Uses Picocli for argument parsing
+   - Supports --verbose and --quiet flags
+   - Best for: Scripting, automation, CI/CD
+
+### UI Implementation Patterns
+
+**Background Task Execution:**
+- **Swing**: SwingWorker<String, Void> for async operations
+- **AWT**: new Thread(() -> { ... }).start() with EventQueue.invokeLater
+- **Terminal**: Direct execution in event loop
+- **CLI**: Direct execution (synchronous)
+
+**Output Capture:**
+All GUIs capture System.out/System.err to display in results area:
+```java
+ByteArrayOutputStream baos = new ByteArrayOutputStream();
+PrintStream ps = new PrintStream(baos);
+System.setOut(ps);
+try {
+    service.listRepository(...);
+} finally {
+    System.setOut(originalOut);
+}
+String output = baos.toString();
+```
+
+**Dialog Patterns:**
+- **Swing**: JOptionPane.showMessageDialog / showConfirmDialog
+- **AWT**: Custom Dialog with Button listeners
+- **Terminal**: Direct status label updates
+- **CLI**: Console input with confirmation prompts
+
 ## Common Development Tasks
+
+### Adding a New UI
+1. Create new class extending appropriate framework (Swing/AWT/jcurses)
+2. Initialize NexusClient and NexusService in constructor
+3. Create input fields for repository, regex, dry-run
+4. Add buttons for List, Refresh, Delete, Clear, Quit
+5. Implement background task execution pattern
+6. Capture System.out for results display
+7. Create launcher script (jnexus-{name}.sh)
+8. Update README.md and CHANGELOG.md
 
 ### Adding a New Command
 1. Create subclass in `JNexus.java` implementing `Callable<Integer>`
@@ -189,15 +261,17 @@ nexus.default.dryrun=true
 
 ## Known Limitations
 
-### File Size Limitation
-- `RepoRecord.fileSize` is `int` (max ~2GB)
-- Nexus can store larger files
-- Should be migrated to `long` if supporting very large artifacts
-
-### Single Asset Per Component
+### Single Asset Per Component (Design Choice)
 - `NexusClient.parseComponentsResponse()` only uses first asset
-- Components can have multiple assets
+- Components can have multiple assets (e.g., JAR + POM + sources)
 - Displays path/size of first asset only
+- **Rationale**: Simplicity and common case optimization
+  - Most components have a single primary asset
+  - Multi-asset handling would require UI changes to display multiple paths
+  - File size aggregation across assets could be misleading
+  - Current approach provides consistent, predictable output
+- **Impact**: Statistics may underreport total size for multi-asset components
+- **Future Enhancement**: Could add `--show-all-assets` flag if needed
 
 ### No Parallel Deletion
 - Components deleted sequentially

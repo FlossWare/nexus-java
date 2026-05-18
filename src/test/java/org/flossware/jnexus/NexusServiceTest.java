@@ -142,6 +142,42 @@ class NexusServiceTest {
         assertTrue(output.contains("No components match"));
     }
 
+    @Test
+    void testListRepositoryWithInvalidRegex() {
+        // Test that invalid regex is caught early
+        assertThrows(IllegalArgumentException.class, () -> {
+            service.listRepository("test-repo", "[invalid(regex");
+        });
+
+        // Verify that listComponents was never called
+        verifyNoInteractions(mockClient);
+    }
+
+    @Test
+    void testDeleteFromRepositoryWithInvalidRegex() {
+        // Test that invalid regex is caught early
+        assertThrows(IllegalArgumentException.class, () -> {
+            service.deleteFromRepository("test-repo", "*invalid+regex", false);
+        });
+
+        // Verify that listComponents was never called
+        verifyNoInteractions(mockClient);
+    }
+
+    @Test
+    void testListRepositoryWithValidComplexRegex() throws IOException, InterruptedException {
+        List<RepoRecord> mockRecords = List.of(
+            new RepoRecord("id1", 1000, "com/example/app-1.0.jar")
+        );
+
+        when(mockClient.listComponents(eq("test-repo"), anyBoolean())).thenReturn(mockRecords);
+
+        // Test with a complex but valid regex
+        service.listRepository("test-repo", "^com/[a-z]+/.*\\.jar$");
+
+        verify(mockClient, times(1)).listComponents(eq("test-repo"), anyBoolean());
+    }
+
     @org.junit.jupiter.api.AfterEach
     void tearDown() {
         System.setOut(originalOut);

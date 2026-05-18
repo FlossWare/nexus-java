@@ -59,17 +59,33 @@ java -jar target/jnexus-1.0-jar-with-dependencies.jar --help
 ```
 src/main/java/org/flossware/jnexus/
 ├── JNexus.java          # CLI entry point with Picocli commands
-├── NexusClient.java    # HTTP client for Nexus API
-├── NexusService.java   # Business logic layer
-├── Credentials.java    # Configuration management
-└── RepoRecord.java     # Data model
+├── JNexusSwing.java     # Swing GUI (modern graphical interface)
+├── JNexusAWT.java       # AWT GUI (classic graphical interface)
+├── JNexusUI.java        # Terminal UI (ncurses-based interface)
+├── NexusClient.java     # HTTP client for Nexus API
+├── NexusService.java    # Business logic layer
+├── Credentials.java     # Configuration management
+└── RepoRecord.java      # Data model (Java record)
 
 src/test/java/org/flossware/jnexus/
 ├── NexusServiceTest.java           # Service layer tests
 ├── NexusServiceAdvancedTest.java   # Advanced service scenarios
 ├── NexusClientTest.java            # Basic client tests
+├── NexusClientCacheTest.java       # Cache functionality tests
 ├── NexusClientIntegrationTest.java # Integration tests with mock server
 └── CredentialsTest.java            # Credentials loading tests
+
+src/main/resources/
+└── logback.xml                     # Logging configuration
+
+src/test/resources/
+└── logback-test.xml                # Test logging configuration
+
+Launcher Scripts:
+├── jnexus.sh           # CLI launcher
+├── jnexus-swing.sh     # Swing GUI launcher
+├── jnexus-awt.sh       # AWT GUI launcher
+└── jnexus-ui.sh        # Terminal UI launcher
 ```
 
 ## Coding Standards
@@ -117,9 +133,15 @@ public ReturnType methodName(ParamType paramName) {
 ### Test Coverage
 
 - All new features must include unit tests
-- Aim for >80% code coverage
+- Aim for >80% code coverage for core logic (Service/Client layers)
 - Test both success and failure scenarios
 - Test edge cases and boundary conditions
+
+**Exception:** GUI code (Swing, AWT, Terminal UI) is tested manually
+- GUI testing requires specialized frameworks (AssertJ Swing, TestFX)
+- Core business logic is fully tested in Service/Client layers
+- GUIs are thin wrappers around tested business logic
+- Manual testing is standard practice for simple GUIs
 
 ### Test Structure
 
@@ -142,8 +164,34 @@ void testMethodName() {
 ### Integration Tests
 
 - Use `@TempDir` for file system tests
-- Use mock HTTP servers for HTTP integration tests
+- Use mock HTTP servers for HTTP integration tests (see `NexusClientIntegrationTest.java`)
 - Clean up resources in `@AfterEach` methods
+- Use `ByteArrayOutputStream` to capture System.out for output verification
+
+### GUI Testing (Manual)
+
+Since GUI testing requires specialized frameworks and headless environments,
+GUIs are tested manually:
+
+1. **Before submitting GUI changes:**
+   - Build: `./mvnw clean package`
+   - Test Swing GUI: `./jnexus-swing.sh`
+   - Test AWT GUI: `./jnexus-awt.sh`
+   - Test Terminal UI: `./jnexus-ui.sh`
+   - Verify all buttons and fields work correctly
+   - Test with valid and invalid inputs
+   - Verify confirmation dialogs appear
+
+2. **Test checklist for GUIs:**
+   - [ ] Application launches without errors
+   - [ ] All fields pre-populate with defaults (if configured)
+   - [ ] List operation retrieves and displays data
+   - [ ] Refresh operation bypasses cache
+   - [ ] Delete operation shows confirmation dialog
+   - [ ] Dry-run checkbox works correctly
+   - [ ] Error messages display clearly
+   - [ ] Status bar updates appropriately
+   - [ ] Application exits cleanly
 
 ## Submitting Changes
 

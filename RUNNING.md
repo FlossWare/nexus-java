@@ -1,6 +1,12 @@
-# Running JNexus CLI
+# Running JNexus
 
-This guide explains how to run the different interfaces of the JNexus CLI tool.
+This guide explains how to run the different interfaces of the JNexus tool.
+
+JNexus provides **four different user interfaces**:
+1. **Swing GUI** - Modern graphical interface (recommended for desktop users)
+2. **AWT GUI** - Classic graphical interface (maximum compatibility)
+3. **Terminal UI** - Full-screen ncurses interface (for SSH/terminal users)
+4. **Command-Line Interface** - For scripting and automation
 
 ## Prerequisites
 
@@ -44,9 +50,11 @@ nexus.default.regex=.*SNAPSHOT.*
 nexus.default.dryrun=true
 ```
 
-When configured, the terminal UI will pre-populate these values on startup.
+When configured, all UIs will pre-populate these values on startup.
 
-### 3. For Terminal UI: Install ncurses
+### 3. For Terminal UI Only: Install ncurses
+
+The Swing and AWT GUIs do not require ncurses (they use Java's built-in GUI libraries). Only install ncurses if you plan to use the terminal UI:
 
 **Ubuntu/Debian:**
 ```bash
@@ -61,6 +69,98 @@ sudo dnf install ncurses-devel
 **Arch Linux:**
 ```bash
 sudo pacman -S ncurses
+```
+
+## Running the Swing GUI (Recommended)
+
+The Swing GUI provides a modern, native-looking graphical interface:
+
+```bash
+./jnexus-swing.sh
+```
+
+### Swing GUI Features
+
+- **Modern look and feel** that matches your operating system
+- **Responsive design** with background task execution
+- **Easy to use** with familiar GUI controls
+- **No special dependencies** - uses Java's built-in Swing library
+
+### Using the Swing GUI
+
+1. **Start the application:**
+   ```bash
+   ./jnexus-swing.sh
+   ```
+
+2. **Enter repository details:**
+   - Repository: Name of the Nexus repository (e.g., `maven-releases`)
+   - Regex Filter: Optional pattern to filter components (e.g., `.*SNAPSHOT.*`)
+   - Dry Run: Check this box to preview deletions without actually deleting
+
+3. **Choose your operation:**
+   - **List** - Shows components (uses cached data if available, fast)
+   - **Refresh** - Shows components (bypasses cache, always fresh)
+   - **Delete** - Deletes components (shows confirmation dialog first)
+   - **Clear Results** - Clears the results area
+   - **Quit** - Exits the application
+
+4. **View results** in the scrollable results area
+
+5. **Check status** at the bottom of the window
+
+### Swing GUI Benefits
+
+- ✅ Works on all platforms (Windows, Mac, Linux)
+- ✅ No terminal required
+- ✅ Familiar GUI controls (buttons, text fields, checkboxes)
+- ✅ Background task execution keeps UI responsive
+- ✅ Built-in confirmation dialogs for destructive operations
+
+### Direct JAR Execution
+
+```bash
+java --enable-preview -cp target/jnexus-1.0-jar-with-dependencies.jar org.flossware.jnexus.JNexusSwing
+```
+
+## Running the AWT GUI (Classic)
+
+The AWT GUI provides a classic graphical interface using pure AWT components:
+
+```bash
+./jnexus-awt.sh
+```
+
+### AWT GUI Features
+
+- **Classic AWT look** familiar to Java users
+- **Maximum compatibility** - works on older Java installations
+- **Lightweight** - lower memory footprint than Swing
+- **Works well** in remote desktop/VNC scenarios
+
+### Using the AWT GUI
+
+The AWT GUI has the same functionality and usage as the Swing GUI, but uses classic AWT components (Frame, Button, TextField, etc.) instead of modern Swing components.
+
+1. **Start the application:**
+   ```bash
+   ./jnexus-awt.sh
+   ```
+
+2. Follow the same steps as the Swing GUI
+
+### When to Use AWT Instead of Swing
+
+- Working on older systems with Java 8 or earlier
+- Remote desktop or VNC sessions where Swing rendering has issues
+- Prefer classic Java look and feel
+- Need lower memory footprint
+- Maximum compatibility with all Java installations
+
+### Direct JAR Execution
+
+```bash
+java --enable-preview -cp target/jnexus-1.0-jar-with-dependencies.jar org.flossware.jnexus.JNexusAWT
 ```
 
 ## Running the Terminal UI

@@ -1,5 +1,8 @@
 package org.flossware.jnexus;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.Logger;
+import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
@@ -35,6 +38,32 @@ import java.util.concurrent.Callable;
 )
 public class JNexus implements Callable<Integer> {
 
+    @Option(
+        names = {"-v", "--verbose"},
+        description = "Enable verbose output (debug level logging)"
+    )
+    private boolean verbose;
+
+    @Option(
+        names = {"-q", "--quiet"},
+        description = "Quiet mode (only show warnings and errors)"
+    )
+    private boolean quiet;
+
+    /**
+     * Configures logging level based on verbose/quiet flags.
+     */
+    private void configureLogging() {
+        Logger rootLogger = (Logger) LoggerFactory.getLogger(org.slf4j.Logger.ROOT_LOGGER_NAME);
+        if (verbose) {
+            rootLogger.setLevel(Level.DEBUG);
+        } else if (quiet) {
+            rootLogger.setLevel(Level.WARN);
+        } else {
+            rootLogger.setLevel(Level.INFO);
+        }
+    }
+
     /**
      * Executes when the tool is run without a subcommand.
      * Displays usage information.
@@ -43,6 +72,7 @@ public class JNexus implements Callable<Integer> {
      */
     @Override
     public Integer call() {
+        configureLogging();
         CommandLine.usage(this, System.out);
         return 0;
     }
@@ -59,6 +89,9 @@ public class JNexus implements Callable<Integer> {
         description = "List components in a Nexus repository"
     )
     static class ListCommand implements Callable<Integer> {
+        @CommandLine.ParentCommand
+        private JNexus parent;
+
         @Parameters(index = "0", description = "Repository name")
         private String repository;
 
@@ -76,6 +109,9 @@ public class JNexus implements Callable<Integer> {
          */
         @Override
         public Integer call() {
+            parent.configureLogging();
+            org.slf4j.Logger logger = LoggerFactory.getLogger(JNexus.class);
+
             try {
                 Credentials credentials = new Credentials();
                 NexusClient client = new NexusClient(credentials);
@@ -89,9 +125,14 @@ public class JNexus implements Callable<Integer> {
 
                 service.listRepository(repository, regexFilter);
                 return 0;
+            } catch (IllegalArgumentException e) {
+                logger.error("Error: {}", e.getMessage());
+                return 1;
             } catch (Exception e) {
-                System.err.println("Error: " + e.getMessage());
-                e.printStackTrace();
+                logger.error("Error: {}", e.getMessage());
+                if (parent.verbose) {
+                    logger.error("Stack trace:", e);
+                }
                 return 1;
             }
         }
@@ -114,6 +155,9 @@ public class JNexus implements Callable<Integer> {
         description = "Delete components from a Nexus repository"
     )
     static class DeleteCommand implements Callable<Integer> {
+        @CommandLine.ParentCommand
+        private JNexus parent;
+
         @Parameters(index = "0", description = "Repository name")
         private String repository;
 
@@ -144,6 +188,9 @@ public class JNexus implements Callable<Integer> {
          */
         @Override
         public Integer call() {
+            parent.configureLogging();
+            org.slf4j.Logger logger = LoggerFactory.getLogger(JNexus.class);
+
             try {
                 if (!dryRun && !skipConfirmation) {
                     System.out.println("WARNING: This will permanently delete components from repository: " + repository);
@@ -176,9 +223,14 @@ public class JNexus implements Callable<Integer> {
 
                 service.deleteFromRepository(repository, regexFilter, dryRun);
                 return 0;
+            } catch (IllegalArgumentException e) {
+                logger.error("Error: {}", e.getMessage());
+                return 1;
             } catch (Exception e) {
-                System.err.println("Error: " + e.getMessage());
-                e.printStackTrace();
+                logger.error("Error: {}", e.getMessage());
+                if (parent.verbose) {
+                    logger.error("Stack trace:", e);
+                }
                 return 1;
             }
         }

@@ -8,6 +8,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Swing GUI** (JNexusSwing.java) - Modern graphical interface
+  - Native look and feel using UIManager.setLookAndFeel
+  - Background task execution with SwingWorker
+  - GridBagLayout for responsive design
+  - JOptionPane for error and confirmation dialogs
+  - Scrollable JTextArea for results
+  - Launcher script: jnexus-swing.sh
+- **AWT GUI** (JNexusAWT.java) - Classic graphical interface
+  - Pure AWT components (Frame, Button, TextField, TextArea, etc.)
+  - Maximum compatibility with older Java installations
+  - Thread-based background execution
+  - Custom dialog implementations
+  - Launcher script: jnexus-awt.sh
 - Interactive terminal UI using jcurses library
 - Ncurses-based full-screen interface with keyboard navigation
 - UI components: text fields, buttons, checkboxes, result panels
@@ -19,9 +32,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Force refresh option to bypass cache
   - Automatic cache invalidation after delete operations
   - Cache disabled mode (TTL=0)
+- **SLF4J logging framework** (replaces System.out.println)
+  - Logback as implementation
+  - Proper log levels: DEBUG, INFO, WARN, ERROR
+  - Separate test configuration (logback-test.xml)
+- **Verbose and quiet modes** via CLI flags
+  - `--verbose` / `-v` for DEBUG level logging
+  - `--quiet` / `-q` for WARN/ERROR only
+  - Default: INFO level
+- **HTTP retry logic** with exponential backoff
+  - 3 retries maximum for transient failures
+  - Retries on: connection errors, timeouts, 5xx server errors
+  - Initial delay: 1 second, doubles each retry
+- **Regex pattern validation**
+  - Early validation before API calls
+  - Clear error messages for invalid patterns
+  - Prevents runtime PatternSyntaxException
+- **Configurable HTTP timeout**
+  - Environment variable: `NEXUS_HTTP_TIMEOUT`
+  - Properties file: `nexus.http.timeout.seconds`
+  - Default: 30 seconds
+- **Progress indicators** for large delete operations
+  - Shows progress every 5 deletions for >10 components
+  - Example: "Progress: 25 of 100 components deleted (25.0%)"
 - Comprehensive cache testing (NexusClientCacheTest.java with 11 tests)
 - Cache status display in UI (shows cache age in seconds)
 - Updated documentation for caching and UI features
+- 6 new tests for validation, timeout config, and UI defaults
 
 ### Changed
 - UI button layout simplified: "List Components" → "List", "Delete Components" → "Delete"
@@ -30,14 +67,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Status bar shows cache state and age
 - NexusClient.listComponents() now has overload with forceRefresh parameter
 - NexusService methods updated to support cache control
-- Test suite updated to 55 tests total (44 original + 11 cache tests)
+- Test suite updated to 61 tests total (55 original + 6 new tests)
+- All System.out.println replaced with SLF4J logger calls
+- Cache/debug messages moved to DEBUG level
+- User messages at INFO level
+- Errors at ERROR level
+
+### Fixed
+- **File size overflow**: Changed RepoRecord.fileSize from int to long
+  - Now supports files up to ~8 exabytes (was limited to ~2GB)
+  - Updated NexusClient to use getLong() instead of getInt()
+- **Error handling**: Removed printStackTrace in production code
+  - Stack traces only shown in verbose mode
+  - User-friendly error messages by default
+- **Hard-coded timeout**: HTTP timeout now configurable
+- **No retry logic**: Added automatic retry for transient failures
+- **Invalid regex crashes**: Now validated early with clear errors
+- **Silent failures**: Proper logging at appropriate levels
 
 ### Technical Details
 - Cache-aside pattern implementation
 - Defensive copying to prevent external modification of cached data
 - Cache entries include timestamp for TTL calculation
 - Per-repository cache isolation
-- Cache hit/miss logging for monitoring
+- Retry logic uses exponential backoff: 1s, 2s, 4s
+- Logback configuration: pattern-less for clean user output
+- Separate logback-test.xml for test output capture
+- JAR size increased to ~3.7MB (from 2.7MB) with SLF4J/Logback additions
 
 ## [1.0] - 2026-05-16
 
