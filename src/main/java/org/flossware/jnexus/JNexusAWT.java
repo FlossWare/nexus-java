@@ -25,7 +25,7 @@ public class JNexusAWT {
 
     // UI Components
     private Frame frame;
-    private TextField repositoryField;
+    private Choice repositoryChoice;
     private TextField regexField;
     private Checkbox dryRunCheckbox;
     private TextArea resultsArea;
@@ -425,7 +425,7 @@ public class JNexusAWT {
         titleLabel.setFont(new Font("Dialog", Font.BOLD, 14));
         panel.add(titleLabel, gbc);
 
-        // Repository label and field
+        // Repository dropdown selector
         gbc.gridx = 0;
         gbc.gridy = 1;
         gbc.gridwidth = 1;
@@ -434,9 +434,24 @@ public class JNexusAWT {
 
         gbc.gridx = 1;
         gbc.weightx = 1.0;
-        repositoryField = new TextField(credentials.getDefaultRepository(), 40);
-        repositoryField.addActionListener(e -> executeList(false)); // Enter triggers List
-        panel.add(repositoryField, gbc);
+
+        // Build repository list with "All" option
+        repositoryChoice = new Choice();
+        repositoryChoice.add("All");
+        if (!credentials.getRepositories().isEmpty()) {
+            for (String repo : credentials.getRepositories()) {
+                repositoryChoice.add(repo);
+            }
+        }
+
+        // Set default selection
+        if (!credentials.getDefaultRepository().isEmpty() && credentials.getRepositories().contains(credentials.getDefaultRepository())) {
+            repositoryChoice.select(credentials.getDefaultRepository());
+        } else {
+            repositoryChoice.select(0); // All
+        }
+
+        panel.add(repositoryChoice, gbc);
 
         // Regex filter label and field
         gbc.gridx = 0;
@@ -457,46 +472,9 @@ public class JNexusAWT {
         dryRunCheckbox.setState(credentials.isDefaultDryRun());
         panel.add(dryRunCheckbox, gbc);
 
-        // Available repositories dropdown (if configured)
-        if (!credentials.getRepositories().isEmpty()) {
-            logger.debug("Displaying {} repositories: {}",
-                credentials.getRepositories().size(), credentials.getRepositories());
-
-            gbc.gridx = 0;
-            gbc.gridy = 4;
-            gbc.weightx = 0.0;
-            gbc.gridwidth = 1;
-            gbc.anchor = GridBagConstraints.WEST;
-            panel.add(new Label("Available Repos:"), gbc);
-
-            gbc.gridx = 1;
-            gbc.weightx = 1.0;
-            gbc.fill = GridBagConstraints.HORIZONTAL;
-            Choice reposChoice = new Choice();
-            reposChoice.add("All");  // Add "All" option first
-            for (String repo : credentials.getRepositories()) {
-                reposChoice.add(repo);
-            }
-            reposChoice.addItemListener(e -> {
-                String selected = reposChoice.getSelectedItem();
-                if (selected != null && !selected.isEmpty()) {
-                    if ("All".equals(selected)) {
-                        repositoryField.setText("");  // Empty means all repositories
-                    } else {
-                        repositoryField.setText(selected);
-                    }
-                }
-            });
-            panel.add(reposChoice, gbc);
-
-            gbc.anchor = GridBagConstraints.CENTER;
-        } else {
-            logger.debug("No repositories configured to display");
-        }
-
         // Nexus URL display (read-only)
         gbc.gridx = 0;
-        gbc.gridy = 5;
+        gbc.gridy = 4;
         gbc.weightx = 0.0;
         gbc.gridwidth = 1;
         gbc.anchor = GridBagConstraints.WEST;
@@ -512,7 +490,7 @@ public class JNexusAWT {
 
         // Property file display (read-only)
         gbc.gridx = 0;
-        gbc.gridy = 6;
+        gbc.gridy = 5;
         gbc.weightx = 0.0;
         gbc.gridwidth = 1;
         gbc.anchor = GridBagConstraints.WEST;
@@ -531,7 +509,7 @@ public class JNexusAWT {
 
         // Buttons panel
         gbc.gridx = 0;
-        gbc.gridy = 7;
+        gbc.gridy = 6;
         gbc.gridwidth = 2;
         gbc.anchor = GridBagConstraints.CENTER;
         panel.add(createButtonPanel(), gbc);
@@ -597,12 +575,15 @@ public class JNexusAWT {
     }
 
     private void executeList(boolean forceRefresh) {
-        String repository = repositoryField.getText().trim();
-        if (repository.isEmpty()) {
-            setStatus("ERROR: Repository name is required");
-            showErrorDialog("Please enter a repository name.");
+        String selected = repositoryChoice.getSelectedItem();
+        if (selected == null || selected.isEmpty()) {
+            setStatus("ERROR: Repository selection is required");
+            showErrorDialog("Please select a repository.");
             return;
         }
+
+        // "All" means empty repository (search all)
+        String repository = "All".equals(selected) ? "" : selected;
 
         String regex = regexField.getText().trim();
         if (regex.isEmpty()) {
@@ -652,12 +633,15 @@ public class JNexusAWT {
     }
 
     private void executeDelete() {
-        String repository = repositoryField.getText().trim();
-        if (repository.isEmpty()) {
-            setStatus("ERROR: Repository name is required");
-            showErrorDialog("Please enter a repository name.");
+        String selected = repositoryChoice.getSelectedItem();
+        if (selected == null || selected.isEmpty()) {
+            setStatus("ERROR: Repository selection is required");
+            showErrorDialog("Please select a repository.");
             return;
         }
+
+        // "All" means empty repository (search all)
+        String repository = "All".equals(selected) ? "" : selected;
 
         String regex = regexField.getText().trim();
         if (regex.isEmpty()) {

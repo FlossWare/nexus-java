@@ -32,7 +32,7 @@ public class JNexusSwing {
 
     // UI Components
     private JFrame frame;
-    private JTextField repositoryField;
+    private JComboBox<String> repositoryComboBox;
     private JTextField regexField;
     private JCheckBox dryRunCheckbox;
     private JTable resultsTable;
@@ -296,7 +296,7 @@ public class JNexusSwing {
         gbc.insets = new Insets(5, 5, 5, 5);
         gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        // Repository label and field
+        // Repository dropdown selector
         gbc.gridx = 0;
         gbc.gridy = 0;
         gbc.weightx = 0.0;
@@ -304,9 +304,25 @@ public class JNexusSwing {
 
         gbc.gridx = 1;
         gbc.weightx = 1.0;
-        repositoryField = new JTextField(credentials.getDefaultRepository(), 30);
-        repositoryField.addActionListener(e -> executeList(false)); // Enter triggers List
-        panel.add(repositoryField, gbc);
+
+        // Build repository list with "All" option
+        java.util.List<String> repoOptions = new java.util.ArrayList<>();
+        repoOptions.add("All");
+        if (!credentials.getRepositories().isEmpty()) {
+            repoOptions.addAll(credentials.getRepositories());
+        }
+
+        repositoryComboBox = new JComboBox<>(repoOptions.toArray(new String[0]));
+        repositoryComboBox.setToolTipText("Select repository (All = search all repositories)");
+
+        // Set default selection
+        if (!credentials.getDefaultRepository().isEmpty() && credentials.getRepositories().contains(credentials.getDefaultRepository())) {
+            repositoryComboBox.setSelectedItem(credentials.getDefaultRepository());
+        } else {
+            repositoryComboBox.setSelectedIndex(0); // All
+        }
+
+        panel.add(repositoryComboBox, gbc);
 
         // Regex filter label and field
         gbc.gridx = 0;
@@ -328,49 +344,9 @@ public class JNexusSwing {
         dryRunCheckbox.setSelected(credentials.isDefaultDryRun());
         panel.add(dryRunCheckbox, gbc);
 
-        // Available repositories dropdown (if configured)
-        if (!credentials.getRepositories().isEmpty()) {
-            logger.debug("Displaying {} repositories: {}",
-                credentials.getRepositories().size(), credentials.getRepositories());
-
-            gbc.gridx = 0;
-            gbc.gridy = 3;
-            gbc.weightx = 0.0;
-            gbc.gridwidth = 1;
-            gbc.anchor = GridBagConstraints.WEST;
-            panel.add(new JLabel("Available Repos:"), gbc);
-
-            gbc.gridx = 1;
-            gbc.weightx = 1.0;
-            gbc.fill = GridBagConstraints.HORIZONTAL;
-
-            // Add "All" option at the beginning
-            java.util.List<String> repoOptions = new java.util.ArrayList<>();
-            repoOptions.add("All");
-            repoOptions.addAll(credentials.getRepositories());
-
-            JComboBox<String> reposComboBox = new JComboBox<>(repoOptions.toArray(new String[0]));
-            reposComboBox.setToolTipText("Select a repository to auto-fill the Repository field (All = no filter)");
-            reposComboBox.addActionListener(e -> {
-                String selected = (String) reposComboBox.getSelectedItem();
-                if (selected != null && !selected.isEmpty()) {
-                    if ("All".equals(selected)) {
-                        repositoryField.setText("");  // Empty means all repositories
-                    } else {
-                        repositoryField.setText(selected);
-                    }
-                }
-            });
-            panel.add(reposComboBox, gbc);
-
-            gbc.anchor = GridBagConstraints.CENTER;
-        } else {
-            logger.debug("No repositories configured to display");
-        }
-
         // Nexus URL display (read-only)
         gbc.gridx = 0;
-        gbc.gridy = 4;
+        gbc.gridy = 3;
         gbc.weightx = 0.0;
         gbc.gridwidth = 1;
         gbc.anchor = GridBagConstraints.WEST;
@@ -388,7 +364,7 @@ public class JNexusSwing {
 
         // Property file display (read-only)
         gbc.gridx = 0;
-        gbc.gridy = 5;
+        gbc.gridy = 4;
         gbc.weightx = 0.0;
         gbc.gridwidth = 1;
         gbc.anchor = GridBagConstraints.WEST;
@@ -409,7 +385,7 @@ public class JNexusSwing {
 
         // Buttons panel
         gbc.gridx = 0;
-        gbc.gridy = 6;
+        gbc.gridy = 5;
         gbc.gridwidth = 2;
         gbc.anchor = GridBagConstraints.CENTER;
         panel.add(createButtonPanel(), gbc);
@@ -438,6 +414,7 @@ public class JNexusSwing {
         deleteSelectedButton = new JButton("Delete Selected");
         deleteSelectedButton.setToolTipText("Delete selected rows from table");
         deleteSelectedButton.addActionListener(e -> executeDeleteSelected());
+        deleteSelectedButton.setVisible(false); // Hidden until rows are selected
         panel.add(deleteSelectedButton);
 
         clearButton = new JButton("Clear Results");
@@ -459,7 +436,7 @@ public class JNexusSwing {
         panel.setBorder(BorderFactory.createTitledBorder("Results"));
 
         // Create table model with columns
-        String[] columnNames = {"ID", "File Size", "Path"};
+        String[] columnNames = {"ID", "File Size (Bytes)", "File Size (MB)", "Path"};
         tableModel = new DefaultTableModel(columnNames, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -497,14 +474,22 @@ public class JNexusSwing {
         };
 
         // Apply renderer to all columns
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < 4; i++) {
             resultsTable.getColumnModel().getColumn(i).setCellRenderer(renderer);
         }
 
         // Set column widths
-        resultsTable.getColumnModel().getColumn(0).setPreferredWidth(250); // ID
-        resultsTable.getColumnModel().getColumn(1).setPreferredWidth(120); // File Size
-        resultsTable.getColumnModel().getColumn(2).setPreferredWidth(500); // Path
+        resultsTable.getColumnModel().getColumn(0).setPreferredWidth(200); // ID
+        resultsTable.getColumnModel().getColumn(1).setPreferredWidth(130); // File Size (Bytes)
+        resultsTable.getColumnModel().getColumn(2).setPreferredWidth(90);  // File Size (MB)
+        resultsTable.getColumnModel().getColumn(3).setPreferredWidth(450); // Path
+
+        // Add selection listener to update status and button visibility
+        resultsTable.getSelectionModel().addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) {
+                updateSelectionStatus();
+            }
+        });
 
         JScrollPane scrollPane = new JScrollPane(resultsTable);
         scrollPane.setPreferredSize(new Dimension(800, 400));
@@ -525,15 +510,18 @@ public class JNexusSwing {
     }
 
     private void executeList(boolean forceRefresh) {
-        String repository = repositoryField.getText().trim();
-        if (repository.isEmpty()) {
-            setStatus("ERROR: Repository name is required", true);
+        String selected = (String) repositoryComboBox.getSelectedItem();
+        if (selected == null || selected.isEmpty()) {
+            setStatus("ERROR: Repository selection is required", true);
             JOptionPane.showMessageDialog(frame,
-                "Please enter a repository name.",
+                "Please select a repository.",
                 "Validation Error",
                 JOptionPane.WARNING_MESSAGE);
             return;
         }
+
+        // "All" means empty repository (search all)
+        String repository = "All".equals(selected) ? "" : selected;
 
         String regex = regexField.getText().trim();
         if (regex.isEmpty()) {
@@ -578,9 +566,11 @@ public class JNexusSwing {
                     NumberFormat numberFormat = NumberFormat.getNumberInstance(Locale.US);
                     long totalBytes = 0;
                     for (RepoRecord record : records) {
+                        double sizeMB = record.fileSize() / 1024.0 / 1024.0;
                         tableModel.addRow(new Object[]{
                             record.id(),
                             numberFormat.format(record.fileSize()),
+                            String.format("%.2f", sizeMB),
                             record.path()
                         });
                         totalBytes += record.fileSize();
@@ -588,9 +578,11 @@ public class JNexusSwing {
 
                     // Add summary row
                     if (!records.isEmpty()) {
+                        double totalMB = totalBytes / 1024.0 / 1024.0;
                         tableModel.addRow(new Object[]{
                             "TOTAL: " + records.size() + " components",
-                            numberFormat.format(totalBytes) + " bytes (" + String.format("%.2f MB", totalBytes / 1024.0 / 1024.0) + ")",
+                            numberFormat.format(totalBytes),
+                            String.format("%.2f", totalMB),
                             ""
                         });
                     }
@@ -609,15 +601,18 @@ public class JNexusSwing {
     }
 
     private void executeDelete() {
-        String repository = repositoryField.getText().trim();
-        if (repository.isEmpty()) {
-            setStatus("ERROR: Repository name is required", true);
+        String selected = (String) repositoryComboBox.getSelectedItem();
+        if (selected == null || selected.isEmpty()) {
+            setStatus("ERROR: Repository selection is required", true);
             JOptionPane.showMessageDialog(frame,
-                "Please enter a repository name.",
+                "Please select a repository.",
                 "Validation Error",
                 JOptionPane.WARNING_MESSAGE);
             return;
         }
+
+        // "All" means empty repository (search all)
+        String repository = "All".equals(selected) ? "" : selected;
 
         String regex = regexField.getText().trim();
         if (regex.isEmpty()) {
@@ -805,9 +800,9 @@ public class JNexusSwing {
                 }
 
                 // Clear cache after deletion
-                String repository = repositoryField.getText().trim();
-                if (!repository.isEmpty()) {
-                    client.clearCache(repository);
+                String selected = (String) repositoryComboBox.getSelectedItem();
+                if (selected != null && !selected.isEmpty() && !"All".equals(selected)) {
+                    client.clearCache(selected);
                 }
 
                 return "Deleted " + deleted + " of " + idsToDelete.length + " components\n\n" + output;
@@ -885,11 +880,52 @@ public class JNexusSwing {
 
         // Add new summary row
         if (count > 0) {
+            double totalMB = totalBytes / 1024.0 / 1024.0;
             tableModel.addRow(new Object[]{
                 "TOTAL: " + count + " components",
-                numberFormat.format(totalBytes) + " bytes (" + String.format("%.2f MB", totalBytes / 1024.0 / 1024.0) + ")",
+                numberFormat.format(totalBytes),
+                String.format("%.2f", totalMB),
                 ""
             });
+        }
+    }
+
+    private void updateSelectionStatus() {
+        int[] selectedRows = resultsTable.getSelectedRows();
+
+        if (selectedRows.length == 0) {
+            deleteSelectedButton.setVisible(false);
+            return;
+        }
+
+        // Filter out summary row
+        int validSelections = 0;
+        long selectedBytes = 0;
+        NumberFormat numberFormat = NumberFormat.getNumberInstance(Locale.US);
+
+        for (int viewRow : selectedRows) {
+            int modelRow = resultsTable.convertRowIndexToModel(viewRow);
+            String id = (String) tableModel.getValueAt(modelRow, 0);
+
+            if (id != null && !id.startsWith("TOTAL:")) {
+                validSelections++;
+                String sizeStr = (String) tableModel.getValueAt(modelRow, 1);
+                try {
+                    long size = numberFormat.parse(sizeStr.replaceAll("[^0-9,]", "")).longValue();
+                    selectedBytes += size;
+                } catch (Exception e) {
+                    logger.warn("Failed to parse size: {}", sizeStr);
+                }
+            }
+        }
+
+        if (validSelections > 0) {
+            deleteSelectedButton.setVisible(true);
+            double selectedMB = selectedBytes / 1024.0 / 1024.0;
+            setStatus(String.format("Selected: %d component(s) - %s bytes (%.2f MB)",
+                validSelections, numberFormat.format(selectedBytes), selectedMB), false);
+        } else {
+            deleteSelectedButton.setVisible(false);
         }
     }
 
