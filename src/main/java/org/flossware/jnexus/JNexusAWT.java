@@ -473,13 +473,18 @@ public class JNexusAWT {
             gbc.weightx = 1.0;
             gbc.fill = GridBagConstraints.HORIZONTAL;
             Choice reposChoice = new Choice();
+            reposChoice.add("All");  // Add "All" option first
             for (String repo : credentials.getRepositories()) {
                 reposChoice.add(repo);
             }
             reposChoice.addItemListener(e -> {
                 String selected = reposChoice.getSelectedItem();
                 if (selected != null && !selected.isEmpty()) {
-                    repositoryField.setText(selected);
+                    if ("All".equals(selected)) {
+                        repositoryField.setText("");  // Empty means all repositories
+                    } else {
+                        repositoryField.setText(selected);
+                    }
                 }
             });
             panel.add(reposChoice, gbc);
@@ -489,9 +494,28 @@ public class JNexusAWT {
             logger.debug("No repositories configured to display");
         }
 
-        // Buttons panel
+        // Property file display (read-only)
         gbc.gridx = 0;
         gbc.gridy = 5;
+        gbc.weightx = 0.0;
+        gbc.gridwidth = 1;
+        gbc.anchor = GridBagConstraints.WEST;
+        panel.add(new Label("Config File:"), gbc);
+
+        gbc.gridx = 1;
+        gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        String configFile = credentials.getProfile() == null
+            ? "~/.flossware/nexus/nexus.properties"
+            : "~/.flossware/nexus/nexus-" + credentials.getProfile() + ".properties";
+        TextField configFileField = new TextField(configFile, 40);
+        configFileField.setEditable(false);
+        configFileField.setBackground(panel.getBackground());
+        panel.add(configFileField, gbc);
+
+        // Buttons panel
+        gbc.gridx = 0;
+        gbc.gridy = 6;
         gbc.gridwidth = 2;
         gbc.anchor = GridBagConstraints.CENTER;
         panel.add(createButtonPanel(), gbc);

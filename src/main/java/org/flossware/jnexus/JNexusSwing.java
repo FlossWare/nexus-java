@@ -343,12 +343,22 @@ public class JNexusSwing {
             gbc.gridx = 1;
             gbc.weightx = 1.0;
             gbc.fill = GridBagConstraints.HORIZONTAL;
-            JComboBox<String> reposComboBox = new JComboBox<>(credentials.getRepositories().toArray(new String[0]));
-            reposComboBox.setToolTipText("Select a repository to auto-fill the Repository field");
+
+            // Add "All" option at the beginning
+            java.util.List<String> repoOptions = new java.util.ArrayList<>();
+            repoOptions.add("All");
+            repoOptions.addAll(credentials.getRepositories());
+
+            JComboBox<String> reposComboBox = new JComboBox<>(repoOptions.toArray(new String[0]));
+            reposComboBox.setToolTipText("Select a repository to auto-fill the Repository field (All = no filter)");
             reposComboBox.addActionListener(e -> {
                 String selected = (String) reposComboBox.getSelectedItem();
                 if (selected != null && !selected.isEmpty()) {
-                    repositoryField.setText(selected);
+                    if ("All".equals(selected)) {
+                        repositoryField.setText("");  // Empty means all repositories
+                    } else {
+                        repositoryField.setText(selected);
+                    }
                 }
             });
             panel.add(reposComboBox, gbc);
@@ -358,9 +368,30 @@ public class JNexusSwing {
             logger.debug("No repositories configured to display");
         }
 
-        // Buttons panel
+        // Property file display (read-only)
         gbc.gridx = 0;
         gbc.gridy = 4;
+        gbc.weightx = 0.0;
+        gbc.gridwidth = 1;
+        gbc.anchor = GridBagConstraints.WEST;
+        panel.add(new JLabel("Config File:"), gbc);
+
+        gbc.gridx = 1;
+        gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        String configFile = credentials.getProfile() == null
+            ? "~/.flossware/nexus/nexus.properties"
+            : "~/.flossware/nexus/nexus-" + credentials.getProfile() + ".properties";
+        JTextField configFileField = new JTextField(configFile, 30);
+        configFileField.setEditable(false);
+        configFileField.setBackground(panel.getBackground());
+        configFileField.setBorder(BorderFactory.createEmptyBorder());
+        configFileField.setFont(configFileField.getFont().deriveFont(Font.ITALIC));
+        panel.add(configFileField, gbc);
+
+        // Buttons panel
+        gbc.gridx = 0;
+        gbc.gridy = 5;
         gbc.gridwidth = 2;
         gbc.anchor = GridBagConstraints.CENTER;
         panel.add(createButtonPanel(), gbc);
