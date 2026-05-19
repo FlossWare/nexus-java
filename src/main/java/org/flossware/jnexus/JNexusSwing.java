@@ -477,34 +477,6 @@ public class JNexusSwing {
         resultsTable.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
         resultsTable.getTableHeader().setReorderingAllowed(false);
 
-        // Custom cell renderer to highlight summary row
-        DefaultTableCellRenderer renderer = new DefaultTableCellRenderer() {
-            @Override
-            public Component getTableCellRendererComponent(JTable table, Object value,
-                    boolean isSelected, boolean hasFocus, int row, int column) {
-                Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-
-                // Check if this is a summary row (ID column starts with "TOTAL:")
-                if (row < table.getRowCount() && column >= 0) {
-                    Object idValue = table.getValueAt(row, 0);
-                    if (idValue != null && idValue.toString().startsWith("TOTAL:")) {
-                        c.setBackground(new Color(220, 240, 255)); // Light blue background
-                        c.setFont(c.getFont().deriveFont(Font.BOLD));
-                    } else if (!isSelected) {
-                        c.setBackground(Color.WHITE);
-                        c.setFont(c.getFont().deriveFont(Font.PLAIN));
-                    }
-                }
-
-                return c;
-            }
-        };
-
-        // Apply renderer to all columns
-        for (int i = 0; i < 4; i++) {
-            resultsTable.getColumnModel().getColumn(i).setCellRenderer(renderer);
-        }
-
         // Set column widths
         resultsTable.getColumnModel().getColumn(0).setPreferredWidth(200); // ID
         resultsTable.getColumnModel().getColumn(1).setPreferredWidth(130); // File Size (Bytes)
@@ -603,19 +575,14 @@ public class JNexusSwing {
                         totalBytes += record.fileSize();
                     }
 
-                    // Add summary row
-                    if (!records.isEmpty()) {
-                        double totalMB = totalBytes / 1024.0 / 1024.0;
-                        tableModel.addRow(new Object[]{
-                            "TOTAL: " + records.size() + " components",
-                            numberFormat.format(totalBytes),
-                            String.format("%.2f", totalMB),
-                            ""
-                        });
-                    }
-
+                    // Update status with grand total
                     String newCacheStatus = service.getCacheStatus(repository);
-                    setStatus("List completed - " + records.size() + " components - " + newCacheStatus, false);
+                    double totalMB = totalBytes / 1024.0 / 1024.0;
+                    setStatus(String.format("Total: %d component(s) - %s bytes (%.2f MB) - %s",
+                        records.size(), numberFormat.format(totalBytes), totalMB, newCacheStatus), false);
+
+                    // Trigger selection status update to show grand total
+                    updateSelectionStatus();
                 } catch (Exception e) {
                     setStatus("List failed: " + e.getMessage(), true);
                 } finally {
@@ -766,22 +733,13 @@ public class JNexusSwing {
         }
 
         // Get IDs of selected rows (convert view indices to model indices first)
-        // Filter out summary row (ID starts with "TOTAL:")
         java.util.ArrayList<String> idsToDeleteList = new java.util.ArrayList<>();
         for (int i = 0; i < selectedRows.length; i++) {
             int modelRow = resultsTable.convertRowIndexToModel(selectedRows[i]);
             String id = (String) tableModel.getValueAt(modelRow, 0);
-            if (id != null && !id.startsWith("TOTAL:")) {
+            if (id != null && !id.isEmpty()) {
                 idsToDeleteList.add(id);
             }
-        }
-
-        if (idsToDeleteList.isEmpty()) {
-            JOptionPane.showMessageDialog(frame,
-                "No valid components selected (summary row cannot be deleted).",
-                "Invalid Selection",
-                JOptionPane.WARNING_MESSAGE);
-            return;
         }
 
         String message = "WARNING: This will permanently delete " + idsToDeleteList.size() +
@@ -918,42 +876,54 @@ public class JNexusSwing {
     }
 
     private void updateSelectionStatus() {
-        int[] selectedRows = resultsTable.getSelectedRows();
-
-        if (selectedRows.length == 0) {
-            deleteSelectedButton.setVisible(false);
-            return;
-        }
-
-        // Filter out summary row
-        int validSelections = 0;
-        long selectedBytes = 0;
         NumberFormat numberFormat = NumberFormat.getNumberInstance(Locale.US);
 
-        for (int viewRow : selectedRows) {
-            int modelRow = resultsTable.convertRowIndexToModel(viewRow);
-            String id = (String) tableModel.getValueAt(modelRow, 0);
-
-            if (id != null && !id.startsWith("TOTAL:")) {
-                validSelections++;
-                String sizeStr = (String) tableModel.getValueAt(modelRow, 1);
-                try {
-                    long size = numberFormat.parse(sizeStr.replaceAll("[^0-9,]", "")).longValue();
-                    selectedBytes += size;
-                } catch (Exception e) {
-                    logger.warn("Failed to parse size: {}", sizeStr);
-                }
+        // Calculate grand total from all rows in table
+        int totalComponents = tableModel.getRowCount();
+        long grandTotalBytes = 0;
+        for (int i = 0; i < totalComponents; i++) {
+            String sizeStr = (String) tableModel.getValueAt(i, 1);
+            try {
+                long size = numberFormat.parse(sizeStr.replaceAll("[^0-9,]", "")).longValue();
+                grandTotalBytes += size;
+            } catch (Exception e) {
+                logger.warn("Failed to parse size: {}", sizeStr);
             }
         }
 
-        if (validSelections > 0) {
-            deleteSelectedButton.setVisible(true);
-            double selectedMB = selectedBytes / 1024.0 / 1024.0;
-            setStatus(String.format("Selected: %d component(s) - %s bytes (%.2f MB)",
-                validSelections, numberFormat.format(selectedBytes), selectedMB), false);
-        } else {
+        int[] selectedRows = resultsTable.getSelectedRows();
+
+        // If no rows selected, just show grand total
+        if (selectedRows.length == 0) {
             deleteSelectedButton.setVisible(false);
+            if (totalComponents > 0) {
+                double grandTotalMB = grandTotalBytes / 1024.0 / 1024.0;
+                setStatus(String.format("Total: %d component(s) - %s bytes (%.2f MB)",
+                    totalComponents, numberFormat.format(grandTotalBytes), grandTotalMB), false);
+            }
+            return;
         }
+
+        // Calculate selected total
+        long selectedBytes = 0;
+        for (int viewRow : selectedRows) {
+            int modelRow = resultsTable.convertRowIndexToModel(viewRow);
+            String sizeStr = (String) tableModel.getValueAt(modelRow, 1);
+            try {
+                long size = numberFormat.parse(sizeStr.replaceAll("[^0-9,]", "")).longValue();
+                selectedBytes += size;
+            } catch (Exception e) {
+                logger.warn("Failed to parse size: {}", sizeStr);
+            }
+        }
+
+        // Show both selected and grand total
+        deleteSelectedButton.setVisible(true);
+        double selectedMB = selectedBytes / 1024.0 / 1024.0;
+        double grandTotalMB = grandTotalBytes / 1024.0 / 1024.0;
+        setStatus(String.format("Selected: %d component(s) - %s bytes (%.2f MB) | Total: %d component(s) - %s bytes (%.2f MB)",
+            selectedRows.length, numberFormat.format(selectedBytes), selectedMB,
+            totalComponents, numberFormat.format(grandTotalBytes), grandTotalMB), false);
     }
 
     private void setButtonsEnabled(boolean enabled) {
