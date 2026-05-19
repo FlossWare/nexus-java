@@ -446,7 +446,34 @@ public class JNexusSwing {
 
         resultsTable = new JTable(tableModel);
         resultsTable.setFont(new Font("Monospaced", Font.PLAIN, 12));
-        resultsTable.setAutoCreateRowSorter(true); // Enable column sorting
+
+        // Create custom sorter with numeric comparators for size columns
+        TableRowSorter<DefaultTableModel> sorter = new TableRowSorter<>(tableModel);
+        NumberFormat numberFormat = NumberFormat.getNumberInstance(Locale.US);
+
+        // Column 1: File Size (Bytes) - parse comma-formatted numbers
+        sorter.setComparator(1, (String s1, String s2) -> {
+            try {
+                long n1 = numberFormat.parse(s1.replaceAll("[^0-9,]", "")).longValue();
+                long n2 = numberFormat.parse(s2.replaceAll("[^0-9,]", "")).longValue();
+                return Long.compare(n1, n2);
+            } catch (Exception e) {
+                return s1.compareTo(s2); // Fallback to string comparison
+            }
+        });
+
+        // Column 2: File Size (MB) - parse decimal numbers
+        sorter.setComparator(2, (String s1, String s2) -> {
+            try {
+                double d1 = Double.parseDouble(s1);
+                double d2 = Double.parseDouble(s2);
+                return Double.compare(d1, d2);
+            } catch (Exception e) {
+                return s1.compareTo(s2); // Fallback to string comparison
+            }
+        });
+
+        resultsTable.setRowSorter(sorter);
         resultsTable.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
         resultsTable.getTableHeader().setReorderingAllowed(false);
 
