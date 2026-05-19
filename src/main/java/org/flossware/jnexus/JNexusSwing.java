@@ -436,7 +436,7 @@ public class JNexusSwing {
         panel.setBorder(BorderFactory.createTitledBorder("Results"));
 
         // Create table model with columns
-        String[] columnNames = {"ID", "File Size (Bytes)", "File Size (MB)", "Path"};
+        String[] columnNames = {"ID", "File Size (Bytes)", "File Size (MB)", "File Size (GB)", "Path"};
         tableModel = new DefaultTableModel(columnNames, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -473,6 +473,17 @@ public class JNexusSwing {
             }
         });
 
+        // Column 3: File Size (GB) - parse decimal numbers
+        sorter.setComparator(3, (String s1, String s2) -> {
+            try {
+                double d1 = Double.parseDouble(s1);
+                double d2 = Double.parseDouble(s2);
+                return Double.compare(d1, d2);
+            } catch (Exception e) {
+                return s1.compareTo(s2); // Fallback to string comparison
+            }
+        });
+
         resultsTable.setRowSorter(sorter);
         resultsTable.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
         resultsTable.getTableHeader().setReorderingAllowed(false);
@@ -481,7 +492,8 @@ public class JNexusSwing {
         resultsTable.getColumnModel().getColumn(0).setPreferredWidth(200); // ID
         resultsTable.getColumnModel().getColumn(1).setPreferredWidth(130); // File Size (Bytes)
         resultsTable.getColumnModel().getColumn(2).setPreferredWidth(90);  // File Size (MB)
-        resultsTable.getColumnModel().getColumn(3).setPreferredWidth(450); // Path
+        resultsTable.getColumnModel().getColumn(3).setPreferredWidth(90);  // File Size (GB)
+        resultsTable.getColumnModel().getColumn(4).setPreferredWidth(400); // Path
 
         // Add selection listener to update status and button visibility
         resultsTable.getSelectionModel().addListSelectionListener(e -> {
@@ -566,10 +578,12 @@ public class JNexusSwing {
                     long totalBytes = 0;
                     for (RepoRecord record : records) {
                         double sizeMB = record.fileSize() / 1024.0 / 1024.0;
+                        double sizeGB = record.fileSize() / 1024.0 / 1024.0 / 1024.0;
                         tableModel.addRow(new Object[]{
                             record.id(),
                             numberFormat.format(record.fileSize()),
                             String.format("%.2f", sizeMB),
+                            String.format("%.4f", sizeGB),
                             record.path()
                         });
                         totalBytes += record.fileSize();
@@ -578,8 +592,9 @@ public class JNexusSwing {
                     // Update status with grand total
                     String newCacheStatus = service.getCacheStatus(repository);
                     double totalMB = totalBytes / 1024.0 / 1024.0;
-                    setStatus(String.format("Total: %d component(s) - %s bytes (%.2f MB) - %s",
-                        records.size(), numberFormat.format(totalBytes), totalMB, newCacheStatus), false);
+                    double totalGB = totalBytes / 1024.0 / 1024.0 / 1024.0;
+                    setStatus(String.format("Total: %d component(s) - %s bytes (%.2f MB / %.4f GB) - %s",
+                        records.size(), numberFormat.format(totalBytes), totalMB, totalGB, newCacheStatus), false);
 
                     // Trigger selection status update to show grand total
                     updateSelectionStatus();
@@ -898,8 +913,9 @@ public class JNexusSwing {
             deleteSelectedButton.setVisible(false);
             if (totalComponents > 0) {
                 double grandTotalMB = grandTotalBytes / 1024.0 / 1024.0;
-                setStatus(String.format("Total: %d component(s) - %s bytes (%.2f MB)",
-                    totalComponents, numberFormat.format(grandTotalBytes), grandTotalMB), false);
+                double grandTotalGB = grandTotalBytes / 1024.0 / 1024.0 / 1024.0;
+                setStatus(String.format("Total: %d component(s) - %s bytes (%.2f MB / %.4f GB)",
+                    totalComponents, numberFormat.format(grandTotalBytes), grandTotalMB, grandTotalGB), false);
             }
             return;
         }
@@ -920,10 +936,12 @@ public class JNexusSwing {
         // Show both selected and grand total
         deleteSelectedButton.setVisible(true);
         double selectedMB = selectedBytes / 1024.0 / 1024.0;
+        double selectedGB = selectedBytes / 1024.0 / 1024.0 / 1024.0;
         double grandTotalMB = grandTotalBytes / 1024.0 / 1024.0;
-        setStatus(String.format("Selected: %d component(s) - %s bytes (%.2f MB) | Total: %d component(s) - %s bytes (%.2f MB)",
-            selectedRows.length, numberFormat.format(selectedBytes), selectedMB,
-            totalComponents, numberFormat.format(grandTotalBytes), grandTotalMB), false);
+        double grandTotalGB = grandTotalBytes / 1024.0 / 1024.0 / 1024.0;
+        setStatus(String.format("Selected: %d component(s) - %s bytes (%.2f MB / %.4f GB) | Total: %d component(s) - %s bytes (%.2f MB / %.4f GB)",
+            selectedRows.length, numberFormat.format(selectedBytes), selectedMB, selectedGB,
+            totalComponents, numberFormat.format(grandTotalBytes), grandTotalMB, grandTotalGB), false);
     }
 
     private void setButtonsEnabled(boolean enabled) {
