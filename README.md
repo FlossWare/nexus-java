@@ -148,37 +148,53 @@ The Swing interface provides a modern, native-looking graphical interface:
 **Features:**
 - Modern look and feel that matches your operating system
 - Responsive design with background task execution
+- **Table-based display** with sortable columns (click header to sort)
+- **Multi-row selection** with CTRL/SHIFT click
+- **Delete selected rows** - delete specific components directly from table
+- **Summary row** - shows total components and bytes (non-editable, highlighted)
 - **Interactive credential collection** - if no configuration files exist, shows a dialog to enter credentials (URL, username, password, repositories)
 - **Save credentials option** - after entering credentials, optionally save them to `~/.flossware/nexus/nexus.properties` for future use
 - **Automatic profile selection** - if multiple configuration files exist, shows a dialog to choose which one to use
-- **Available repositories display** - shows configured repositories from `nexus.repositories` property (if configured)
-- Repository name and regex filter inputs
+- **Repository dropdown** - select from configured repositories (auto-fills Repository field)
+- Repository name and regex filter inputs with **Enter key shortcuts**
 - Dry-run checkbox for safe preview of deletions
 - List (cached) and Refresh (bypass cache) buttons
-- Delete button with confirmation dialog
-- Scrollable results area
+- Delete All and Delete Selected buttons with confirmation dialogs
+- **Busy cursor** during operations with disabled buttons
 - Status bar with operation feedback
 
 **Screenshot:**
 ```
-┌─────────────────────────────────────────────────────────┐
-│ Nexus Repository Manager - Swing UI                    │
-├─────────────────────────────────────────────────────────┤
-│ Repository Configuration                                │
-│   Repository:  [maven-releases                        ] │
-│   Regex Filter:[.*SNAPSHOT.*                          ] │
-│   ☑ Dry Run (preview only, no actual deletion)         │
-│   [List] [Refresh] [Delete] [Clear Results] [Quit]     │
-├─────────────────────────────────────────────────────────┤
-│ Results                                                 │
-│ ┌─────────────────────────────────────────────────────┐ │
-│ │ id1              1,024  artifact-1.0.0.jar          │ │
-│ │ id2              2,048  artifact-2.0.0.jar          │ │
-│ │                                                     │ │
-│ └─────────────────────────────────────────────────────┘ │
-├─────────────────────────────────────────────────────────┤
-│ List completed - Cached (125s old)                      │
-└─────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────────┐
+│ Nexus Repository Manager - Swing UI                                       │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Repository Configuration                                                   │
+│   Repository:     [maven-releases                ] (press Enter to List)  │
+│   Regex Filter:   [.*SNAPSHOT.*                  ] (press Enter to List)  │
+│   ☑ Dry Run (preview only, no actual deletion)                            │
+│   Available Repos: [maven-releases ▼] (select to auto-fill)               │
+│   [List] [Refresh] [Delete All] [Delete Selected] [Clear] [Quit]          │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Results                                    (Click column headers to sort)  │
+│ ┌────────────────────────────────────────────────────────────────────────┐ │
+│ │ ID ▲                           File Size ▼        Path                 │ │
+│ │────────────────────────────────────────────────────────────────────────│ │
+│ │ com.example.app-1.0            1,024,567          path/to/app-1.0.jar  │ │
+│ │ com.example.lib-2.0            2,048,123          path/to/lib-2.0.jar  │ │
+│ │ com.example.plugin-3.0           512,890          path/to/plugin.jar   │ │
+│ │ TOTAL: 3 components            3,585,580 bytes (3.42 MB)               │ │
+│ └────────────────────────────────────────────────────────────────────────┘ │
+├────────────────────────────────────────────────────────────────────────────┤
+│ List completed - 3 components - Cached (25s old)                           │
+└────────────────────────────────────────────────────────────────────────────┘
+
+Features demonstrated:
+• Sortable columns (click ID, File Size, or Path headers)
+• Multi-select rows with CTRL/SHIFT (highlighted in blue)
+• Summary row with light blue background and bold text (non-editable)
+• Repository dropdown auto-fills the Repository field when selected
+• Enter key in text fields triggers List operation
+• Busy cursor shows during operations
 ```
 
 ### AWT GUI (Classic)
@@ -192,12 +208,43 @@ The AWT interface provides a classic graphical interface using only AWT componen
 **Features:**
 - Classic AWT look and feel
 - Works on systems where Swing might have issues
+- **Formatted text output** with column headers and summary footer
 - **Interactive credential collection** - if no configuration files exist, shows a dialog to enter credentials
 - **Save credentials option** - after entering credentials, optionally save them to a properties file for future use
 - **Automatic profile selection** - if multiple configuration files exist, shows a dialog to choose which one to use
-- **Available repositories display** - shows configured repositories from `nexus.repositories` property (if configured)
-- Same functionality as Swing interface
+- **Repository dropdown** - select from configured repositories (auto-fills Repository field)
+- Repository name and regex filter inputs with **Enter key shortcuts**
+- Dry-run checkbox for safe preview of deletions
+- **Busy cursor** during operations with disabled buttons
+- Same core functionality as Swing interface
 - Lightweight and fast
+
+**Screenshot:**
+```
+┌────────────────────────────────────────────────────────────────────────────┐
+│ Nexus Repository Manager - AWT UI                                         │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Repository Configuration                                                   │
+│   Repository:     [maven-releases                ] (press Enter to List)  │
+│   Regex Filter:   [.*SNAPSHOT.*                  ] (press Enter to List)  │
+│   ☑ Dry Run (preview only, no actual deletion)                            │
+│   Available Repos: [maven-releases ▼] (select to auto-fill)               │
+│   [List] [Refresh] [Delete] [Clear] [Quit]                                │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Results                                                                    │
+│ ┌────────────────────────────────────────────────────────────────────────┐ │
+│ │ ID                                File Size        Path                │ │
+│ │ ═══════════════════════════════   ═══════════════  ══════════════════  │ │
+│ │ com.example.app-1.0                   1,024,567    path/to/app-1.0.jar │ │
+│ │ com.example.lib-2.0                   2,048,123    path/to/lib-2.0.jar │ │
+│ │ com.example.plugin-3.0                  512,890    path/to/plugin.jar  │ │
+│ │ ═══════════════════════════════   ═══════════════  ══════════════════  │ │
+│ │ TOTAL: 3 components                   3,585,580    (3.42 MB)           │ │
+│ └────────────────────────────────────────────────────────────────────────┘ │
+├────────────────────────────────────────────────────────────────────────────┤
+│ List completed - 3 components - Cached (25s old)                           │
+└────────────────────────────────────────────────────────────────────────────┘
+```
 
 **Why use AWT instead of Swing?**
 - Maximum compatibility with older Java installations
@@ -229,12 +276,41 @@ The terminal UI provides a full-screen ncurses interface for terminal users:
 - **Interactive credential collection** - if no configuration files exist, prompts for credentials via console input (before starting ncurses)
 - **Save credentials option** - after entering credentials, optionally save them to a properties file for future use
 - **Automatic profile selection** - if multiple configuration files exist, shows a text menu to choose which one to use (before starting ncurses)
-- **Available repositories display** - shows configured repositories from `nexus.repositories` property (if configured)
+- **Repository selection** - shows configured repositories from `nexus.repositories` property (if configured)
 - Repository name and regex filter inputs
 - Dry-run checkbox for safe preview of deletions
 - List, Refresh, and Delete buttons
-- Live results display
+- Live results display with formatted output
 - Status messages
+
+**Screenshot:**
+```
+┌────────────────────────────────────────────────────────────────────────────┐
+│ Nexus Repository Manager - Terminal UI                                    │
+│                                                                            │
+│ Repository Configuration                                                   │
+│   Repository:     [maven-releases________________]                        │
+│   Regex Filter:   [.*SNAPSHOT.*_________________]                         │
+│   [X] Dry Run (preview only, no actual deletion)                          │
+│                                                                            │
+│   Available Repos: maven-releases, maven-snapshots, npm-public            │
+│                                                                            │
+│   [ List ] [ Refresh ] [ Delete ] [ Clear ] [ Quit ]                      │
+│                                                                            │
+├────────────────────────────────────────────────────────────────────────────┤
+│ Results                                                                    │
+│                                                                            │
+│ ID                                File Size        Path                   │
+│ ═══════════════════════════════   ═══════════════  ═══════════════════    │
+│ com.example.app-1.0                   1,024,567    path/to/app-1.0.jar    │
+│ com.example.lib-2.0                   2,048,123    path/to/lib-2.0.jar    │
+│ com.example.plugin-3.0                  512,890    path/to/plugin.jar     │
+│                                                                            │
+│                                                                            │
+├────────────────────────────────────────────────────────────────────────────┤
+│ List completed - 3 components - Cached (25s old)                           │
+└────────────────────────────────────────────────────────────────────────────┘
+```
 
 **Why use Terminal UI?**
 - Works over SSH without X11 forwarding

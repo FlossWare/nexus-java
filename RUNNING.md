@@ -109,11 +109,17 @@ The Swing GUI provides a modern, native-looking graphical interface:
 
 - **Modern look and feel** that matches your operating system
 - **Responsive design** with background task execution
+- **Table-based display** with sortable columns - click column headers to sort by ID, File Size, or Path
+- **Multi-row selection** - select multiple rows with CTRL/SHIFT click
+- **Delete selected rows** - delete specific components directly from the table
+- **Summary row** - shows total components and total bytes (non-editable, highlighted in light blue)
+- **Repository dropdown** - select from configured repositories to auto-fill the Repository field
+- **Enter key shortcuts** - press Enter in Repository or Regex fields to trigger List operation
+- **Busy cursor** - visual feedback during operations with disabled buttons
 - **Easy to use** with familiar GUI controls
 - **No special dependencies** - uses Java's built-in Swing library
 - **Interactive credential collection** - if no configuration files exist, shows a dialog to enter credentials
 - **Automatic profile selection** - if multiple profiles exist, shows a selection dialog on startup
-- **Available repositories display** - shows configured repositories from `nexus.repositories` property for easy reference
 
 ### Using the Swing GUI
 
@@ -125,20 +131,30 @@ The Swing GUI provides a modern, native-looking graphical interface:
    **Note:** If multiple configuration profiles exist (e.g., `nexus.properties`, `nexus-dev.properties`, `nexus-prod.properties`), a dialog will appear asking you to select which profile to use. The application will automatically use it if only one profile exists.
 
 2. **Enter repository details:**
-   - Repository: Name of the Nexus repository (e.g., `maven-releases`)
-   - Regex Filter: Optional pattern to filter components (e.g., `.*SNAPSHOT.*`)
-   - Dry Run: Check this box to preview deletions without actually deleting
+   - **Repository**: Name of the Nexus repository (e.g., `maven-releases`)
+     - You can type directly or select from the **Available Repos dropdown** (if configured)
+     - Selecting from dropdown auto-fills the Repository field
+     - Press **Enter** to trigger List operation
+   - **Regex Filter**: Optional pattern to filter components (e.g., `.*SNAPSHOT.*`)
+     - Press **Enter** to trigger List operation
+   - **Dry Run**: Check this box to preview deletions without actually deleting
 
 3. **Choose your operation:**
-   - **List** - Shows components (uses cached data if available, fast)
-   - **Refresh** - Shows components (bypasses cache, always fresh)
-   - **Delete** - Deletes components (shows confirmation dialog first)
-   - **Clear Results** - Clears the results area
+   - **List** - Shows components in table (uses cached data if available, fast)
+   - **Refresh** - Shows components in table (bypasses cache, always fresh)
+   - **Delete All** - Deletes all components matching the filter (shows confirmation dialog first)
+   - **Delete Selected** - Deletes only the rows you selected in the table
+   - **Clear Results** - Clears the table
    - **Quit** - Exits the application
 
-4. **View results** in the scrollable results area
+4. **Work with the results table:**
+   - **Sort columns** - Click column headers (ID, File Size, Path) to sort ascending/descending
+   - **Select rows** - Click to select one row, CTRL+click for multiple, SHIFT+click for range
+   - **Delete selected** - Use "Delete Selected" button to remove specific components
+   - **View summary** - Bottom row shows total components and total bytes (highlighted in light blue)
 
 5. **Check status** at the bottom of the window
+   - Shows operation progress, cache status, and component count
 
 ### Swing GUI Benefits
 
@@ -166,11 +182,14 @@ The AWT GUI provides a classic graphical interface using pure AWT components:
 
 - **Classic AWT look** familiar to Java users
 - **Maximum compatibility** - works on older Java installations
+- **Formatted text output** with column headers and summary footer
+- **Repository dropdown** - select from configured repositories to auto-fill the Repository field
+- **Enter key shortcuts** - press Enter in Repository or Regex fields to trigger List operation
+- **Busy cursor** - visual feedback during operations with disabled buttons
 - **Lightweight** - lower memory footprint than Swing
 - **Works well** in remote desktop/VNC scenarios
 - **Interactive credential collection** - if no configuration files exist, shows a dialog to enter credentials
 - **Automatic profile selection** - if multiple profiles exist, shows a selection dialog on startup
-- **Available repositories display** - shows configured repositories from `nexus.repositories` property for easy reference
 
 ### Using the AWT GUI
 

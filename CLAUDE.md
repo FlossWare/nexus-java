@@ -213,19 +213,30 @@ export NEXUS_PROFILE=dev
 ### Four UI Options
 
 1. **Swing GUI (JNexusSwing.java)**
-   - Modern graphical interface
+   - Modern graphical interface with table-based display
+   - Uses JTable with DefaultTableModel for data display
+   - Sortable columns (JTable.setAutoCreateRowSorter)
+   - Multi-row selection with ListSelectionModel.MULTIPLE_INTERVAL_SELECTION
+   - Custom cell renderer highlights summary row
    - Uses SwingWorker for background tasks
    - Native look and feel via UIManager
+   - Busy cursor (WAIT_CURSOR) during operations
+   - Enter key listeners on text fields trigger List operation
+   - **Repository dropdown** - JComboBox auto-fills Repository field
    - **Automatic profile selection** - JOptionPane.showInputDialog with dropdown
-   - **Available repositories display** - Shows `nexus.repositories` list if configured
-   - Best for: Desktop users who prefer modern GUIs
+   - **Summary row** - Non-editable row with totals (filtered out from deletions)
+   - Best for: Desktop users who prefer modern GUIs with spreadsheet-like interface
 
 2. **AWT GUI (JNexusAWT.java)**
-   - Classic graphical interface
+   - Classic graphical interface with formatted text output
+   - Uses NexusService.formatRecordsWithHeaders() for column-aligned display
+   - Summary footer with total components and bytes
    - Uses Thread for background tasks
-   - Pure AWT components (Frame, Button, etc.)
+   - Pure AWT components (Frame, Button, TextField, TextArea, Choice)
+   - Busy cursor (WAIT_CURSOR) during operations
+   - Enter key listeners on text fields trigger List operation
+   - **Repository dropdown** - Choice component auto-fills Repository field
    - **Automatic profile selection** - Custom Dialog with Choice component
-   - **Available repositories display** - Shows `nexus.repositories` list if configured
    - Best for: Maximum compatibility, remote desktop, VNC
 
 3. **Terminal UI (JNexusUI.java)**
@@ -233,7 +244,7 @@ export NEXUS_PROFILE=dev
    - Uses jcurses library
    - Keyboard navigation (TAB, arrows, SPACE, etc.)
    - **Automatic profile selection** - Text menu before ncurses initialization
-   - **Available repositories display** - Shows `nexus.repositories` list if configured (dynamically adjusts layout)
+   - **Repository display** - Shows `nexus.repositories` list as comma-separated (dynamically adjusts layout)
    - Best for: SSH sessions, terminal users, servers
 
 4. **CLI (JNexus.java)**
@@ -250,8 +261,14 @@ export NEXUS_PROFILE=dev
 - **Terminal**: Direct execution in event loop
 - **CLI**: Direct execution (synchronous)
 
-**Output Capture:**
-All GUIs capture System.out/System.err to display in results area:
+**Data Access Patterns:**
+- **Swing**: Uses `service.getRepositoryRecords()` to get List<RepoRecord>, populates JTable directly
+- **AWT**: Uses `service.getRepositoryRecords()` + `service.formatRecordsWithHeaders()` for formatted text
+- **Terminal**: Captures System.out from `service.listRepository()`
+- **CLI**: Prints directly to stdout via `service.listRepository()`
+
+**Output Capture (AWT/Terminal/Delete operations):**
+Some GUIs capture System.out/System.err to display in results area:
 ```java
 ByteArrayOutputStream baos = new ByteArrayOutputStream();
 PrintStream ps = new PrintStream(baos);
