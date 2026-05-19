@@ -435,6 +435,7 @@ public class JNexusAWT {
         gbc.gridx = 1;
         gbc.weightx = 1.0;
         repositoryField = new TextField(credentials.getDefaultRepository(), 40);
+        repositoryField.addActionListener(e -> executeList(false)); // Enter triggers List
         panel.add(repositoryField, gbc);
 
         // Regex filter label and field
@@ -446,6 +447,7 @@ public class JNexusAWT {
         gbc.gridx = 1;
         gbc.weightx = 1.0;
         regexField = new TextField(credentials.getDefaultRegex(), 40);
+        regexField.addActionListener(e -> executeList(false)); // Enter triggers List
         panel.add(regexField, gbc);
 
         // Dry run checkbox

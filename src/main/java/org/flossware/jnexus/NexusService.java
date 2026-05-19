@@ -225,14 +225,14 @@ public class NexusService {
     }
 
     /**
-     * Formats repository records as a string with column headers.
+     * Formats repository records as a string with column headers and summary.
      * <p>
      * Each record is displayed with its ID, file size (with thousand separators),
-     * and path. Includes column headers for better readability.
+     * and path. Includes column headers and a summary row with totals.
      * </p>
      *
      * @param records the list of records to format
-     * @return formatted string with column headers and data
+     * @return formatted string with column headers, data, and summary
      */
     public String formatRecordsWithHeaders(List<RepoRecord> records) {
         StringBuilder sb = new StringBuilder();
@@ -242,15 +242,23 @@ public class NexusService {
         sb.append(String.format("%-50s  %15s  %s%n",
             "=".repeat(50), "=".repeat(15), "=".repeat(50)));
 
-        // Data rows
+        // Data rows and calculate total
+        long totalBytes = 0;
         for (RepoRecord record : records) {
             sb.append(String.format("%-50s  %,15d  %s%n",
                 record.id(), record.fileSize(), record.path()));
+            totalBytes += record.fileSize();
         }
 
-        // Summary
-        sb.append("\n");
-        sb.append(String.format("Total: %d components%n", records.size()));
+        // Summary row
+        if (!records.isEmpty()) {
+            sb.append(String.format("%-50s  %15s  %s%n",
+                "=".repeat(50), "=".repeat(15), "=".repeat(50)));
+            sb.append(String.format("%-50s  %,15d  %s%n",
+                "TOTAL: " + records.size() + " components",
+                totalBytes,
+                String.format("(%.2f MB)", totalBytes / 1024.0 / 1024.0)));
+        }
 
         return sb.toString();
     }

@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
+import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableRowSorter;
 import java.awt.*;
@@ -304,6 +305,7 @@ public class JNexusSwing {
         gbc.gridx = 1;
         gbc.weightx = 1.0;
         repositoryField = new JTextField(credentials.getDefaultRepository(), 30);
+        repositoryField.addActionListener(e -> executeList(false)); // Enter triggers List
         panel.add(repositoryField, gbc);
 
         // Regex filter label and field
@@ -316,6 +318,7 @@ public class JNexusSwing {
         gbc.weightx = 1.0;
         regexField = new JTextField(credentials.getDefaultRegex(), 30);
         regexField.setToolTipText("Optional regex pattern to filter components (e.g., .*SNAPSHOT.*)");
+        regexField.addActionListener(e -> executeList(false)); // Enter triggers List
         panel.add(regexField, gbc);
 
         // Dry run checkbox
@@ -421,6 +424,34 @@ public class JNexusSwing {
         resultsTable.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
         resultsTable.getTableHeader().setReorderingAllowed(false);
 
+        // Custom cell renderer to highlight summary row
+        DefaultTableCellRenderer renderer = new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable table, Object value,
+                    boolean isSelected, boolean hasFocus, int row, int column) {
+                Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+
+                // Check if this is a summary row (ID column starts with "TOTAL:")
+                if (row < table.getRowCount() && column >= 0) {
+                    Object idValue = table.getValueAt(row, 0);
+                    if (idValue != null && idValue.toString().startsWith("TOTAL:")) {
+                        c.setBackground(new Color(220, 240, 255)); // Light blue background
+                        c.setFont(c.getFont().deriveFont(Font.BOLD));
+                    } else if (!isSelected) {
+                        c.setBackground(Color.WHITE);
+                        c.setFont(c.getFont().deriveFont(Font.PLAIN));
+                    }
+                }
+
+                return c;
+            }
+        };
+
+        // Apply renderer to all columns
+        for (int i = 0; i < 3; i++) {
+            resultsTable.getColumnModel().getColumn(i).setCellRenderer(renderer);
+        }
+
         // Set column widths
         resultsTable.getColumnModel().getColumn(0).setPreferredWidth(250); // ID
         resultsTable.getColumnModel().getColumn(1).setPreferredWidth(120); // File Size
@@ -496,11 +527,22 @@ public class JNexusSwing {
 
                     // Populate table
                     NumberFormat numberFormat = NumberFormat.getNumberInstance(Locale.US);
+                    long totalBytes = 0;
                     for (RepoRecord record : records) {
                         tableModel.addRow(new Object[]{
                             record.id(),
                             numberFormat.format(record.fileSize()),
                             record.path()
+                        });
+                        totalBytes += record.fileSize();
+                    }
+
+                    // Add summary row
+                    if (!records.isEmpty()) {
+                        tableModel.addRow(new Object[]{
+                            "TOTAL: " + records.size() + " components",
+                            numberFormat.format(totalBytes) + " bytes (" + String.format("%.2f MB", totalBytes / 1024.0 / 1024.0) + ")",
+                            ""
                         });
                     }
 
@@ -652,7 +694,26 @@ public class JNexusSwing {
             return;
         }
 
-        String message = "WARNING: This will permanently delete " + selectedRows.length +
+        // Get IDs of selected rows (convert view indices to model indices first)
+        // Filter out summary row (ID starts with "TOTAL:")
+        java.util.ArrayList<String> idsToDeleteList = new java.util.ArrayList<>();
+        for (int i = 0; i < selectedRows.length; i++) {
+            int modelRow = resultsTable.convertRowIndexToModel(selectedRows[i]);
+            String id = (String) tableModel.getValueAt(modelRow, 0);
+            if (id != null && !id.startsWith("TOTAL:")) {
+                idsToDeleteList.add(id);
+            }
+        }
+
+        if (idsToDeleteList.isEmpty()) {
+            JOptionPane.showMessageDialog(frame,
+                "No valid components selected (summary row cannot be deleted).",
+                "Invalid Selection",
+                JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        String message = "WARNING: This will permanently delete " + idsToDeleteList.size() +
             " selected component(s) from the repository.\n\nAre you sure you want to continue?";
 
         int choice = JOptionPane.showConfirmDialog(frame,
@@ -666,18 +727,13 @@ public class JNexusSwing {
             return;
         }
 
-        setStatus("Deleting " + selectedRows.length + " selected components...", false);
+        setStatus("Deleting " + idsToDeleteList.size() + " selected components...", false);
 
         // Set busy cursor
         frame.setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
         setButtonsEnabled(false);
 
-        // Get IDs of selected rows (convert view indices to model indices first)
-        String[] idsToDelete = new String[selectedRows.length];
-        for (int i = 0; i < selectedRows.length; i++) {
-            int modelRow = resultsTable.convertRowIndexToModel(selectedRows[i]);
-            idsToDelete[i] = (String) tableModel.getValueAt(modelRow, 0);
-        }
+        String[] idsToDelete = idsToDeleteList.toArray(new String[0]);
 
         // Run in background thread
         new SwingWorker<String, Void>() {
@@ -725,11 +781,17 @@ public class JNexusSwing {
                         "Delete Results",
                         JOptionPane.INFORMATION_MESSAGE);
 
-                    // Remove deleted rows from table
+                    // Remove deleted rows from table (skip summary row)
                     for (int i = selectedRows.length - 1; i >= 0; i--) {
                         int modelRow = resultsTable.convertRowIndexToModel(selectedRows[i]);
-                        tableModel.removeRow(modelRow);
+                        String id = (String) tableModel.getValueAt(modelRow, 0);
+                        if (id != null && !id.startsWith("TOTAL:")) {
+                            tableModel.removeRow(modelRow);
+                        }
                     }
+
+                    // Recalculate and update summary row
+                    updateSummaryRow();
 
                     setStatus("Delete operation completed", false);
                 } catch (Exception e) {
@@ -741,6 +803,45 @@ public class JNexusSwing {
                 }
             }
         }.execute();
+    }
+
+    private void updateSummaryRow() {
+        // Find and remove existing summary row if present
+        for (int i = tableModel.getRowCount() - 1; i >= 0; i--) {
+            String id = (String) tableModel.getValueAt(i, 0);
+            if (id != null && id.startsWith("TOTAL:")) {
+                tableModel.removeRow(i);
+                break;
+            }
+        }
+
+        // Recalculate totals from remaining rows
+        int count = 0;
+        long totalBytes = 0;
+        NumberFormat numberFormat = NumberFormat.getNumberInstance(Locale.US);
+
+        for (int i = 0; i < tableModel.getRowCount(); i++) {
+            String sizeStr = (String) tableModel.getValueAt(i, 1);
+            if (sizeStr != null && !sizeStr.isEmpty()) {
+                try {
+                    // Remove commas and parse
+                    long size = numberFormat.parse(sizeStr.replaceAll("[^0-9,]", "")).longValue();
+                    totalBytes += size;
+                    count++;
+                } catch (Exception e) {
+                    logger.warn("Failed to parse size: {}", sizeStr);
+                }
+            }
+        }
+
+        // Add new summary row
+        if (count > 0) {
+            tableModel.addRow(new Object[]{
+                "TOTAL: " + count + " components",
+                numberFormat.format(totalBytes) + " bytes (" + String.format("%.2f MB", totalBytes / 1024.0 / 1024.0) + ")",
+                ""
+            });
+        }
     }
 
     private void setButtonsEnabled(boolean enabled) {
