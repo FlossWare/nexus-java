@@ -220,14 +220,18 @@ export NEXUS_PROFILE=dev
 1. **Swing GUI (JNexusSwing.java)**
    - Modern graphical interface with table-based display
    - Uses JTable with DefaultTableModel for data display
+   - **4 columns**: ID, File Size (Bytes), File Size (MB), Path
    - Sortable columns (JTable.setAutoCreateRowSorter)
    - Multi-row selection with ListSelectionModel.MULTIPLE_INTERVAL_SELECTION
-   - Custom cell renderer highlights summary row
+   - Custom cell renderer highlights summary row (light blue background)
+   - **Smart Delete Selected button** - visible only when rows are selected
+   - **Selection listener** - updates status bar with selection summary
    - Uses SwingWorker for background tasks
    - Native look and feel via UIManager
    - Busy cursor (WAIT_CURSOR) during operations
-   - Enter key listeners on text fields trigger List operation
-   - **Repository dropdown** - JComboBox auto-fills Repository field
+   - Enter key listener on regex field triggers List operation
+   - **Repository dropdown selector** - JComboBox with "All" + configured repos
+   - **Nexus URL and Config File displays** - read-only fields showing connection details
    - **Automatic profile selection** - JOptionPane.showInputDialog with dropdown
    - **Summary row** - Non-editable row with totals (filtered out from deletions)
    - Best for: Desktop users who prefer modern GUIs with spreadsheet-like interface

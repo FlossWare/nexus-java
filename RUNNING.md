@@ -114,12 +114,16 @@ The Swing GUI provides a modern, native-looking graphical interface:
 
 - **Modern look and feel** that matches your operating system
 - **Responsive design** with background task execution
-- **Table-based display** with sortable columns - click column headers to sort by ID, File Size, or Path
+- **Table-based display** with sortable columns - click column headers to sort
+- **4 columns**: ID, File Size (Bytes), File Size (MB), Path
 - **Multi-row selection** - select multiple rows with CTRL/SHIFT click
-- **Delete selected rows** - delete specific components directly from the table
-- **Summary row** - shows total components and total bytes (non-editable, highlighted in light blue)
-- **Repository dropdown** - select from configured repositories to auto-fill the Repository field
-- **Enter key shortcuts** - press Enter in Repository or Regex fields to trigger List operation
+- **Smart Delete Selected button** - appears only when rows are selected
+- **Selection status display** - shows total size of selected components in status bar
+- **Summary row** - shows total components and bytes (non-editable, highlighted in light blue)
+- **Repository dropdown selector** - choose from "All" or configured repositories (no text field needed)
+- **Nexus URL display** - see which Nexus server you're connected to
+- **Config file display** - see which configuration file is being used
+- **Enter key shortcut** - press Enter in Regex field to trigger List operation
 - **Busy cursor** - visual feedback during operations with disabled buttons
 - **Easy to use** with familiar GUI controls
 - **No special dependencies** - uses Java's built-in Swing library
@@ -135,31 +139,35 @@ The Swing GUI provides a modern, native-looking graphical interface:
 
    **Note:** If multiple configuration profiles exist (e.g., `nexus.properties`, `nexus-dev.properties`, `nexus-prod.properties`), a dialog will appear asking you to select which profile to use. The application will automatically use it if only one profile exists.
 
-2. **Enter repository details:**
-   - **Repository**: Name of the Nexus repository (e.g., `maven-releases`)
-     - You can type directly or select from the **Available Repos dropdown** (if configured)
-     - Selecting from dropdown auto-fills the Repository field
-     - Press **Enter** to trigger List operation
+2. **Select repository and configure options:**
+   - **Repository dropdown**: Choose from "All" or configured repositories
+     - "All" searches across all repositories
+     - Select specific repository to narrow search
    - **Regex Filter**: Optional pattern to filter components (e.g., `.*SNAPSHOT.*`)
      - Press **Enter** to trigger List operation
    - **Dry Run**: Check this box to preview deletions without actually deleting
+   - **Nexus URL**: Shows which server you're connected to (read-only)
+   - **Config File**: Shows which configuration file is being used (read-only)
 
 3. **Choose your operation:**
    - **List** - Shows components in table (uses cached data if available, fast)
    - **Refresh** - Shows components in table (bypasses cache, always fresh)
    - **Delete All** - Deletes all components matching the filter (shows confirmation dialog first)
-   - **Delete Selected** - Deletes only the rows you selected in the table
+   - **Delete Selected** - Appears when rows are selected; deletes only selected components
    - **Clear Results** - Clears the table
    - **Quit** - Exits the application
 
 4. **Work with the results table:**
-   - **Sort columns** - Click column headers (ID, File Size, Path) to sort ascending/descending
+   - **4 columns displayed**: ID, File Size (Bytes), File Size (MB), Path
+   - **Sort columns** - Click column headers to sort ascending/descending
    - **Select rows** - Click to select one row, CTRL+click for multiple, SHIFT+click for range
-   - **Delete selected** - Use "Delete Selected" button to remove specific components
-   - **View summary** - Bottom row shows total components and total bytes (highlighted in light blue)
+   - **Selection status** - Status bar shows: "Selected: 3 component(s) - 2,048,123 bytes (1.95 MB)"
+   - **Delete selected** - "Delete Selected" button appears when rows are selected
+   - **View summary** - Bottom row shows total components and bytes (highlighted in light blue)
 
 5. **Check status** at the bottom of the window
-   - Shows operation progress, cache status, and component count
+   - Shows operation progress, cache status, component count
+   - When rows are selected, shows total size of selection
 
 ### Swing GUI Benefits
 
@@ -188,8 +196,10 @@ The AWT GUI provides a classic graphical interface using pure AWT components:
 - **Classic AWT look** familiar to Java users
 - **Maximum compatibility** - works on older Java installations
 - **Formatted text output** with column headers and summary footer
-- **Repository dropdown** - select from configured repositories to auto-fill the Repository field
-- **Enter key shortcuts** - press Enter in Repository or Regex fields to trigger List operation
+- **Repository dropdown selector** - choose from "All" or configured repositories
+- **Nexus URL display** - see which Nexus server you're connected to
+- **Config file display** - see which configuration file is being used
+- **Enter key shortcut** - press Enter in Regex field to trigger List operation
 - **Busy cursor** - visual feedback during operations with disabled buttons
 - **Lightweight** - lower memory footprint than Swing
 - **Works well** in remote desktop/VNC scenarios

@@ -149,52 +149,61 @@ The Swing interface provides a modern, native-looking graphical interface:
 - Modern look and feel that matches your operating system
 - Responsive design with background task execution
 - **Table-based display** with sortable columns (click header to sort)
+- **4 columns**: ID, File Size (Bytes), File Size (MB), Path
 - **Multi-row selection** with CTRL/SHIFT click
-- **Delete selected rows** - delete specific components directly from table
+- **Smart Delete Selected button** - appears only when rows are selected
+- **Selection status display** - shows total size of selected components
 - **Summary row** - shows total components and bytes (non-editable, highlighted)
-- **Interactive credential collection** - if no configuration files exist, shows a dialog to enter credentials (URL, username, password, repositories)
-- **Save credentials option** - after entering credentials, optionally save them to `~/.flossware/nexus/nexus.properties` for future use
-- **Auto-populated Repository field** - first repository from list becomes the default on next launch
+- **Interactive credential collection** - if no configuration files exist, shows a dialog to enter credentials
+- **Save credentials option** - after entering credentials, optionally save them for future use
 - **Automatic profile selection** - if multiple configuration files exist, shows a dialog to choose which one to use
-- **Repository dropdown** - select from configured repositories (auto-fills Repository field)
-- Repository name and regex filter inputs with **Enter key shortcuts**
+- **Repository dropdown selector** - choose from "All" or configured repositories (no text field needed)
+- **Nexus URL display** - see which Nexus server you're connected to
+- **Config file display** - see which configuration file is being used
+- Regex filter input with **Enter key shortcut**
 - Dry-run checkbox for safe preview of deletions
 - List (cached) and Refresh (bypass cache) buttons
-- Delete All and Delete Selected buttons with confirmation dialogs
+- Delete All button with confirmation dialog
 - **Busy cursor** during operations with disabled buttons
-- Status bar with operation feedback
+- Status bar with operation feedback and selection summary
 
 **Screenshot:**
 ```
-┌────────────────────────────────────────────────────────────────────────────┐
-│ Nexus Repository Manager - Swing UI                                       │
-├────────────────────────────────────────────────────────────────────────────┤
-│ Repository Configuration                                                   │
-│   Repository:     [maven-releases                ] (press Enter to List)  │
-│   Regex Filter:   [.*SNAPSHOT.*                  ] (press Enter to List)  │
-│   ☑ Dry Run (preview only, no actual deletion)                            │
-│   Available Repos: [maven-releases ▼] (select to auto-fill)               │
-│   [List] [Refresh] [Delete All] [Delete Selected] [Clear] [Quit]          │
-├────────────────────────────────────────────────────────────────────────────┤
-│ Results                                    (Click column headers to sort)  │
-│ ┌────────────────────────────────────────────────────────────────────────┐ │
-│ │ ID ▲                           File Size ▼        Path                 │ │
-│ │────────────────────────────────────────────────────────────────────────│ │
-│ │ com.example.app-1.0            1,024,567          path/to/app-1.0.jar  │ │
-│ │ com.example.lib-2.0            2,048,123          path/to/lib-2.0.jar  │ │
-│ │ com.example.plugin-3.0           512,890          path/to/plugin.jar   │ │
-│ │ TOTAL: 3 components            3,585,580 bytes (3.42 MB)               │ │
-│ └────────────────────────────────────────────────────────────────────────┘ │
-├────────────────────────────────────────────────────────────────────────────┤
-│ List completed - 3 components - Cached (25s old)                           │
-└────────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ Nexus Repository Manager - Swing UI                                        │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Repository Configuration                                                    │
+│   Repository:  [maven-releases ▼] (All, maven-releases, npm-public)        │
+│   Regex Filter: [.*SNAPSHOT.*                   ] (Enter to List)          │
+│   ☑ Dry Run (preview only, no actual deletion)                             │
+│   Nexus URL:    https://nexus.corp.redhat.com                              │
+│   Config File:  ~/.flossware/nexus/nexus.properties                        │
+│   [List] [Refresh] [Delete All] [Delete Selected*] [Clear] [Quit]          │
+│                                   *appears when rows selected               │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Results                                     (Click column headers to sort)  │
+│ ┌─────────────────────────────────────────────────────────────────────────┐ │
+│ │ ID ▲            File Size (Bytes) ▼  File Size (MB)  Path              │ │
+│ │───────────────────────────────────────────────────────────────────────  │ │
+│ │ com.example.app      1,024,567          0.98         path/to/app.jar   │ │
+│ │ com.example.lib      2,048,123          1.95         path/to/lib.jar ✓ │ │
+│ │ com.example.plugin     512,890          0.49         path/to/plugin.jar│ │
+│ │ TOTAL: 3 components  3,585,580          3.42                           │ │
+│ └─────────────────────────────────────────────────────────────────────────┘ │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Selected: 1 component(s) - 2,048,123 bytes (1.95 MB)                       │
+└─────────────────────────────────────────────────────────────────────────────┘
 
 Features demonstrated:
-• Sortable columns (click ID, File Size, or Path headers)
-• Multi-select rows with CTRL/SHIFT (highlighted in blue)
-• Summary row with light blue background and bold text (non-editable)
-• Repository dropdown auto-fills the Repository field when selected
-• Enter key in text fields triggers List operation
+• Repository dropdown with "All" option (no text field needed)
+• 4 columns: ID, File Size (Bytes), File Size (MB), Path
+• Sortable columns (click headers to sort)
+• Multi-select rows with CTRL/SHIFT (✓ indicates selection)
+• Selection status shows total size of selected components
+• Delete Selected button appears only when rows are selected
+• Summary row with totals (light blue background, non-editable)
+• Nexus URL and Config File displayed for reference
+• Enter key in Regex Filter triggers List operation
 • Busy cursor shows during operations
 ```
 
@@ -213,8 +222,10 @@ The AWT interface provides a classic graphical interface using only AWT componen
 - **Interactive credential collection** - if no configuration files exist, shows a dialog to enter credentials
 - **Save credentials option** - after entering credentials, optionally save them to a properties file for future use
 - **Automatic profile selection** - if multiple configuration files exist, shows a dialog to choose which one to use
-- **Repository dropdown** - select from configured repositories (auto-fills Repository field)
-- Repository name and regex filter inputs with **Enter key shortcuts**
+- **Repository dropdown selector** - choose from "All" or configured repositories
+- **Nexus URL display** - see which Nexus server you're connected to
+- **Config file display** - see which configuration file is being used
+- Regex filter input with **Enter key shortcut**
 - Dry-run checkbox for safe preview of deletions
 - **Busy cursor** during operations with disabled buttons
 - Same core functionality as Swing interface
@@ -222,18 +233,19 @@ The AWT interface provides a classic graphical interface using only AWT componen
 
 **Screenshot:**
 ```
-┌────────────────────────────────────────────────────────────────────────────┐
-│ Nexus Repository Manager - AWT UI                                         │
-├────────────────────────────────────────────────────────────────────────────┤
-│ Repository Configuration                                                   │
-│   Repository:     [maven-releases                ] (press Enter to List)  │
-│   Regex Filter:   [.*SNAPSHOT.*                  ] (press Enter to List)  │
-│   ☑ Dry Run (preview only, no actual deletion)                            │
-│   Available Repos: [maven-releases ▼] (select to auto-fill)               │
-│   [List] [Refresh] [Delete] [Clear] [Quit]                                │
-├────────────────────────────────────────────────────────────────────────────┤
-│ Results                                                                    │
-│ ┌────────────────────────────────────────────────────────────────────────┐ │
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ Nexus Repository Manager - AWT UI                                          │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Repository Configuration                                                    │
+│   Repository:  [maven-releases ▼] (All, maven-releases, npm-public)        │
+│   Regex Filter: [.*SNAPSHOT.*                   ] (Enter to List)          │
+│   ☑ Dry Run (preview only, no actual deletion)                             │
+│   Nexus URL:    https://nexus.corp.redhat.com                              │
+│   Config File:  ~/.flossware/nexus/nexus.properties                        │
+│   [List] [Refresh] [Delete] [Clear] [Quit]                                 │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ Results                                                                     │
+│ ┌─────────────────────────────────────────────────────────────────────────┐ │
 │ │ ID                                File Size        Path                │ │
 │ │ ═══════════════════════════════   ═══════════════  ══════════════════  │ │
 │ │ com.example.app-1.0                   1,024,567    path/to/app-1.0.jar │ │
@@ -241,10 +253,10 @@ The AWT interface provides a classic graphical interface using only AWT componen
 │ │ com.example.plugin-3.0                  512,890    path/to/plugin.jar  │ │
 │ │ ═══════════════════════════════   ═══════════════  ══════════════════  │ │
 │ │ TOTAL: 3 components                   3,585,580    (3.42 MB)           │ │
-│ └────────────────────────────────────────────────────────────────────────┘ │
-├────────────────────────────────────────────────────────────────────────────┤
-│ List completed - 3 components - Cached (25s old)                           │
-└────────────────────────────────────────────────────────────────────────────┘
+│ └─────────────────────────────────────────────────────────────────────────┘ │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ List completed - 3 components - Cached (25s old)                            │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 **Why use AWT instead of Swing?**
