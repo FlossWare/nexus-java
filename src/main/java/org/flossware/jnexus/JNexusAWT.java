@@ -494,9 +494,25 @@ public class JNexusAWT {
             logger.debug("No repositories configured to display");
         }
 
-        // Property file display (read-only)
+        // Nexus URL display (read-only)
         gbc.gridx = 0;
         gbc.gridy = 5;
+        gbc.weightx = 0.0;
+        gbc.gridwidth = 1;
+        gbc.anchor = GridBagConstraints.WEST;
+        panel.add(new Label("Nexus URL:"), gbc);
+
+        gbc.gridx = 1;
+        gbc.weightx = 1.0;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+        TextField nexusUrlField = new TextField(credentials.getUrl(), 40);
+        nexusUrlField.setEditable(false);
+        nexusUrlField.setBackground(panel.getBackground());
+        panel.add(nexusUrlField, gbc);
+
+        // Property file display (read-only)
+        gbc.gridx = 0;
+        gbc.gridy = 6;
         gbc.weightx = 0.0;
         gbc.gridwidth = 1;
         gbc.anchor = GridBagConstraints.WEST;
@@ -515,7 +531,7 @@ public class JNexusAWT {
 
         // Buttons panel
         gbc.gridx = 0;
-        gbc.gridy = 6;
+        gbc.gridy = 7;
         gbc.gridwidth = 2;
         gbc.anchor = GridBagConstraints.CENTER;
         panel.add(createButtonPanel(), gbc);
