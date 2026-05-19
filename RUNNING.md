@@ -44,11 +44,16 @@ nexus.url=https://your-nexus-server.com
 nexus.user=your-username
 nexus.password=your-password
 
+# Optional repository list (comma-separated)
+nexus.repositories=maven-releases,maven-snapshots,npm-public
+
 # Optional UI defaults (uncomment to use)
-nexus.default.repository=maven-releases
+nexus.default.repository=maven-releases  # Auto-populated if nexus.repositories is set
 nexus.default.regex=.*SNAPSHOT.*
 nexus.default.dryrun=true
 ```
+
+**Note:** When you enter credentials through the interactive dialog and provide a repository list, the first repository automatically becomes the default. This pre-populates the Repository field on next launch.
 
 **Profile-Based Configuration (Multiple Environments):**
 

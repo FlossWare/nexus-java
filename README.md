@@ -154,6 +154,7 @@ The Swing interface provides a modern, native-looking graphical interface:
 - **Summary row** - shows total components and bytes (non-editable, highlighted)
 - **Interactive credential collection** - if no configuration files exist, shows a dialog to enter credentials (URL, username, password, repositories)
 - **Save credentials option** - after entering credentials, optionally save them to `~/.flossware/nexus/nexus.properties` for future use
+- **Auto-populated Repository field** - first repository from list becomes the default on next launch
 - **Automatic profile selection** - if multiple configuration files exist, shows a dialog to choose which one to use
 - **Repository dropdown** - select from configured repositories (auto-fills Repository field)
 - Repository name and regex filter inputs with **Enter key shortcuts**

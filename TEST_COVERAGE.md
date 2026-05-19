@@ -40,7 +40,7 @@ Tests for configuration loading and validation:
 - ✅ Discover profiles multiple
 - ✅ Discover profiles without default
 - ✅ Discover profiles ignores non-property files
-- ✅ Explicit credentials constructor with repos
+- ✅ Explicit credentials constructor with repos (first repo becomes default)
 - ✅ Explicit credentials constructor null URL throws exception
 - ✅ Explicit credentials constructor blank URL throws exception
 - ✅ Explicit credentials constructor null user throws exception
@@ -302,6 +302,7 @@ Suggested CI pipeline:
 
 | Version | Tests | Pass Rate | Notable Changes | Date |
 |---------|-------|-----------|-----------------|------|
+| 1.6 | 92 | 100% | Fixed Repository field auto-population from first repository in list | 2026-05-19 |
 | 1.5 | 92 | 100% | Added save credentials tests (5), save credential dialogs for all GUIs | 2026-05-19 |
 | 1.4 | 87 | 100% | Added explicit credentials constructor tests (9), interactive credential collection dialogs | 2026-05-19 |
 | 1.3 | 78 | 100% | Added profile discovery tests (5), GUI profile selection dialogs | 2026-05-19 |
@@ -310,7 +311,7 @@ Suggested CI pipeline:
 | 1.0 | 44 | 100% | Initial release | 2026-05-15 |
 
 **Last Updated**: 2026-05-19  
-**Test Suite Version**: 1.5
+**Test Suite Version**: 1.6
 
 ## Test Growth
 
@@ -323,6 +324,10 @@ Version (1.4):  87 tests ██████████████████�
 Current (1.5):  92 tests ██████████████████████████████████████████
 Growth:         +48 tests (+109%)
 ```
+
+New improvements in 1.6:
+- ✅ Repository field auto-population fix (first repository from list becomes default)
+- ✅ Updated test to expect first repo as default repository
 
 New test areas added in 1.5:
 - ✅ Save credentials to properties file (5 tests covering default profile, named profile, directory creation, overwriting)

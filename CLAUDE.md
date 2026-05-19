@@ -107,7 +107,7 @@ nexus.user=admin
 nexus.password=secret
 
 # Optional UI defaults
-nexus.default.repository=maven-releases
+nexus.default.repository=maven-releases  # Auto-populated if nexus.repositories is set
 nexus.default.regex=.*SNAPSHOT.*
 nexus.default.dryrun=true
 
@@ -117,6 +117,11 @@ nexus.repositories=maven-releases,maven-snapshots,npm-public,docker-hosted
 # Optional HTTP timeout
 nexus.http.timeout.seconds=30
 ```
+
+**Interactive credential collection behavior:**
+- When credentials are entered via dialog and saved, the first repository in the list becomes the default
+- This auto-populates `nexus.default.repository` in the saved properties file
+- On next launch, the Repository field is pre-filled with this value
 
 **Profile-based configuration example:**
 ```bash
