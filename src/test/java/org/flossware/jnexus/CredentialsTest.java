@@ -591,7 +591,7 @@ class CredentialsTest {
         assertEquals("maven-releases", creds.getRepositories().get(0));
         assertEquals("npm-public", creds.getRepositories().get(1));
         assertNull(creds.getProfile());
-        assertEquals("", creds.getDefaultRepository());
+        assertEquals("maven-releases", creds.getDefaultRepository()); // First repo becomes default
         assertEquals("", creds.getDefaultRegex());
         assertTrue(creds.isDefaultDryRun());
         assertEquals(30, creds.getHttpTimeoutSeconds());

@@ -117,7 +117,8 @@ public class Credentials {
         }
 
         // Use defaults for optional fields
-        this.defaultRepository = "";
+        // If repositories were provided, use the first one as the default
+        this.defaultRepository = repositories.isEmpty() ? "" : repositories.get(0);
         this.defaultRegex = "";
         this.defaultDryRun = true;
         this.httpTimeoutSeconds = 30;
