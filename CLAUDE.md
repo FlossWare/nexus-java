@@ -37,12 +37,12 @@ HTTP/Nexus API
 
 ### Separation of Concerns
 - **JNexus.java**: CLI parsing, user interaction, command routing
-- **JNexusSwing.java**: Modern Swing GUI (JFrame, JPanel, SwingWorker)
-- **JNexusAWT.java**: Classic AWT GUI (Frame, Button, TextField)
-- **JNexusUI.java**: Terminal UI using jcurses, pre-populated with default values from Credentials
+- **JNexusSwing.java**: Modern Swing GUI (JFrame, JPanel, SwingWorker) with automatic profile selection
+- **JNexusAWT.java**: Classic AWT GUI (Frame, Button, TextField) with automatic profile selection
+- **JNexusUI.java**: Terminal UI using jcurses with text-based profile selection, pre-populated with default values from Credentials
 - **NexusService.java**: Business logic, filtering, statistics, output formatting
 - **NexusClient.java**: HTTP communication, pagination, JSON parsing
-- **Credentials.java**: Configuration management (env vars → properties file) + optional UI defaults
+- **Credentials.java**: Configuration management (env vars → properties file) + optional UI defaults + profile discovery
 - **RepoRecord.java**: Immutable data model (Java record)
 
 ## Design Patterns
@@ -78,11 +78,26 @@ HTTP/Nexus API
 **Credentials.java** loads configuration from multiple sources:
 - **Required fields**: `nexus.url`, `nexus.user`, `nexus.password`
   - Environment variables: `NEXUS_URL`, `NEXUS_USER`, `NEXUS_PASSWORD` (highest priority)
-  - Properties file: `~/.flossware/nexus/nexus.properties`
+  - Properties file: `~/.flossware/nexus/nexus.properties` (default)
+  - Profile-based properties file: `~/.flossware/nexus/nexus-{profile}.properties`
 - **Optional UI defaults**: `nexus.default.repository`, `nexus.default.regex`, `nexus.default.dryrun`
   - Only loaded from properties file
-  - Pre-populate terminal UI fields on startup
+  - Pre-populate UI fields on startup
   - Empty strings and `true` used as defaults if not specified
+- **Optional repository list**: `nexus.repositories`
+  - Comma-separated list of repository names
+  - Used by GUIs for dropdown menus or batch operations
+  - Example: `maven-releases,maven-snapshots,npm-public`
+  - Returns empty list if not configured
+- **Optional HTTP configuration**: `nexus.http.timeout.seconds`
+  - Also available via `NEXUS_HTTP_TIMEOUT` environment variable
+  - Default: 30 seconds
+- **Profile support**: Multiple configuration files for different environments
+  - Specify via `NEXUS_PROFILE` environment variable or `--profile` CLI flag
+  - Profile name determines file: `nexus-{profile}.properties`
+  - Examples: `dev` → `nexus-dev.properties`, `prod` → `nexus-prod.properties`
+  - Null/empty/blank profile defaults to `nexus.properties`
+  - Inspired by Spring Boot profiles for familiar workflow
 
 **Example properties file:**
 ```properties
@@ -95,6 +110,27 @@ nexus.password=secret
 nexus.default.repository=maven-releases
 nexus.default.regex=.*SNAPSHOT.*
 nexus.default.dryrun=true
+
+# Optional repository list (comma-separated)
+nexus.repositories=maven-releases,maven-snapshots,npm-public,docker-hosted
+
+# Optional HTTP timeout
+nexus.http.timeout.seconds=30
+```
+
+**Profile-based configuration example:**
+```bash
+# Create profile-specific files
+~/.flossware/nexus/nexus-dev.properties
+~/.flossware/nexus/nexus-prod.properties
+~/.flossware/nexus/nexus-staging.properties
+
+# Use via environment variable
+export NEXUS_PROFILE=dev
+./jnexus.sh list my-repository
+
+# Or via CLI flag
+./jnexus.sh --profile prod list my-repository
 ```
 
 ### Error Handling
@@ -127,6 +163,18 @@ nexus.default.dryrun=true
 
 ## Testing Strategy
 
+### Configuration Tests (CredentialsTest.java)
+- Test loading from properties files
+- Test missing/blank credentials validation
+- Test UI defaults parsing
+- Test repository list parsing (single, multiple, with spaces)
+- Test HTTP timeout configuration
+- Test profile-based configuration loading
+- Test profile selection (dev, prod, staging)
+- Test default profile when null/empty/blank
+- Test profile file not found error handling
+- Use `@TempDir` for isolated file system tests
+
 ### Unit Tests (NexusServiceTest.java)
 - Mock NexusClient
 - Test filtering logic
@@ -155,18 +203,6 @@ nexus.default.dryrun=true
 - Mock HttpClient responses with Mockito
 - Use `AtomicInteger` to count HTTP requests in cache tests
 
-### Unit Tests (NexusServiceTest.java)
-- Mock NexusClient
-- Test filtering logic
-- Test statistics calculation
-- Test error handling
-
-### Integration Tests (NexusClientIntegrationTest.java)
-- Use Java's built-in `com.sun.net.httpserver.HttpServer`
-- Test pagination with real HTTP
-- Test authentication headers
-- Test various HTTP status codes
-
 ### Test Data Patterns
 - Use `@TempDir` for file system tests
 - Use `ByteArrayOutputStream` to capture console output
@@ -180,24 +216,30 @@ nexus.default.dryrun=true
    - Modern graphical interface
    - Uses SwingWorker for background tasks
    - Native look and feel via UIManager
+   - **Automatic profile selection** - JOptionPane.showInputDialog with dropdown
+   - **Available repositories display** - Shows `nexus.repositories` list if configured
    - Best for: Desktop users who prefer modern GUIs
 
 2. **AWT GUI (JNexusAWT.java)**
    - Classic graphical interface
    - Uses Thread for background tasks
    - Pure AWT components (Frame, Button, etc.)
+   - **Automatic profile selection** - Custom Dialog with Choice component
+   - **Available repositories display** - Shows `nexus.repositories` list if configured
    - Best for: Maximum compatibility, remote desktop, VNC
 
 3. **Terminal UI (JNexusUI.java)**
    - Full-screen ncurses interface
    - Uses jcurses library
    - Keyboard navigation (TAB, arrows, SPACE, etc.)
+   - **Automatic profile selection** - Text menu before ncurses initialization
+   - **Available repositories display** - Shows `nexus.repositories` list if configured (dynamically adjusts layout)
    - Best for: SSH sessions, terminal users, servers
 
 4. **CLI (JNexus.java)**
    - Command-line interface
    - Uses Picocli for argument parsing
-   - Supports --verbose and --quiet flags
+   - Supports --verbose, --quiet, and --profile flags
    - Best for: Scripting, automation, CI/CD
 
 ### UI Implementation Patterns
@@ -228,17 +270,52 @@ String output = baos.toString();
 - **Terminal**: Direct status label updates
 - **CLI**: Console input with confirmation prompts
 
+**Profile Selection (When Multiple Profiles Exist):**
+- **Swing**: `JOptionPane.showInputDialog()` with array of profile names
+- **AWT**: Custom `Dialog` with `Choice` component (dropdown) and OK/Cancel buttons
+- **Terminal**: Text menu with numbered options before ncurses initialization
+- **CLI**: Use `--profile` flag to specify profile explicitly
+
+All GUIs use `Credentials.discoverProfiles()` to find available profiles:
+```java
+List<String> profiles = Credentials.discoverProfiles();
+if (profiles.size() > 1) {
+    // Show selection dialog
+    String selected = showProfileSelectionDialog(profiles);
+    // Convert "default" to null for Credentials constructor
+    credentials = new Credentials("default".equals(selected) ? null : selected);
+} else if (profiles.size() == 1) {
+    // Auto-select single profile
+    String profile = "default".equals(profiles.get(0)) ? null : profiles.get(0);
+    credentials = new Credentials(profile);
+} else {
+    // Show error - no configuration found
+}
+```
+
 ## Common Development Tasks
 
 ### Adding a New UI
 1. Create new class extending appropriate framework (Swing/AWT/jcurses)
 2. Initialize NexusClient and NexusService in constructor
-3. Create input fields for repository, regex, dry-run
-4. Add buttons for List, Refresh, Delete, Clear, Quit
-5. Implement background task execution pattern
-6. Capture System.out for results display
-7. Create launcher script (jnexus-{name}.sh)
-8. Update README.md and CHANGELOG.md
+3. Implement profile selection dialog (if multiple profiles exist)
+4. Create input fields for repository, regex, dry-run
+5. Add available repositories display if `credentials.getRepositories()` is not empty
+6. Add buttons for List, Refresh, Delete, Clear, Quit
+7. Implement background task execution pattern
+8. Capture System.out for results display
+9. Create launcher script (jnexus-{name}.sh)
+10. Update README.md and CHANGELOG.md
+
+**Available Repositories Display Pattern:**
+```java
+if (!credentials.getRepositories().isEmpty()) {
+    // Swing: JTextArea with comma-separated list
+    // AWT: TextArea with comma-separated list
+    // Terminal: JLabel with comma-separated list
+    String repoList = String.join(", ", credentials.getRepositories());
+}
+```
 
 ### Adding a New Command
 1. Create subclass in `JNexus.java` implementing `Callable<Integer>`

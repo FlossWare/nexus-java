@@ -42,42 +42,336 @@ public class JNexusAWT {
     public static void main(String[] args) {
         EventQueue.invokeLater(() -> {
             try {
-                JNexusAWT app = new JNexusAWT();
+                // Discover available profiles
+                java.util.List<String> profiles = Credentials.discoverProfiles();
+                String selectedProfile = null;
+                Credentials credentials = null;
+
+                if (profiles.isEmpty()) {
+                    // No configuration found - show credential collection dialog
+                    credentials = showCredentialDialog();
+                    if (credentials == null) {
+                        // User cancelled
+                        System.exit(0);
+                        return;
+                    }
+
+                    // Ask if user wants to save credentials
+                    if (showSaveCredentialsDialog()) {
+                        try {
+                            credentials.saveToPropertiesFile(null);
+                            showInfoDialog(
+                                "Credentials saved successfully to:\n~/.flossware/nexus/nexus.properties",
+                                "Saved"
+                            );
+                        } catch (java.io.IOException e) {
+                            showErrorDialog(
+                                "Failed to save credentials: " + e.getMessage(),
+                                "Save Error"
+                            );
+                        }
+                    }
+                } else if (profiles.size() > 1) {
+                    // Multiple profiles found - show selection dialog
+                    selectedProfile = showProfileSelectionDialog(profiles);
+                    if (selectedProfile == null) {
+                        // User cancelled
+                        System.exit(0);
+                        return;
+                    }
+                } else {
+                    // Only one profile found - use it automatically
+                    selectedProfile = profiles.get(0);
+                    if ("default".equals(selectedProfile)) {
+                        selectedProfile = null;
+                    }
+                }
+
+                JNexusAWT app;
+                if (credentials != null) {
+                    // Use credentials from dialog
+                    app = new JNexusAWT(credentials);
+                } else {
+                    // Use credentials from profile
+                    app = new JNexusAWT(selectedProfile);
+                }
                 app.createAndShowGUI();
             } catch (Exception e) {
                 LoggerFactory.getLogger(JNexusAWT.class).error("Failed to start AWT UI: {}", e.getMessage(), e);
-
-                // Show error dialog
-                Dialog errorDialog = new Dialog((Frame) null, "Initialization Error", true);
-                errorDialog.setLayout(new BorderLayout());
-
-                TextArea errorText = new TextArea(
+                showErrorDialog(
                     "Failed to initialize Nexus client:\n" + e.getMessage() +
                     "\n\nPlease configure credentials:\n" +
                     "  Set environment variables or\n" +
                     "  create ~/.flossware/nexus/nexus.properties",
-                    8, 50, TextArea.SCROLLBARS_VERTICAL_ONLY);
-                errorText.setEditable(false);
-                errorDialog.add(errorText, BorderLayout.CENTER);
-
-                Button okButton = new Button("OK");
-                okButton.addActionListener(e2 -> System.exit(1));
-                Panel buttonPanel = new Panel();
-                buttonPanel.add(okButton);
-                errorDialog.add(buttonPanel, BorderLayout.SOUTH);
-
-                errorDialog.pack();
-                errorDialog.setLocationRelativeTo(null);
-                errorDialog.setVisible(true);
+                    "Initialization Error");
+                System.exit(1);
             }
         });
     }
 
-    public JNexusAWT() throws Exception {
-        // Initialize Nexus client
-        credentials = new Credentials();
+    private static void showErrorDialog(String message, String title) {
+        Dialog errorDialog = new Dialog((Frame) null, title, true);
+        errorDialog.setLayout(new BorderLayout());
+
+        TextArea errorText = new TextArea(message, 10, 50, TextArea.SCROLLBARS_VERTICAL_ONLY);
+        errorText.setEditable(false);
+        errorDialog.add(errorText, BorderLayout.CENTER);
+
+        Button okButton = new Button("OK");
+        okButton.addActionListener(e -> errorDialog.dispose());
+        Panel buttonPanel = new Panel();
+        buttonPanel.add(okButton);
+        errorDialog.add(buttonPanel, BorderLayout.SOUTH);
+
+        errorDialog.pack();
+        errorDialog.setLocationRelativeTo(null);
+        errorDialog.setVisible(true);
+    }
+
+    private static void showInfoDialog(String message, String title) {
+        Dialog infoDialog = new Dialog((Frame) null, title, true);
+        infoDialog.setLayout(new BorderLayout());
+
+        TextArea infoText = new TextArea(message, 6, 50, TextArea.SCROLLBARS_VERTICAL_ONLY);
+        infoText.setEditable(false);
+        infoDialog.add(infoText, BorderLayout.CENTER);
+
+        Button okButton = new Button("OK");
+        okButton.addActionListener(e -> infoDialog.dispose());
+        Panel buttonPanel = new Panel();
+        buttonPanel.add(okButton);
+        infoDialog.add(buttonPanel, BorderLayout.SOUTH);
+
+        infoDialog.pack();
+        infoDialog.setLocationRelativeTo(null);
+        infoDialog.setVisible(true);
+    }
+
+    private static boolean showSaveCredentialsDialog() {
+        Dialog dialog = new Dialog((Frame) null, "Save Credentials?", true);
+        dialog.setLayout(new BorderLayout(10, 10));
+
+        TextArea messageArea = new TextArea(
+            "Would you like to save these credentials to a properties file?\n\n" +
+            "They will be saved to:\n~/.flossware/nexus/nexus.properties",
+            5, 50, TextArea.SCROLLBARS_NONE
+        );
+        messageArea.setEditable(false);
+        dialog.add(messageArea, BorderLayout.CENTER);
+
+        Panel buttonPanel = new Panel();
+        Button yesButton = new Button("Yes");
+        Button noButton = new Button("No");
+
+        final boolean[] result = {false};
+
+        yesButton.addActionListener(e -> {
+            result[0] = true;
+            dialog.dispose();
+        });
+
+        noButton.addActionListener(e -> {
+            result[0] = false;
+            dialog.dispose();
+        });
+
+        buttonPanel.add(yesButton);
+        buttonPanel.add(noButton);
+        dialog.add(buttonPanel, BorderLayout.SOUTH);
+
+        dialog.pack();
+        dialog.setLocationRelativeTo(null);
+        dialog.setVisible(true);
+
+        return result[0];
+    }
+
+    private static String showProfileSelectionDialog(java.util.List<String> profiles) {
+        Dialog dialog = new Dialog((Frame) null, "Select Profile", true);
+        dialog.setLayout(new BorderLayout(10, 10));
+
+        // Message label
+        Label messageLabel = new Label("Multiple configuration profiles found. Please select one:");
+        Panel messagePanel = new Panel();
+        messagePanel.add(messageLabel);
+        dialog.add(messagePanel, BorderLayout.NORTH);
+
+        // Choice (dropdown) for profiles
+        Choice profileChoice = new Choice();
+        for (String profile : profiles) {
+            profileChoice.add(profile);
+        }
+        Panel choicePanel = new Panel();
+        choicePanel.add(new Label("Profile: "));
+        choicePanel.add(profileChoice);
+        dialog.add(choicePanel, BorderLayout.CENTER);
+
+        // Buttons
+        Panel buttonPanel = new Panel();
+        Button okButton = new Button("OK");
+        Button cancelButton = new Button("Cancel");
+
+        final String[] result = {null};
+
+        okButton.addActionListener(e -> {
+            String selected = profileChoice.getSelectedItem();
+            // Convert "default" back to null for Credentials constructor
+            result[0] = "default".equals(selected) ? null : selected;
+            dialog.dispose();
+        });
+
+        cancelButton.addActionListener(e -> {
+            result[0] = null;
+            dialog.dispose();
+        });
+
+        buttonPanel.add(okButton);
+        buttonPanel.add(cancelButton);
+        dialog.add(buttonPanel, BorderLayout.SOUTH);
+
+        dialog.pack();
+        dialog.setLocationRelativeTo(null);
+        dialog.setVisible(true);
+
+        return result[0];
+    }
+
+    public JNexusAWT(String profile) throws Exception {
+        // Initialize Nexus client with selected profile
+        credentials = new Credentials(profile);
         client = new NexusClient(credentials);
         service = new NexusService(client);
+    }
+
+    public JNexusAWT(Credentials credentials) throws Exception {
+        // Initialize Nexus client with provided credentials
+        this.credentials = credentials;
+        client = new NexusClient(credentials);
+        service = new NexusService(client);
+    }
+
+    private static Credentials showCredentialDialog() {
+        Dialog dialog = new Dialog((Frame) null, "Enter Nexus Credentials", true);
+        dialog.setLayout(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        // Info label
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.gridwidth = 2;
+        Label infoLabel = new Label("No configuration files found. Please enter your Nexus credentials.");
+        dialog.add(infoLabel, gbc);
+
+        // URL field
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        gbc.gridwidth = 1;
+        gbc.weightx = 0.0;
+        dialog.add(new Label("Nexus URL:"), gbc);
+
+        gbc.gridx = 1;
+        gbc.weightx = 1.0;
+        TextField urlField = new TextField(40);
+        dialog.add(urlField, gbc);
+
+        // Username field
+        gbc.gridx = 0;
+        gbc.gridy = 2;
+        gbc.weightx = 0.0;
+        dialog.add(new Label("Username:"), gbc);
+
+        gbc.gridx = 1;
+        gbc.weightx = 1.0;
+        TextField userField = new TextField(40);
+        dialog.add(userField, gbc);
+
+        // Password field
+        gbc.gridx = 0;
+        gbc.gridy = 3;
+        gbc.weightx = 0.0;
+        dialog.add(new Label("Password:"), gbc);
+
+        gbc.gridx = 1;
+        gbc.weightx = 1.0;
+        TextField passwordField = new TextField(40);
+        passwordField.setEchoChar('*');
+        dialog.add(passwordField, gbc);
+
+        // Repositories field (optional)
+        gbc.gridx = 0;
+        gbc.gridy = 4;
+        gbc.weightx = 0.0;
+        dialog.add(new Label("Repositories:"), gbc);
+
+        gbc.gridx = 1;
+        gbc.weightx = 1.0;
+        TextField reposField = new TextField(40);
+        dialog.add(reposField, gbc);
+
+        // Hint label
+        gbc.gridx = 1;
+        gbc.gridy = 5;
+        Label hintLabel = new Label("(Optional: comma-separated, e.g., maven-releases,npm-public)");
+        hintLabel.setFont(new Font("Dialog", Font.PLAIN, 10));
+        dialog.add(hintLabel, gbc);
+
+        // Buttons
+        Panel buttonPanel = new Panel();
+        Button okButton = new Button("OK");
+        Button cancelButton = new Button("Cancel");
+
+        final Credentials[] result = {null};
+        final boolean[] shouldRetry = {false};
+
+        okButton.addActionListener(e -> {
+            String url = urlField.getText().trim();
+            String user = userField.getText().trim();
+            String password = passwordField.getText().trim();
+            String repos = reposField.getText().trim();
+
+            if (url.isEmpty() || user.isEmpty() || password.isEmpty()) {
+                showErrorDialog(
+                    "URL, Username, and Password are required.",
+                    "Invalid Input");
+                shouldRetry[0] = true;
+                dialog.dispose();
+                return;
+            }
+
+            try {
+                result[0] = new Credentials(url, user, password, repos);
+                dialog.dispose();
+            } catch (IllegalArgumentException ex) {
+                showErrorDialog(
+                    "Invalid credentials: " + ex.getMessage(),
+                    "Error");
+                shouldRetry[0] = true;
+                dialog.dispose();
+            }
+        });
+
+        cancelButton.addActionListener(e -> dialog.dispose());
+
+        buttonPanel.add(okButton);
+        buttonPanel.add(cancelButton);
+
+        gbc.gridx = 0;
+        gbc.gridy = 6;
+        gbc.gridwidth = 2;
+        dialog.add(buttonPanel, gbc);
+
+        dialog.pack();
+        dialog.setLocationRelativeTo(null);
+        dialog.setVisible(true);
+
+        // If validation failed, show dialog again
+        if (shouldRetry[0]) {
+            return showCredentialDialog();
+        }
+
+        return result[0];
     }
 
     private void createAndShowGUI() {
@@ -160,10 +454,30 @@ public class JNexusAWT {
         dryRunCheckbox.setState(credentials.isDefaultDryRun());
         panel.add(dryRunCheckbox, gbc);
 
+        // Available repositories display (if configured)
+        if (!credentials.getRepositories().isEmpty()) {
+            gbc.gridx = 0;
+            gbc.gridy = 4;
+            gbc.weightx = 0.0;
+            gbc.gridwidth = 1;
+            gbc.anchor = GridBagConstraints.NORTHWEST;
+            panel.add(new Label("Available Repos:"), gbc);
+
+            gbc.gridx = 1;
+            gbc.weightx = 1.0;
+            gbc.fill = GridBagConstraints.BOTH;
+            TextArea reposArea = new TextArea(String.join(", ", credentials.getRepositories()), 2, 40, TextArea.SCROLLBARS_VERTICAL_ONLY);
+            reposArea.setEditable(false);
+            panel.add(reposArea, gbc);
+
+            gbc.fill = GridBagConstraints.HORIZONTAL;
+        }
+
         // Buttons panel
         gbc.gridx = 0;
-        gbc.gridy = 4;
+        gbc.gridy = 5;
         gbc.gridwidth = 2;
+        gbc.anchor = GridBagConstraints.CENTER;
         panel.add(createButtonPanel(), gbc);
 
         return panel;

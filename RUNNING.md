@@ -29,7 +29,7 @@ export NEXUS_USER=your-username
 export NEXUS_PASSWORD=your-password
 ```
 
-**Properties File:**
+**Properties File (Default):**
 ```bash
 mkdir -p ~/.flossware/nexus
 cp src/main/resources/jnexus.properties.example ~/.flossware/nexus/nexus.properties
@@ -48,6 +48,32 @@ nexus.password=your-password
 nexus.default.repository=maven-releases
 nexus.default.regex=.*SNAPSHOT.*
 nexus.default.dryrun=true
+```
+
+**Profile-Based Configuration (Multiple Environments):**
+
+For managing multiple environments (dev, staging, prod), create profile-specific property files:
+
+```bash
+# Create profile-specific files
+mkdir -p ~/.flossware/nexus
+cp src/main/resources/nexus-dev.properties.example ~/.flossware/nexus/nexus-dev.properties
+cp src/main/resources/nexus-prod.properties.example ~/.flossware/nexus/nexus-prod.properties
+
+# Edit each file with environment-specific credentials
+nano ~/.flossware/nexus/nexus-dev.properties
+nano ~/.flossware/nexus/nexus-prod.properties
+```
+
+Use profiles via environment variable:
+```bash
+export NEXUS_PROFILE=dev
+./jnexus.sh list my-repository
+```
+
+Or via CLI flag:
+```bash
+./jnexus.sh --profile prod list my-repository
 ```
 
 When configured, all UIs will pre-populate these values on startup.
@@ -85,6 +111,9 @@ The Swing GUI provides a modern, native-looking graphical interface:
 - **Responsive design** with background task execution
 - **Easy to use** with familiar GUI controls
 - **No special dependencies** - uses Java's built-in Swing library
+- **Interactive credential collection** - if no configuration files exist, shows a dialog to enter credentials
+- **Automatic profile selection** - if multiple profiles exist, shows a selection dialog on startup
+- **Available repositories display** - shows configured repositories from `nexus.repositories` property for easy reference
 
 ### Using the Swing GUI
 
@@ -92,6 +121,8 @@ The Swing GUI provides a modern, native-looking graphical interface:
    ```bash
    ./jnexus-swing.sh
    ```
+
+   **Note:** If multiple configuration profiles exist (e.g., `nexus.properties`, `nexus-dev.properties`, `nexus-prod.properties`), a dialog will appear asking you to select which profile to use. The application will automatically use it if only one profile exists.
 
 2. **Enter repository details:**
    - Repository: Name of the Nexus repository (e.g., `maven-releases`)
@@ -137,6 +168,9 @@ The AWT GUI provides a classic graphical interface using pure AWT components:
 - **Maximum compatibility** - works on older Java installations
 - **Lightweight** - lower memory footprint than Swing
 - **Works well** in remote desktop/VNC scenarios
+- **Interactive credential collection** - if no configuration files exist, shows a dialog to enter credentials
+- **Automatic profile selection** - if multiple profiles exist, shows a selection dialog on startup
+- **Available repositories display** - shows configured repositories from `nexus.repositories` property for easy reference
 
 ### Using the AWT GUI
 
@@ -146,6 +180,8 @@ The AWT GUI has the same functionality and usage as the Swing GUI, but uses clas
    ```bash
    ./jnexus-awt.sh
    ```
+
+   **Note:** If multiple configuration profiles exist, a dialog with a dropdown list will appear asking you to select which profile to use. The application will automatically use it if only one profile exists.
 
 2. Follow the same steps as the Swing GUI
 
@@ -210,6 +246,8 @@ The terminal UI provides an interactive full-screen interface:
    ```bash
    ./jnexus-ui.sh
    ```
+
+   **Note:** If multiple configuration profiles exist, a text menu will appear (before starting the ncurses interface) asking you to select which profile to use. Simply type the number corresponding to your choice and press Enter. The application will automatically use it if only one profile exists.
 
 2. **Navigate to the Repository field** (use TAB)
 
@@ -313,6 +351,9 @@ Skip confirmation prompt:
 |--------|-------|-------------|
 | `--help` | `-h` | Show help message |
 | `--version` | `-V` | Show version information |
+| `--verbose` | `-v` | Enable debug logging |
+| `--quiet` | `-q` | Only show warnings and errors |
+| `--profile` | `-p` | Use a specific configuration profile (e.g., dev, prod, staging) |
 | `--dry-run` | `-n` | (Delete only) Preview deletions without executing |
 | `--yes` | `-y` | (Delete only) Skip confirmation prompt |
 
@@ -330,6 +371,15 @@ Skip confirmation prompt:
 
 # Automated deletion (use with caution!)
 ./jnexus.sh delete --yes old-repository
+
+# Use development profile
+./jnexus.sh --profile dev list maven-snapshots
+
+# Use production profile with verbose logging
+./jnexus.sh --profile prod --verbose list maven-releases
+
+# Delete in staging environment
+./jnexus.sh --profile staging delete --dry-run test-repo ".*RC.*"
 ```
 
 ## Troubleshooting
@@ -388,10 +438,17 @@ java -Xmx512m \
 ### Override credentials via environment for single command
 
 ```bash
+# Override with environment variables
 NEXUS_URL=https://other-nexus.com \
 NEXUS_USER=admin \
 NEXUS_PASSWORD=secret \
 ./jnexus.sh list test-repo
+
+# Use profile via environment variable
+NEXUS_PROFILE=dev ./jnexus.sh list test-repo
+
+# Combine profile with command flags
+NEXUS_PROFILE=prod ./jnexus.sh --verbose list maven-releases
 ```
 
 ## Questions?

@@ -1,0 +1,27 @@
+# Development Profile Configuration
+# Copy this file to ~/.flossware/nexus/nexus-dev.properties and update with your dev credentials
+# Use via: NEXUS_PROFILE=dev or --profile dev
+
+# Required: Nexus server URL (without trailing slash)
+nexus.url=https://dev-nexus.example.com
+
+# Required: Nexus username
+nexus.user=dev-username
+
+# Required: Nexus password or token
+nexus.password=dev-password-or-token
+
+# Optional: Default repository name for UI
+nexus.default.repository=maven-snapshots
+
+# Optional: Default regex filter for UI
+nexus.default.regex=.*SNAPSHOT.*
+
+# Optional: Default dry-run mode for UI (true/false)
+nexus.default.dryrun=true
+
+# Optional: Comma-separated list of repositories (for dropdowns/batch operations)
+nexus.repositories=maven-snapshots,npm-dev,docker-dev
+
+# Optional: HTTP connection timeout in seconds (default: 30)
+nexus.http.timeout.seconds=60

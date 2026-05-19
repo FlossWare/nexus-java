@@ -50,6 +50,12 @@ public class JNexus implements Callable<Integer> {
     )
     private boolean quiet;
 
+    @Option(
+        names = {"-p", "--profile"},
+        description = "Configuration profile to use (e.g., dev, prod, staging)"
+    )
+    private String profile;
+
     /**
      * Configures logging level based on verbose/quiet flags.
      */
@@ -113,9 +119,13 @@ public class JNexus implements Callable<Integer> {
             org.slf4j.Logger logger = LoggerFactory.getLogger(JNexus.class);
 
             try {
-                Credentials credentials = new Credentials();
+                Credentials credentials = new Credentials(parent.profile);
                 NexusClient client = new NexusClient(credentials);
                 NexusService service = new NexusService(client);
+
+                if (credentials.getProfile() != null) {
+                    logger.debug("Using profile: {}", credentials.getProfile());
+                }
 
                 System.out.println("Listing components in repository: " + repository);
                 if (regexFilter != null) {
@@ -208,9 +218,13 @@ public class JNexus implements Callable<Integer> {
                     }
                 }
 
-                Credentials credentials = new Credentials();
+                Credentials credentials = new Credentials(parent.profile);
                 NexusClient client = new NexusClient(credentials);
                 NexusService service = new NexusService(client);
+
+                if (credentials.getProfile() != null) {
+                    logger.debug("Using profile: {}", credentials.getProfile());
+                }
 
                 if (dryRun) {
                     System.out.println("DRY RUN - No components will be deleted");

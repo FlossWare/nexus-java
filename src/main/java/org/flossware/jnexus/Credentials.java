@@ -5,7 +5,11 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import java.util.Properties;
+import java.util.stream.Collectors;
 
 /**
  * Manages Nexus repository credentials and configuration.
@@ -14,12 +18,26 @@ import java.util.Properties;
  * </p>
  * <ol>
  *   <li>Environment variables: NEXUS_URL, NEXUS_USER, NEXUS_PASSWORD</li>
- *   <li>Properties file: ~/.flossware/nexus/nexus.properties</li>
+ *   <li>Properties file (profile-based):
+ *     <ul>
+ *       <li>If NEXUS_PROFILE is set: ~/.flossware/nexus/nexus-{profile}.properties</li>
+ *       <li>Otherwise: ~/.flossware/nexus/nexus.properties (default)</li>
+ *     </ul>
+ *   </li>
  * </ol>
  * <p>
  * All three credentials (URL, user, password) must be provided or an
  * {@link IllegalStateException} will be thrown during construction.
  * </p>
+ * <p>
+ * <strong>Profile Support:</strong> Use NEXUS_PROFILE environment variable to switch
+ * between different configurations. For example:
+ * </p>
+ * <ul>
+ *   <li>NEXUS_PROFILE=dev → loads nexus-dev.properties</li>
+ *   <li>NEXUS_PROFILE=prod → loads nexus-prod.properties</li>
+ *   <li>NEXUS_PROFILE=staging → loads nexus-staging.properties</li>
+ * </ul>
  *
  * @author sfloess
  * @since 1.0
@@ -34,8 +52,14 @@ public class Credentials {
     private final String defaultRegex;
     private final boolean defaultDryRun;
 
+    // Optional repository list
+    private final List<String> repositories;
+
     // Optional HTTP configuration
     private final int httpTimeoutSeconds;
+
+    // Profile used for loading configuration
+    private final String profile;
 
     /**
      * Constructs a new Credentials instance by loading configuration from
@@ -43,12 +67,75 @@ public class Credentials {
      * <p>
      * Environment variables take precedence over properties file values.
      * If any required credential is missing or blank, an exception is thrown.
+     * Profile is determined from NEXUS_PROFILE environment variable.
      * </p>
      *
      * @throws IllegalStateException if any required credential (URL, user, or password)
      *                               is not configured or is blank
      */
     public Credentials() {
+        this(System.getenv("NEXUS_PROFILE"));
+    }
+
+    /**
+     * Constructs a new Credentials instance with explicit values.
+     * <p>
+     * Used when credentials are collected interactively (e.g., from a dialog).
+     * Does not load from environment variables or properties files.
+     * </p>
+     *
+     * @param url the Nexus server URL
+     * @param user the Nexus username
+     * @param password the Nexus password
+     * @param repositoriesStr comma-separated list of repositories (optional, can be null or empty)
+     * @throws IllegalArgumentException if any required credential (URL, user, or password) is null or blank
+     */
+    public Credentials(String url, String user, String password, String repositoriesStr) {
+        if (url == null || url.isBlank()) {
+            throw new IllegalArgumentException("URL cannot be null or blank");
+        }
+        if (user == null || user.isBlank()) {
+            throw new IllegalArgumentException("Username cannot be null or blank");
+        }
+        if (password == null || password.isBlank()) {
+            throw new IllegalArgumentException("Password cannot be null or blank");
+        }
+
+        this.url = url;
+        this.user = user;
+        this.password = password;
+        this.profile = null;
+
+        // Parse repositories if provided
+        if (repositoriesStr != null && !repositoriesStr.isBlank()) {
+            this.repositories = Arrays.stream(repositoriesStr.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .collect(Collectors.toList());
+        } else {
+            this.repositories = Collections.emptyList();
+        }
+
+        // Use defaults for optional fields
+        this.defaultRepository = "";
+        this.defaultRegex = "";
+        this.defaultDryRun = true;
+        this.httpTimeoutSeconds = 30;
+    }
+
+    /**
+     * Constructs a new Credentials instance with a specific profile.
+     * <p>
+     * Environment variables take precedence over properties file values.
+     * If any required credential is missing or blank, an exception is thrown.
+     * </p>
+     *
+     * @param profile the profile name to use (null or empty for default)
+     * @throws IllegalStateException if any required credential (URL, user, or password)
+     *                               is not configured or is blank
+     */
+    public Credentials(String profile) {
+        this.profile = (profile != null && !profile.isBlank()) ? profile : null;
         String url = System.getenv("NEXUS_URL");
         String user = System.getenv("NEXUS_USER");
         String password = System.getenv("NEXUS_PASSWORD");
@@ -92,6 +179,17 @@ public class Credentials {
         this.defaultRegex = props.getProperty("nexus.default.regex", "");
         this.defaultDryRun = Boolean.parseBoolean(props.getProperty("nexus.default.dryrun", "true"));
 
+        // Load optional repository list (comma-separated)
+        String repoListProp = props.getProperty("nexus.repositories", "");
+        if (repoListProp != null && !repoListProp.isBlank()) {
+            this.repositories = Arrays.stream(repoListProp.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .collect(Collectors.toList());
+        } else {
+            this.repositories = Collections.emptyList();
+        }
+
         // Load optional HTTP configuration
         String timeoutEnv = System.getenv("NEXUS_HTTP_TIMEOUT");
         String timeoutProp = props.getProperty("nexus.http.timeout.seconds");
@@ -100,9 +198,10 @@ public class Credentials {
     }
 
     /**
-     * Loads credentials from the properties file located at
-     * ~/.flossware/nexus/nexus.properties.
+     * Loads credentials from the properties file.
      * <p>
+     * If a profile is set, loads from ~/.flossware/nexus/nexus-{profile}.properties.
+     * Otherwise, loads from ~/.flossware/nexus/nexus.properties.
      * If the file doesn't exist or cannot be read, returns an empty Properties object
      * and logs a warning to stderr.
      * </p>
@@ -112,7 +211,8 @@ public class Credentials {
      */
     private Properties loadPropertiesFile() {
         Properties props = new Properties();
-        Path configPath = Paths.get(System.getProperty("user.home"), ".flossware", "nexus", "nexus.properties");
+        String fileName = this.profile != null ? "nexus-" + this.profile + ".properties" : "nexus.properties";
+        Path configPath = Paths.get(System.getProperty("user.home"), ".flossware", "nexus", fileName);
 
         if (Files.exists(configPath)) {
             try (InputStream input = Files.newInputStream(configPath)) {
@@ -120,6 +220,8 @@ public class Credentials {
             } catch (IOException e) {
                 System.err.println("Warning: Could not load properties file from " + configPath + ": " + e.getMessage());
             }
+        } else if (this.profile != null) {
+            System.err.println("Warning: Profile '" + this.profile + "' specified but file not found: " + configPath);
         }
 
         return props;
@@ -180,11 +282,131 @@ public class Credentials {
     }
 
     /**
+     * Gets the list of configured repositories.
+     * <p>
+     * Returns a list of repository names loaded from the nexus.repositories
+     * property (comma-separated). This can be used by GUIs to populate
+     * dropdown lists or for batch operations.
+     * </p>
+     *
+     * @return unmodifiable list of repository names, or empty list if not configured
+     */
+    public List<String> getRepositories() {
+        return Collections.unmodifiableList(repositories);
+    }
+
+    /**
      * Gets the HTTP connection timeout in seconds.
      *
      * @return the HTTP timeout in seconds (default: 30)
      */
     public int getHttpTimeoutSeconds() {
         return httpTimeoutSeconds;
+    }
+
+    /**
+     * Gets the active profile name.
+     *
+     * @return the profile name, or null if using default configuration
+     */
+    public String getProfile() {
+        return profile;
+    }
+
+    /**
+     * Saves these credentials to a properties file.
+     * <p>
+     * Creates the configuration directory if it doesn't exist.
+     * If profile is null, saves to nexus.properties (default).
+     * Otherwise, saves to nexus-{profile}.properties.
+     * </p>
+     *
+     * @param profileName the profile name (null for default)
+     * @throws IOException if the file cannot be written
+     */
+    public void saveToPropertiesFile(String profileName) throws IOException {
+        Path configDir = Paths.get(System.getProperty("user.home"), ".flossware", "nexus");
+        Files.createDirectories(configDir);
+
+        String fileName = (profileName != null && !profileName.isBlank())
+            ? "nexus-" + profileName + ".properties"
+            : "nexus.properties";
+        Path configPath = configDir.resolve(fileName);
+
+        Properties props = new Properties();
+        props.setProperty("nexus.url", url);
+        props.setProperty("nexus.user", user);
+        props.setProperty("nexus.password", password);
+
+        if (!repositories.isEmpty()) {
+            props.setProperty("nexus.repositories", String.join(",", repositories));
+        }
+
+        if (!defaultRepository.isEmpty()) {
+            props.setProperty("nexus.default.repository", defaultRepository);
+        }
+
+        if (!defaultRegex.isEmpty()) {
+            props.setProperty("nexus.default.regex", defaultRegex);
+        }
+
+        props.setProperty("nexus.default.dryrun", String.valueOf(defaultDryRun));
+
+        if (httpTimeoutSeconds != 30) {
+            props.setProperty("nexus.http.timeout.seconds", String.valueOf(httpTimeoutSeconds));
+        }
+
+        try (java.io.OutputStream output = Files.newOutputStream(configPath)) {
+            props.store(output, "Nexus Configuration - Saved by JNexus");
+        }
+    }
+
+    /**
+     * Discovers available configuration profiles in ~/.flossware/nexus directory.
+     * <p>
+     * Scans for files matching the pattern nexus*.properties and extracts profile names:
+     * </p>
+     * <ul>
+     *   <li>nexus.properties → "default"</li>
+     *   <li>nexus-dev.properties → "dev"</li>
+     *   <li>nexus-prod.properties → "prod"</li>
+     * </ul>
+     *
+     * @return list of profile names found, sorted alphabetically with "default" first if it exists
+     */
+    public static List<String> discoverProfiles() {
+        Path configDir = Paths.get(System.getProperty("user.home"), ".flossware", "nexus");
+        List<String> profiles = new java.util.ArrayList<>();
+
+        if (!Files.exists(configDir) || !Files.isDirectory(configDir)) {
+            return profiles;
+        }
+
+        try {
+            Files.list(configDir)
+                .filter(path -> path.getFileName().toString().startsWith("nexus") &&
+                               path.getFileName().toString().endsWith(".properties"))
+                .forEach(path -> {
+                    String fileName = path.getFileName().toString();
+                    if (fileName.equals("nexus.properties")) {
+                        profiles.add("default");
+                    } else if (fileName.startsWith("nexus-") && fileName.endsWith(".properties")) {
+                        // Extract profile name: nexus-dev.properties -> dev
+                        String profileName = fileName.substring(6, fileName.length() - 11);
+                        profiles.add(profileName);
+                    }
+                });
+        } catch (IOException e) {
+            System.err.println("Warning: Could not scan profiles directory: " + e.getMessage());
+        }
+
+        // Sort profiles alphabetically, but keep "default" first if it exists
+        profiles.sort((a, b) -> {
+            if (a.equals("default")) return -1;
+            if (b.equals("default")) return 1;
+            return a.compareTo(b);
+        });
+
+        return profiles;
     }
 }

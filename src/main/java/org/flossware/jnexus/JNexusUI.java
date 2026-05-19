@@ -56,20 +56,74 @@ public class JNexusUI {
             System.exit(1);
         }
 
-        try {
-            // Initialize Nexus client
-            credentials = new Credentials();
-            client = new NexusClient(credentials);
-            service = new NexusService(client);
-        } catch (Exception e) {
-            System.err.println("ERROR: Failed to initialize Nexus client: " + e.getMessage());
-            System.err.println("\nPlease configure credentials:");
-            System.err.println("  Set environment variables:");
-            System.err.println("    export NEXUS_URL=https://your-nexus-server.com");
-            System.err.println("    export NEXUS_USER=your-username");
-            System.err.println("    export NEXUS_PASSWORD=your-password");
-            System.err.println("  Or create ~/.flossware/nexus/nexus.properties");
-            System.exit(1);
+        // Discover available profiles before initializing ncurses
+        List<String> profiles = Credentials.discoverProfiles();
+        String selectedProfile = null;
+
+        if (profiles.isEmpty()) {
+            // No configuration found - collect credentials via console
+            credentials = collectCredentialsFromConsole();
+            if (credentials == null) {
+                System.err.println("\nCredential collection cancelled. Exiting.");
+                System.exit(0);
+            }
+
+            // Ask if user wants to save credentials
+            System.out.print("Would you like to save these credentials to ~/.flossware/nexus/nexus.properties? (yes/no): ");
+            java.util.Scanner scanner = new java.util.Scanner(System.in);
+            String saveResponse = scanner.nextLine().trim().toLowerCase();
+
+            if (saveResponse.equals("yes") || saveResponse.equals("y")) {
+                try {
+                    credentials.saveToPropertiesFile(null);
+                    System.out.println("\nCredentials saved successfully to: ~/.flossware/nexus/nexus.properties");
+                } catch (java.io.IOException e) {
+                    System.err.println("\nERROR: Failed to save credentials: " + e.getMessage());
+                }
+            } else {
+                System.out.println("\nCredentials not saved (will only be used for this session).");
+            }
+            System.out.println();
+        } else if (profiles.size() > 1) {
+            // Multiple profiles found - show selection menu
+            selectedProfile = selectProfile(profiles);
+            if (selectedProfile == null) {
+                System.out.println("Profile selection cancelled.");
+                System.exit(0);
+            }
+        } else {
+            // Only one profile found - use it automatically
+            selectedProfile = profiles.get(0);
+            if ("default".equals(selectedProfile)) {
+                selectedProfile = null;
+            }
+        }
+
+        if (credentials == null) {
+            try {
+                // Initialize Nexus client with selected profile
+                credentials = new Credentials(selectedProfile);
+                client = new NexusClient(credentials);
+                service = new NexusService(client);
+            } catch (Exception e) {
+                System.err.println("ERROR: Failed to initialize Nexus client: " + e.getMessage());
+                System.err.println("\nPlease configure credentials:");
+                System.err.println("  Set environment variables:");
+                System.err.println("    export NEXUS_URL=https://your-nexus-server.com");
+                System.err.println("    export NEXUS_USER=your-username");
+                System.err.println("    export NEXUS_PASSWORD=your-password");
+                System.err.println("  Or create ~/.flossware/nexus/nexus.properties");
+                System.exit(1);
+            }
+        } else {
+            try {
+                // Initialize Nexus client with collected credentials
+                client = new NexusClient(credentials);
+                service = new NexusService(client);
+            } catch (Exception e) {
+                System.err.println("ERROR: Failed to initialize Nexus client: " + e.getMessage());
+                System.exit(1);
+            }
         }
 
         NcursesBridge.init();
@@ -80,6 +134,96 @@ public class JNexusUI {
             runEventLoop();
         } finally {
             NcursesBridge.stop();
+        }
+    }
+
+    private static String selectProfile(List<String> profiles) {
+        System.out.println("\n========================================");
+        System.out.println("  Multiple Configuration Profiles Found");
+        System.out.println("========================================\n");
+
+        for (int i = 0; i < profiles.size(); i++) {
+            System.out.printf("  %d. %s\n", i + 1, profiles.get(i));
+        }
+
+        System.out.println("\n  0. Cancel");
+        System.out.println("\n========================================");
+        System.out.print("Select profile (enter number): ");
+
+        try {
+            java.util.Scanner scanner = new java.util.Scanner(System.in);
+            int choice = scanner.nextInt();
+
+            if (choice == 0) {
+                return null;
+            }
+
+            if (choice >= 1 && choice <= profiles.size()) {
+                String selected = profiles.get(choice - 1);
+                // Convert "default" back to null for Credentials constructor
+                return "default".equals(selected) ? null : selected;
+            } else {
+                System.err.println("\nInvalid selection. Exiting.");
+                return null;
+            }
+        } catch (Exception e) {
+            System.err.println("\nInvalid input. Exiting.");
+            return null;
+        }
+    }
+
+    private static Credentials collectCredentialsFromConsole() {
+        System.out.println("\n========================================");
+        System.out.println("  No Configuration Files Found");
+        System.out.println("========================================\n");
+        System.out.println("Please enter your Nexus credentials:\n");
+
+        java.util.Scanner scanner = new java.util.Scanner(System.in);
+
+        // Collect URL
+        System.out.print("Nexus URL (e.g., https://your-nexus-server.com): ");
+        String url = scanner.nextLine().trim();
+        if (url.isEmpty()) {
+            System.err.println("ERROR: URL cannot be empty.");
+            return null;
+        }
+
+        // Collect username
+        System.out.print("Username: ");
+        String user = scanner.nextLine().trim();
+        if (user.isEmpty()) {
+            System.err.println("ERROR: Username cannot be empty.");
+            return null;
+        }
+
+        // Collect password
+        System.out.print("Password: ");
+        String password;
+        if (System.console() != null) {
+            // Use console for password hiding if available
+            char[] passwordChars = System.console().readPassword();
+            password = new String(passwordChars);
+        } else {
+            // Fallback to regular input
+            password = scanner.nextLine();
+        }
+        password = password.trim();
+        if (password.isEmpty()) {
+            System.err.println("ERROR: Password cannot be empty.");
+            return null;
+        }
+
+        // Collect repositories (optional)
+        System.out.print("Repositories (optional, comma-separated): ");
+        String repos = scanner.nextLine().trim();
+
+        System.out.println("\n========================================\n");
+
+        try {
+            return new Credentials(url, user, password, repos);
+        } catch (IllegalArgumentException e) {
+            System.err.println("ERROR: Invalid credentials: " + e.getMessage());
+            return null;
         }
     }
 
@@ -136,27 +280,44 @@ public class JNexusUI {
         dryRunCheckbox.setChecked(credentials.isDefaultDryRun());
         focusableComponents.add(dryRunCheckbox);
 
-        // Buttons
+        // Available repositories label (if configured)
+        JLabel reposDisplayLabel = null;
+        if (!credentials.getRepositories().isEmpty()) {
+            JLabel reposLabelText = new JLabel("Available Repos:");
+            reposLabelText.setLocation(4, 11);
+            reposLabelText.setSize(18, 1);
+
+            reposDisplayLabel = new JLabel(String.join(", ", credentials.getRepositories()));
+            reposDisplayLabel.setLocation(23, 11);
+            reposDisplayLabel.setSize(90, 1);
+
+            panel.add(reposLabelText);
+            panel.add(reposDisplayLabel);
+        }
+
+        // Buttons (adjusted y position if repos are shown)
+        int buttonY = credentials.getRepositories().isEmpty() ? 12 : 13;
+
         JButton listButton = new JButton("List");
-        listButton.setLocation(4, 12);
+        listButton.setLocation(4, buttonY);
         listButton.setSize(10, 1);
         listButton.addActionListener(() -> executeList(false));
         focusableComponents.add(listButton);
 
         JButton refreshButton = new JButton("Refresh");
-        refreshButton.setLocation(16, 12);
+        refreshButton.setLocation(16, buttonY);
         refreshButton.setSize(12, 1);
         refreshButton.addActionListener(() -> executeList(true));
         focusableComponents.add(refreshButton);
 
         JButton deleteButton = new JButton("Delete");
-        deleteButton.setLocation(30, 12);
+        deleteButton.setLocation(30, buttonY);
         deleteButton.setSize(12, 1);
         deleteButton.addActionListener(() -> executeDelete());
         focusableComponents.add(deleteButton);
 
         JButton clearButton = new JButton("Clear");
-        clearButton.setLocation(44, 12);
+        clearButton.setLocation(44, buttonY);
         clearButton.setSize(10, 1);
         clearButton.addActionListener(() -> {
             setupResultsPanel();
@@ -166,25 +327,29 @@ public class JNexusUI {
         focusableComponents.add(clearButton);
 
         JButton quitButton = new JButton("Quit");
-        quitButton.setLocation(56, 12);
+        quitButton.setLocation(56, buttonY);
         quitButton.setSize(10, 1);
         quitButton.addActionListener(() -> running = false);
         focusableComponents.add(quitButton);
 
-        // Status label
+        // Status label (adjusted y position)
+        int statusY = credentials.getRepositories().isEmpty() ? 15 : 16;
         statusLabel = new JLabel("Ready - List:cached, Refresh:bypass cache, Delete:always fresh");
-        statusLabel.setLocation(4, 15);
+        statusLabel.setLocation(4, statusY);
         statusLabel.setSize(110, 1);
 
-        // Results label
+        // Results label (adjusted y position)
+        int resultsLabelY = credentials.getRepositories().isEmpty() ? 17 : 18;
         JLabel resultsLabel = new JLabel("Results:");
-        resultsLabel.setLocation(4, 17);
+        resultsLabel.setLocation(4, resultsLabelY);
         resultsLabel.setSize(15, 1);
 
-        // Results panel (we'll draw text directly in this area)
+        // Results panel (adjusted y position and size)
+        int resultsPanelY = credentials.getRepositories().isEmpty() ? 18 : 19;
+        int resultsPanelHeight = credentials.getRepositories().isEmpty() ? 14 : 13;
         resultsPanel = new JPanel();
-        resultsPanel.setLocation(4, 18);
-        resultsPanel.setSize(110, 14);
+        resultsPanel.setLocation(4, resultsPanelY);
+        resultsPanel.setSize(110, resultsPanelHeight);
         resultsPanel.setBordered(false);
 
         // Add all components to panel

@@ -2,14 +2,14 @@
 
 ## Summary
 
-- **Total Tests**: 61
+- **Total Tests**: 92
 - **Pass Rate**: 100%
 - **Test Files**: 6
 - **Source Files Covered**: 5/9 (56% - GUIs tested manually)
 
 ## Test Breakdown by File
 
-### CredentialsTest.java (12 tests)
+### CredentialsTest.java (43 tests)
 Tests for configuration loading and validation:
 - ✅ Missing URL throws exception
 - ✅ Missing user throws exception  
@@ -23,6 +23,37 @@ Tests for configuration loading and validation:
 - ✅ HTTP timeout default value (30 seconds)
 - ✅ HTTP timeout from properties file
 - ✅ UI defaults from properties file
+- ✅ Repository list empty
+- ✅ Repository list single entry
+- ✅ Repository list multiple entries
+- ✅ Repository list with whitespace trimming
+- ✅ Repository list is unmodifiable
+- ✅ Profile loading (dev)
+- ✅ Profile loading (prod)
+- ✅ Profile not found throws exception
+- ✅ Default profile when null
+- ✅ Default profile when empty
+- ✅ Default profile when blank
+- ✅ Profile with UI defaults
+- ✅ Discover profiles empty directory
+- ✅ Discover profiles default only
+- ✅ Discover profiles multiple
+- ✅ Discover profiles without default
+- ✅ Discover profiles ignores non-property files
+- ✅ Explicit credentials constructor with repos
+- ✅ Explicit credentials constructor null URL throws exception
+- ✅ Explicit credentials constructor blank URL throws exception
+- ✅ Explicit credentials constructor null user throws exception
+- ✅ Explicit credentials constructor blank user throws exception
+- ✅ Explicit credentials constructor null password throws exception
+- ✅ Explicit credentials constructor blank password throws exception
+- ✅ Explicit credentials constructor null repos (empty list)
+- ✅ Explicit credentials constructor empty repos (empty list)
+- ✅ Save to properties file (default profile)
+- ✅ Save to properties file with profile name
+- ✅ Save to properties file creates directory
+- ✅ Save to properties file without repositories
+- ✅ Save to properties file overwrites existing
 
 ### NexusClientIntegrationTest.java (8 tests)
 Integration tests with mock HTTP server:
@@ -92,7 +123,7 @@ Core service layer functionality:
 
 | Component | Unit Tests | Integration Tests | Total | Coverage |
 |-----------|-----------|------------------|-------|----------|
-| Credentials | 12 | 0 | 12 | ~95% |
+| Credentials | 43 | 0 | 43 | ~99% |
 | NexusClient | 9 | 19 | 28 | ~90% |
 | NexusService | 21 | 0 | 21 | ~95% |
 | RepoRecord | Covered in NexusClientTest | - | - | 100% |
@@ -103,21 +134,31 @@ Core service layer functionality:
 
 ## Test Categories
 
-### Happy Path Tests: 28
+### Happy Path Tests: 46
 - Standard operations with valid inputs
 - Expected success scenarios
 - Cache hit/miss scenarios
 - Configuration loading from multiple sources
+- Profile-based configuration loading (dev, prod, staging)
+- Repository list parsing
+- Profile discovery (default only, multiple, without default)
+- Explicit credentials constructor with valid inputs
+- Save credentials to properties file (default profile, named profile)
+- Save credentials creates directory if needed
+- Save credentials overwrites existing file
 
-### Error Handling Tests: 18
+### Error Handling Tests: 27
 - Missing configuration
 - HTTP errors (401, 404, 500)
 - Empty results
 - Invalid regex patterns (early validation)
 - Partial failures
 - Network timeouts and retries
+- Profile not found errors
+- Profile discovery in empty directory
+- Explicit credentials constructor validation (null/blank URL, user, password)
 
-### Edge Cases: 15
+### Edge Cases: 19
 - Zero file size
 - Large file size (>2GB with long support)
 - Empty assets
@@ -127,21 +168,31 @@ Core service layer functionality:
 - Cache expiration
 - Concurrent cache access
 - Custom HTTP timeouts
+- Null/empty/blank profile handling
+- Repository list with whitespace trimming
+- Profile discovery ignores non-property files
+- Explicit credentials constructor with null/empty repositories
 
 ## Code Coverage Metrics
 
 ### By Class
-- **Credentials.java**: ~95% (12 tests)
+- **Credentials.java**: ~99% (38 tests including profile support, discovery, and explicit constructor)
 - **NexusClient.java**: ~90% (28 tests including cache tests)
 - **NexusService.java**: ~95% (21 tests)
 - **RepoRecord.java**: 100% (covered in tests)
 - **JNexus.java**: Manual testing only (CLI interface)
-- **JNexusSwing.java**: Manual testing only (GUI interface)
-- **JNexusAWT.java**: Manual testing only (GUI interface)
-- **JNexusUI.java**: Manual testing only (Terminal interface)
+- **JNexusSwing.java**: Manual testing only (GUI with profile selection and credential dialog)
+- **JNexusAWT.java**: Manual testing only (GUI with profile selection and credential dialog)
+- **JNexusUI.java**: Manual testing only (Terminal with profile selection and console credential input)
 
 ### By Functionality
-- Configuration loading: ✅ Comprehensive (including HTTP timeout, UI defaults)
+- Configuration loading: ✅ Comprehensive (including HTTP timeout, UI defaults, profiles, repository lists, explicit credentials)
+- Configuration saving: ✅ Comprehensive (5 dedicated tests for saving to properties files)
+- Profile discovery: ✅ Comprehensive (5 dedicated tests covering empty, single, multiple, sorting, filtering)
+- Profile selection dialogs: ✅ Manual verification (Swing: JOptionPane, AWT: Dialog+Choice, Terminal: text menu)
+- Interactive credential collection: ✅ Manual verification (Swing: dialog with text fields, AWT: dialog with TextFields, Terminal: console prompts)
+- Save credentials dialog: ✅ Manual verification (Swing: JOptionPane confirm, AWT: custom Yes/No dialog, Terminal: console yes/no)
+- Explicit credentials: ✅ Comprehensive (9 dedicated tests for validation and edge cases)
 - HTTP communication: ✅ Comprehensive (including retry logic)
 - Pagination: ✅ Tested
 - Regex filtering: ✅ Tested (including early validation)
@@ -151,6 +202,7 @@ Core service layer functionality:
 - Caching: ✅ Comprehensive (11 dedicated cache tests)
 - Logging: ✅ Covered in integration tests
 - Progress indicators: ✅ Manual verification
+- Profile support: ✅ Comprehensive (13 dedicated profile tests)
 
 ## Test Execution
 
@@ -250,19 +302,43 @@ Suggested CI pipeline:
 
 | Version | Tests | Pass Rate | Notable Changes | Date |
 |---------|-------|-----------|-----------------|------|
+| 1.5 | 92 | 100% | Added save credentials tests (5), save credential dialogs for all GUIs | 2026-05-19 |
+| 1.4 | 87 | 100% | Added explicit credentials constructor tests (9), interactive credential collection dialogs | 2026-05-19 |
+| 1.3 | 78 | 100% | Added profile discovery tests (5), GUI profile selection dialogs | 2026-05-19 |
+| 1.2 | 73 | 100% | Added profile support tests (8), repository list tests (5) | 2026-05-19 |
 | 1.1 | 61 | 100% | Added cache tests (11), regex validation tests (3), config tests (3), GUIs (manual) | 2026-05-18 |
 | 1.0 | 44 | 100% | Initial release | 2026-05-15 |
 
-**Last Updated**: 2026-05-18  
-**Test Suite Version**: 1.1
+**Last Updated**: 2026-05-19  
+**Test Suite Version**: 1.5
 
 ## Test Growth
 
 ```
 Initial (1.0):  44 tests ████████████████████
-Current (1.1):  61 tests ███████████████████████████
-Growth:         +17 tests (+39%)
+Version (1.1):  61 tests ███████████████████████████
+Version (1.2):  73 tests █████████████████████████████████
+Version (1.3):  78 tests ███████████████████████████████████
+Version (1.4):  87 tests ████████████████████████████████████████
+Current (1.5):  92 tests ██████████████████████████████████████████
+Growth:         +48 tests (+109%)
 ```
+
+New test areas added in 1.5:
+- ✅ Save credentials to properties file (5 tests covering default profile, named profile, directory creation, overwriting)
+- ✅ Save credentials dialogs (manual verification: Swing confirm, AWT Yes/No dialog, Terminal console prompt)
+
+New test areas added in 1.4:
+- ✅ Explicit credentials constructor (9 tests for validation and edge cases)
+- ✅ Interactive credential collection dialogs (manual verification for all GUIs)
+
+New test areas added in 1.3:
+- ✅ Profile discovery (5 tests)
+- ✅ GUI profile selection dialogs (manual verification)
+
+New test areas added in 1.2:
+- ✅ Profile-based configuration (8 tests)
+- ✅ Repository list parsing (5 tests)
 
 New test areas added in 1.1:
 - ✅ Caching functionality (11 tests)

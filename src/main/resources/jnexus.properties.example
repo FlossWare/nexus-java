@@ -18,3 +18,11 @@ nexus.password=your-password-or-token
 
 # Optional: Default dry-run mode for UI (true/false)
 #nexus.default.dryrun=true
+
+# Optional: Comma-separated list of repositories (for dropdowns/batch operations)
+# Whitespace around commas is automatically trimmed
+#nexus.repositories=maven-releases,maven-snapshots,npm-public,docker-hosted
+
+# Optional: HTTP connection timeout in seconds (default: 30)
+# Can also be set via NEXUS_HTTP_TIMEOUT environment variable
+#nexus.http.timeout.seconds=30

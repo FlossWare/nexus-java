@@ -8,6 +8,7 @@ import java.awt.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.PrintStream;
 
 /**
@@ -50,7 +51,87 @@ public class JNexusSwing {
 
         SwingUtilities.invokeLater(() -> {
             try {
-                JNexusSwing app = new JNexusSwing();
+                // Discover available profiles
+                java.util.List<String> profiles = Credentials.discoverProfiles();
+                String selectedProfile = null;
+                Credentials credentials = null;
+
+                if (profiles.isEmpty()) {
+                    // No configuration found - show credential collection dialog
+                    credentials = showCredentialDialog();
+                    if (credentials == null) {
+                        // User cancelled
+                        System.exit(0);
+                        return;
+                    }
+
+                    // Ask if user wants to save credentials
+                    int saveChoice = JOptionPane.showConfirmDialog(
+                        null,
+                        "Would you like to save these credentials to a properties file?\n" +
+                        "They will be saved to: ~/.flossware/nexus/nexus.properties",
+                        "Save Credentials?",
+                        JOptionPane.YES_NO_OPTION,
+                        JOptionPane.QUESTION_MESSAGE
+                    );
+
+                    if (saveChoice == JOptionPane.YES_OPTION) {
+                        try {
+                            credentials.saveToPropertiesFile(null);
+                            JOptionPane.showMessageDialog(
+                                null,
+                                "Credentials saved successfully to:\n~/.flossware/nexus/nexus.properties",
+                                "Saved",
+                                JOptionPane.INFORMATION_MESSAGE
+                            );
+                        } catch (IOException e) {
+                            JOptionPane.showMessageDialog(
+                                null,
+                                "Failed to save credentials: " + e.getMessage(),
+                                "Save Error",
+                                JOptionPane.ERROR_MESSAGE
+                            );
+                        }
+                    }
+                } else if (profiles.size() > 1) {
+                    // Multiple profiles found - show selection dialog
+                    String[] profileArray = profiles.toArray(new String[0]);
+                    selectedProfile = (String) JOptionPane.showInputDialog(
+                        null,
+                        "Multiple configuration profiles found.\nPlease select one:",
+                        "Select Profile",
+                        JOptionPane.QUESTION_MESSAGE,
+                        null,
+                        profileArray,
+                        profileArray[0]
+                    );
+
+                    if (selectedProfile == null) {
+                        // User cancelled
+                        System.exit(0);
+                        return;
+                    }
+
+                    // Convert "default" back to null for Credentials constructor
+                    if ("default".equals(selectedProfile)) {
+                        selectedProfile = null;
+                    }
+                } else {
+                    // Only one profile found - use it automatically
+                    selectedProfile = profiles.get(0);
+                    if ("default".equals(selectedProfile)) {
+                        selectedProfile = null;
+                    }
+                }
+
+                JNexusSwing app;
+                if (credentials != null) {
+                    // Use credentials from dialog
+                    app = new JNexusSwing(credentials);
+                } else {
+                    // Use credentials from profile
+                    app = new JNexusSwing(selectedProfile);
+                }
                 app.createAndShowGUI();
             } catch (Exception e) {
                 logger.error("Failed to start Swing UI: {}", e.getMessage(), e);
@@ -65,11 +146,113 @@ public class JNexusSwing {
         });
     }
 
-    public JNexusSwing() throws Exception {
-        // Initialize Nexus client
-        credentials = new Credentials();
+    public JNexusSwing(String profile) throws Exception {
+        // Initialize Nexus client with selected profile
+        credentials = new Credentials(profile);
         client = new NexusClient(credentials);
         service = new NexusService(client);
+    }
+
+    public JNexusSwing(Credentials credentials) throws Exception {
+        // Initialize Nexus client with provided credentials
+        this.credentials = credentials;
+        client = new NexusClient(credentials);
+        service = new NexusService(client);
+    }
+
+    private static Credentials showCredentialDialog() {
+        JPanel panel = new JPanel(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        // URL field
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.weightx = 0.0;
+        panel.add(new JLabel("Nexus URL:"), gbc);
+
+        gbc.gridx = 1;
+        gbc.weightx = 1.0;
+        JTextField urlField = new JTextField(30);
+        urlField.setToolTipText("e.g., https://your-nexus-server.com");
+        panel.add(urlField, gbc);
+
+        // Username field
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        gbc.weightx = 0.0;
+        panel.add(new JLabel("Username:"), gbc);
+
+        gbc.gridx = 1;
+        gbc.weightx = 1.0;
+        JTextField userField = new JTextField(30);
+        panel.add(userField, gbc);
+
+        // Password field
+        gbc.gridx = 0;
+        gbc.gridy = 2;
+        gbc.weightx = 0.0;
+        panel.add(new JLabel("Password:"), gbc);
+
+        gbc.gridx = 1;
+        gbc.weightx = 1.0;
+        JPasswordField passwordField = new JPasswordField(30);
+        panel.add(passwordField, gbc);
+
+        // Repositories field (optional)
+        gbc.gridx = 0;
+        gbc.gridy = 3;
+        gbc.weightx = 0.0;
+        panel.add(new JLabel("Repositories:"), gbc);
+
+        gbc.gridx = 1;
+        gbc.weightx = 1.0;
+        JTextField reposField = new JTextField(30);
+        reposField.setToolTipText("Optional: comma-separated list (e.g., maven-releases,npm-public)");
+        panel.add(reposField, gbc);
+
+        // Info label
+        gbc.gridx = 0;
+        gbc.gridy = 4;
+        gbc.gridwidth = 2;
+        JLabel infoLabel = new JLabel("<html><i>No configuration files found. Please enter your Nexus credentials.</i></html>");
+        panel.add(infoLabel, gbc);
+
+        int result = JOptionPane.showConfirmDialog(
+            null,
+            panel,
+            "Enter Nexus Credentials",
+            JOptionPane.OK_CANCEL_OPTION,
+            JOptionPane.PLAIN_MESSAGE
+        );
+
+        if (result == JOptionPane.OK_OPTION) {
+            String url = urlField.getText().trim();
+            String user = userField.getText().trim();
+            String password = new String(passwordField.getPassword()).trim();
+            String repos = reposField.getText().trim();
+
+            if (url.isEmpty() || user.isEmpty() || password.isEmpty()) {
+                JOptionPane.showMessageDialog(null,
+                    "URL, Username, and Password are required.",
+                    "Invalid Input",
+                    JOptionPane.ERROR_MESSAGE);
+                return showCredentialDialog(); // Recursive call to show dialog again
+            }
+
+            try {
+                return new Credentials(url, user, password, repos);
+            } catch (IllegalArgumentException e) {
+                JOptionPane.showMessageDialog(null,
+                    "Invalid credentials: " + e.getMessage(),
+                    "Error",
+                    JOptionPane.ERROR_MESSAGE);
+                return showCredentialDialog(); // Recursive call to show dialog again
+            }
+        }
+
+        return null; // User cancelled
     }
 
     private void createAndShowGUI() {
@@ -135,10 +318,37 @@ public class JNexusSwing {
         dryRunCheckbox.setSelected(credentials.isDefaultDryRun());
         panel.add(dryRunCheckbox, gbc);
 
+        // Available repositories display (if configured)
+        if (!credentials.getRepositories().isEmpty()) {
+            gbc.gridx = 0;
+            gbc.gridy = 3;
+            gbc.weightx = 0.0;
+            gbc.gridwidth = 1;
+            gbc.anchor = GridBagConstraints.NORTHWEST;
+            panel.add(new JLabel("Available Repos:"), gbc);
+
+            gbc.gridx = 1;
+            gbc.weightx = 1.0;
+            gbc.fill = GridBagConstraints.BOTH;
+            JTextArea reposArea = new JTextArea(2, 30);
+            reposArea.setText(String.join(", ", credentials.getRepositories()));
+            reposArea.setEditable(false);
+            reposArea.setLineWrap(true);
+            reposArea.setWrapStyleWord(true);
+            reposArea.setBackground(panel.getBackground());
+            reposArea.setFont(new JLabel().getFont());
+            JScrollPane reposScroll = new JScrollPane(reposArea);
+            reposScroll.setBorder(BorderFactory.createEmptyBorder());
+            panel.add(reposScroll, gbc);
+
+            gbc.fill = GridBagConstraints.HORIZONTAL;
+        }
+
         // Buttons panel
         gbc.gridx = 0;
-        gbc.gridy = 3;
+        gbc.gridy = 4;
         gbc.gridwidth = 2;
+        gbc.anchor = GridBagConstraints.CENTER;
         panel.add(createButtonPanel(), gbc);
 
         return panel;

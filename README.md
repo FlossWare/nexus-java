@@ -74,11 +74,46 @@ export NEXUS_PASSWORD=your-password-or-token
    #nexus.default.regex=.*SNAPSHOT.*
    #nexus.default.dryrun=true
    
+   # Optional: Repository list (comma-separated, for dropdowns/batch operations)
+   #nexus.repositories=maven-releases,maven-snapshots,npm-public,docker-hosted
+   
    # Optional: HTTP timeout configuration (default: 30 seconds)
    #nexus.http.timeout.seconds=60
    ```
    
-   The optional defaults will pre-populate the terminal UI fields on startup.
+   The optional defaults will pre-populate the UI fields on startup.
+   The repository list can be used for dropdown menus in GUIs or batch operations.
+
+### Option 3: Multiple Profiles
+
+For managing multiple environments (dev, staging, prod), you can create profile-specific property files:
+
+1. Create profile-specific configuration files:
+   ```bash
+   cp src/main/resources/nexus-dev.properties.example ~/.flossware/nexus/nexus-dev.properties
+   cp src/main/resources/nexus-prod.properties.example ~/.flossware/nexus/nexus-prod.properties
+   ```
+
+2. Edit each file with the appropriate credentials for that environment.
+
+3. Use profiles via environment variable:
+   ```bash
+   export NEXUS_PROFILE=dev
+   ./jnexus.sh list my-repository
+   ```
+
+4. Or via CLI flag:
+   ```bash
+   ./jnexus.sh --profile prod list my-repository
+   ```
+
+**Profile naming convention:**
+- Default: `nexus.properties` (no profile specified)
+- Dev: `nexus-dev.properties` (NEXUS_PROFILE=dev or --profile dev)
+- Production: `nexus-prod.properties` (NEXUS_PROFILE=prod or --profile prod)
+- Staging: `nexus-staging.properties` (NEXUS_PROFILE=staging or --profile staging)
+
+This is similar to Spring Boot profiles and allows you to easily switch between environments without editing configuration files.
 
 ### Environment Variables
 
@@ -113,6 +148,10 @@ The Swing interface provides a modern, native-looking graphical interface:
 **Features:**
 - Modern look and feel that matches your operating system
 - Responsive design with background task execution
+- **Interactive credential collection** - if no configuration files exist, shows a dialog to enter credentials (URL, username, password, repositories)
+- **Save credentials option** - after entering credentials, optionally save them to `~/.flossware/nexus/nexus.properties` for future use
+- **Automatic profile selection** - if multiple configuration files exist, shows a dialog to choose which one to use
+- **Available repositories display** - shows configured repositories from `nexus.repositories` property (if configured)
 - Repository name and regex filter inputs
 - Dry-run checkbox for safe preview of deletions
 - List (cached) and Refresh (bypass cache) buttons
@@ -153,6 +192,10 @@ The AWT interface provides a classic graphical interface using only AWT componen
 **Features:**
 - Classic AWT look and feel
 - Works on systems where Swing might have issues
+- **Interactive credential collection** - if no configuration files exist, shows a dialog to enter credentials
+- **Save credentials option** - after entering credentials, optionally save them to a properties file for future use
+- **Automatic profile selection** - if multiple configuration files exist, shows a dialog to choose which one to use
+- **Available repositories display** - shows configured repositories from `nexus.repositories` property (if configured)
 - Same functionality as Swing interface
 - Lightweight and fast
 
@@ -183,6 +226,10 @@ The terminal UI provides a full-screen ncurses interface for terminal users:
 - `Q` / `ESC`: Quit
 
 **Features:**
+- **Interactive credential collection** - if no configuration files exist, prompts for credentials via console input (before starting ncurses)
+- **Save credentials option** - after entering credentials, optionally save them to a properties file for future use
+- **Automatic profile selection** - if multiple configuration files exist, shows a text menu to choose which one to use (before starting ncurses)
+- **Available repositories display** - shows configured repositories from `nexus.repositories` property (if configured)
 - Repository name and regex filter inputs
 - Dry-run checkbox for safe preview of deletions
 - List, Refresh, and Delete buttons
@@ -263,10 +310,19 @@ The following options can be used with any command:
 ./jnexus.sh -q delete my-repository
 ```
 
+**Profile mode** - Use a specific configuration profile:
+```bash
+./jnexus.sh --profile dev list my-repository
+./jnexus.sh -p prod delete my-repository
+```
+
 ### Options
 
 - `--help`, `-h` - Show help message
 - `--version`, `-V` - Show version information
+- `--verbose`, `-v` - Enable debug logging
+- `--quiet`, `-q` - Only show warnings and errors
+- `--profile`, `-p` - Use a specific configuration profile (e.g., dev, prod, staging)
 - `--dry-run`, `-n` - (Delete only) Show what would be deleted without deleting
 - `--yes`, `-y` - (Delete only) Skip confirmation prompt
 
