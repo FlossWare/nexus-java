@@ -7,6 +7,7 @@ import java.awt.*;
 import java.awt.event.*;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
+import java.util.List;
 
 /**
  * AWT-based GUI for interacting with Nexus Repository Manager.
@@ -454,23 +455,36 @@ public class JNexusAWT {
         dryRunCheckbox.setState(credentials.isDefaultDryRun());
         panel.add(dryRunCheckbox, gbc);
 
-        // Available repositories display (if configured)
+        // Available repositories dropdown (if configured)
         if (!credentials.getRepositories().isEmpty()) {
+            logger.debug("Displaying {} repositories: {}",
+                credentials.getRepositories().size(), credentials.getRepositories());
+
             gbc.gridx = 0;
             gbc.gridy = 4;
             gbc.weightx = 0.0;
             gbc.gridwidth = 1;
-            gbc.anchor = GridBagConstraints.NORTHWEST;
+            gbc.anchor = GridBagConstraints.WEST;
             panel.add(new Label("Available Repos:"), gbc);
 
             gbc.gridx = 1;
             gbc.weightx = 1.0;
-            gbc.fill = GridBagConstraints.BOTH;
-            TextArea reposArea = new TextArea(String.join(", ", credentials.getRepositories()), 2, 40, TextArea.SCROLLBARS_VERTICAL_ONLY);
-            reposArea.setEditable(false);
-            panel.add(reposArea, gbc);
-
             gbc.fill = GridBagConstraints.HORIZONTAL;
+            Choice reposChoice = new Choice();
+            for (String repo : credentials.getRepositories()) {
+                reposChoice.add(repo);
+            }
+            reposChoice.addItemListener(e -> {
+                String selected = reposChoice.getSelectedItem();
+                if (selected != null && !selected.isEmpty()) {
+                    repositoryField.setText(selected);
+                }
+            });
+            panel.add(reposChoice, gbc);
+
+            gbc.anchor = GridBagConstraints.CENTER;
+        } else {
+            logger.debug("No repositories configured to display");
         }
 
         // Buttons panel
@@ -557,42 +571,39 @@ public class JNexusAWT {
         String mode = forceRefresh ? " (refreshing cache)" : " (" + cacheStatus + ")";
         setStatus("Listing components from: " + repository + mode + "...");
 
+        // Set busy cursor
+        frame.setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+        setButtonsEnabled(false);
+
         // Run in background thread to keep UI responsive
         String finalRegex = regex;
         new Thread(() -> {
             try {
-                // Capture service output
-                ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                PrintStream ps = new PrintStream(baos);
-                PrintStream oldOut = System.out;
-                System.setOut(ps);
-
-                try {
-                    service.listRepository(repository, finalRegex, forceRefresh);
-                } finally {
-                    System.out.flush();
-                    System.setOut(oldOut);
-                }
-
-                String output = baos.toString();
+                // Get records and format them
+                List<RepoRecord> records = service.getRepositoryRecords(repository, finalRegex, forceRefresh);
+                String output = service.formatRecordsWithHeaders(records);
 
                 // Update UI on event dispatch thread
                 EventQueue.invokeLater(() -> {
                     resultsArea.setText(output);
                     resultsArea.setCaretPosition(0);
 
-                    if (output.startsWith("ERROR:")) {
-                        setStatus("List failed: " + output.substring(7));
-                    } else {
-                        String newCacheStatus = service.getCacheStatus(repository);
-                        setStatus("List completed - " + newCacheStatus);
-                    }
+                    String newCacheStatus = service.getCacheStatus(repository);
+                    setStatus("List completed - " + records.size() + " components - " + newCacheStatus);
+
+                    // Restore normal cursor
+                    frame.setCursor(Cursor.getDefaultCursor());
+                    setButtonsEnabled(true);
                 });
             } catch (Exception e) {
                 logger.error("List operation failed", e);
                 EventQueue.invokeLater(() -> {
                     resultsArea.setText("ERROR: " + e.getMessage());
                     setStatus("List failed: " + e.getMessage());
+
+                    // Restore normal cursor
+                    frame.setCursor(Cursor.getDefaultCursor());
+                    setButtonsEnabled(true);
                 });
             }
         }).start();
@@ -630,6 +641,10 @@ public class JNexusAWT {
         String mode = dryRun ? "(DRY RUN)" : "(ACTUAL DELETE)";
         setStatus("Deleting from repository: " + repository + " " + mode + "...");
 
+        // Set busy cursor
+        frame.setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+        setButtonsEnabled(false);
+
         // Run in background thread
         String finalRegex = regex;
         new Thread(() -> {
@@ -663,12 +678,20 @@ public class JNexusAWT {
                     } else {
                         setStatus("Delete operation completed " + mode);
                     }
+
+                    // Restore normal cursor
+                    frame.setCursor(Cursor.getDefaultCursor());
+                    setButtonsEnabled(true);
                 });
             } catch (Exception e) {
                 logger.error("Delete operation failed", e);
                 EventQueue.invokeLater(() -> {
                     resultsArea.setText("ERROR: " + e.getMessage());
                     setStatus("Delete failed: " + e.getMessage());
+
+                    // Restore normal cursor
+                    frame.setCursor(Cursor.getDefaultCursor());
+                    setButtonsEnabled(true);
                 });
             }
         }).start();
@@ -727,5 +750,12 @@ public class JNexusAWT {
         dialog.setVisible(true);
 
         return result[0];
+    }
+
+    private void setButtonsEnabled(boolean enabled) {
+        listButton.setEnabled(enabled);
+        refreshButton.setEnabled(enabled);
+        deleteButton.setEnabled(enabled);
+        clearButton.setEnabled(enabled);
     }
 }

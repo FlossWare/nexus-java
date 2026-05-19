@@ -166,6 +166,35 @@ public class NexusService {
     }
 
     /**
+     * Lists components in a repository and returns them for GUI display.
+     * <p>
+     * Fetches all components from the repository and returns filtered results.
+     * This method is designed for GUI use where the caller wants the raw data
+     * instead of formatted console output.
+     * </p>
+     *
+     * @param repository  the name of the repository to list from
+     * @param regexFilter optional regex pattern to filter component paths (null for no filter)
+     * @param forceRefresh if true, bypasses cache and fetches fresh data
+     * @return filtered list of repository records
+     * @throws IOException          if an HTTP error occurs
+     * @throws InterruptedException if the operation is interrupted
+     * @throws IllegalArgumentException if the regex pattern is invalid
+     */
+    public List<RepoRecord> getRepositoryRecords(String repository, String regexFilter, boolean forceRefresh)
+            throws IOException, InterruptedException {
+        validateRegex(regexFilter);
+
+        List<RepoRecord> allRecords = client.listComponents(repository, forceRefresh);
+
+        return regexFilter == null
+            ? allRecords
+            : allRecords.stream()
+                .filter(record -> record.path().matches(regexFilter))
+                .toList();
+    }
+
+    /**
      * Gets cache status for a repository.
      *
      * @param repository the repository name
@@ -193,6 +222,37 @@ public class NexusService {
      */
     public void clearAllCache() {
         client.clearAllCache();
+    }
+
+    /**
+     * Formats repository records as a string with column headers.
+     * <p>
+     * Each record is displayed with its ID, file size (with thousand separators),
+     * and path. Includes column headers for better readability.
+     * </p>
+     *
+     * @param records the list of records to format
+     * @return formatted string with column headers and data
+     */
+    public String formatRecordsWithHeaders(List<RepoRecord> records) {
+        StringBuilder sb = new StringBuilder();
+
+        // Column headers
+        sb.append(String.format("%-50s  %15s  %s%n", "ID", "File Size", "Path"));
+        sb.append(String.format("%-50s  %15s  %s%n",
+            "=".repeat(50), "=".repeat(15), "=".repeat(50)));
+
+        // Data rows
+        for (RepoRecord record : records) {
+            sb.append(String.format("%-50s  %,15d  %s%n",
+                record.id(), record.fileSize(), record.path()));
+        }
+
+        // Summary
+        sb.append("\n");
+        sb.append(String.format("Total: %d components%n", records.size()));
+
+        return sb.toString();
     }
 
     /**

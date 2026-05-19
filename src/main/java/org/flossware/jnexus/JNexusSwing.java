@@ -4,12 +4,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
+import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableRowSorter;
 import java.awt.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.text.NumberFormat;
+import java.util.List;
+import java.util.Locale;
 
 /**
  * Swing-based GUI for interacting with Nexus Repository Manager.
@@ -29,11 +34,13 @@ public class JNexusSwing {
     private JTextField repositoryField;
     private JTextField regexField;
     private JCheckBox dryRunCheckbox;
-    private JTextArea resultsArea;
+    private JTable resultsTable;
+    private DefaultTableModel tableModel;
     private JLabel statusLabel;
     private JButton listButton;
     private JButton refreshButton;
     private JButton deleteButton;
+    private JButton deleteSelectedButton;
     private JButton clearButton;
 
     // Services
@@ -318,30 +325,34 @@ public class JNexusSwing {
         dryRunCheckbox.setSelected(credentials.isDefaultDryRun());
         panel.add(dryRunCheckbox, gbc);
 
-        // Available repositories display (if configured)
+        // Available repositories dropdown (if configured)
         if (!credentials.getRepositories().isEmpty()) {
+            logger.debug("Displaying {} repositories: {}",
+                credentials.getRepositories().size(), credentials.getRepositories());
+
             gbc.gridx = 0;
             gbc.gridy = 3;
             gbc.weightx = 0.0;
             gbc.gridwidth = 1;
-            gbc.anchor = GridBagConstraints.NORTHWEST;
+            gbc.anchor = GridBagConstraints.WEST;
             panel.add(new JLabel("Available Repos:"), gbc);
 
             gbc.gridx = 1;
             gbc.weightx = 1.0;
-            gbc.fill = GridBagConstraints.BOTH;
-            JTextArea reposArea = new JTextArea(2, 30);
-            reposArea.setText(String.join(", ", credentials.getRepositories()));
-            reposArea.setEditable(false);
-            reposArea.setLineWrap(true);
-            reposArea.setWrapStyleWord(true);
-            reposArea.setBackground(panel.getBackground());
-            reposArea.setFont(new JLabel().getFont());
-            JScrollPane reposScroll = new JScrollPane(reposArea);
-            reposScroll.setBorder(BorderFactory.createEmptyBorder());
-            panel.add(reposScroll, gbc);
-
             gbc.fill = GridBagConstraints.HORIZONTAL;
+            JComboBox<String> reposComboBox = new JComboBox<>(credentials.getRepositories().toArray(new String[0]));
+            reposComboBox.setToolTipText("Select a repository to auto-fill the Repository field");
+            reposComboBox.addActionListener(e -> {
+                String selected = (String) reposComboBox.getSelectedItem();
+                if (selected != null && !selected.isEmpty()) {
+                    repositoryField.setText(selected);
+                }
+            });
+            panel.add(reposComboBox, gbc);
+
+            gbc.anchor = GridBagConstraints.CENTER;
+        } else {
+            logger.debug("No repositories configured to display");
         }
 
         // Buttons panel
@@ -367,14 +378,19 @@ public class JNexusSwing {
         refreshButton.addActionListener(e -> executeList(true));
         panel.add(refreshButton);
 
-        deleteButton = new JButton("Delete");
-        deleteButton.setToolTipText("Delete components matching filter");
+        deleteButton = new JButton("Delete All");
+        deleteButton.setToolTipText("Delete all components matching filter");
         deleteButton.addActionListener(e -> executeDelete());
         panel.add(deleteButton);
 
+        deleteSelectedButton = new JButton("Delete Selected");
+        deleteSelectedButton.setToolTipText("Delete selected rows from table");
+        deleteSelectedButton.addActionListener(e -> executeDeleteSelected());
+        panel.add(deleteSelectedButton);
+
         clearButton = new JButton("Clear Results");
         clearButton.addActionListener(e -> {
-            resultsArea.setText("");
+            tableModel.setRowCount(0);
             setStatus("Results cleared", false);
         });
         panel.add(clearButton);
@@ -390,12 +406,27 @@ public class JNexusSwing {
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBorder(BorderFactory.createTitledBorder("Results"));
 
-        resultsArea = new JTextArea();
-        resultsArea.setEditable(false);
-        resultsArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
-        resultsArea.setText("No results. Enter repository name and click List or Refresh.");
+        // Create table model with columns
+        String[] columnNames = {"ID", "File Size", "Path"};
+        tableModel = new DefaultTableModel(columnNames, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false; // Make table read-only
+            }
+        };
 
-        JScrollPane scrollPane = new JScrollPane(resultsArea);
+        resultsTable = new JTable(tableModel);
+        resultsTable.setFont(new Font("Monospaced", Font.PLAIN, 12));
+        resultsTable.setAutoCreateRowSorter(true); // Enable column sorting
+        resultsTable.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
+        resultsTable.getTableHeader().setReorderingAllowed(false);
+
+        // Set column widths
+        resultsTable.getColumnModel().getColumn(0).setPreferredWidth(250); // ID
+        resultsTable.getColumnModel().getColumn(1).setPreferredWidth(120); // File Size
+        resultsTable.getColumnModel().getColumn(2).setPreferredWidth(500); // Path
+
+        JScrollPane scrollPane = new JScrollPane(resultsTable);
         scrollPane.setPreferredSize(new Dimension(800, 400));
         panel.add(scrollPane, BorderLayout.CENTER);
 
@@ -433,47 +464,54 @@ public class JNexusSwing {
         String mode = forceRefresh ? " (refreshing cache)" : " (" + cacheStatus + ")";
         setStatus("Listing components from: " + repository + mode + "...", false);
 
+        // Set busy cursor
+        frame.setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+        setButtonsEnabled(false);
+
         // Run in background thread to keep UI responsive
         String finalRegex = regex;
-        new SwingWorker<String, Void>() {
+        new SwingWorker<List<RepoRecord>, Void>() {
             @Override
-            protected String doInBackground() {
+            protected List<RepoRecord> doInBackground() {
                 try {
-                    // Capture service output
-                    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                    PrintStream ps = new PrintStream(baos);
-                    PrintStream oldOut = System.out;
-                    System.setOut(ps);
-
-                    try {
-                        service.listRepository(repository, finalRegex, forceRefresh);
-                    } finally {
-                        System.out.flush();
-                        System.setOut(oldOut);
-                    }
-
-                    return baos.toString();
+                    return service.getRepositoryRecords(repository, finalRegex, forceRefresh);
                 } catch (Exception e) {
                     logger.error("List operation failed", e);
-                    return "ERROR: " + e.getMessage();
+                    return null;
                 }
             }
 
             @Override
             protected void done() {
                 try {
-                    String output = get();
-                    resultsArea.setText(output);
-                    resultsArea.setCaretPosition(0);
+                    List<RepoRecord> records = get();
 
-                    if (output.startsWith("ERROR:")) {
-                        setStatus("List failed: " + output.substring(7), true);
-                    } else {
-                        String newCacheStatus = service.getCacheStatus(repository);
-                        setStatus("List completed - " + newCacheStatus, false);
+                    if (records == null) {
+                        setStatus("List failed - check logs for details", true);
+                        return;
                     }
+
+                    // Clear existing rows
+                    tableModel.setRowCount(0);
+
+                    // Populate table
+                    NumberFormat numberFormat = NumberFormat.getNumberInstance(Locale.US);
+                    for (RepoRecord record : records) {
+                        tableModel.addRow(new Object[]{
+                            record.id(),
+                            numberFormat.format(record.fileSize()),
+                            record.path()
+                        });
+                    }
+
+                    String newCacheStatus = service.getCacheStatus(repository);
+                    setStatus("List completed - " + records.size() + " components - " + newCacheStatus, false);
                 } catch (Exception e) {
                     setStatus("List failed: " + e.getMessage(), true);
+                } finally {
+                    // Restore normal cursor
+                    frame.setCursor(Cursor.getDefaultCursor());
+                    setButtonsEnabled(true);
                 }
             }
         }.execute();
@@ -520,6 +558,10 @@ public class JNexusSwing {
         String mode = dryRun ? "(DRY RUN)" : "(ACTUAL DELETE)";
         setStatus("Deleting from repository: " + repository + " " + mode + "...", false);
 
+        // Set busy cursor
+        frame.setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+        setButtonsEnabled(false);
+
         // Run in background thread
         String finalRegex = regex;
         new SwingWorker<String, Void>() {
@@ -554,16 +596,38 @@ public class JNexusSwing {
             protected void done() {
                 try {
                     String output = get();
-                    resultsArea.setText(output);
-                    resultsArea.setCaretPosition(0);
+
+                    // Show result in a dialog
+                    JTextArea textArea = new JTextArea(output);
+                    textArea.setEditable(false);
+                    textArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
+                    JScrollPane scrollPane = new JScrollPane(textArea);
+                    scrollPane.setPreferredSize(new Dimension(600, 400));
 
                     if (output.startsWith("ERROR:")) {
+                        JOptionPane.showMessageDialog(frame,
+                            scrollPane,
+                            "Delete Failed",
+                            JOptionPane.ERROR_MESSAGE);
                         setStatus("Delete failed: " + output.substring(7), true);
                     } else {
+                        JOptionPane.showMessageDialog(frame,
+                            scrollPane,
+                            "Delete Results - " + mode,
+                            JOptionPane.INFORMATION_MESSAGE);
                         setStatus("Delete operation completed " + mode, false);
+
+                        // Clear table after successful deletion (not in dry-run mode)
+                        if (!dryRun) {
+                            tableModel.setRowCount(0);
+                        }
                     }
                 } catch (Exception e) {
                     setStatus("Delete failed: " + e.getMessage(), true);
+                } finally {
+                    // Restore normal cursor
+                    frame.setCursor(Cursor.getDefaultCursor());
+                    setButtonsEnabled(true);
                 }
             }
         }.execute();
@@ -576,5 +640,114 @@ public class JNexusSwing {
         } else {
             statusLabel.setForeground(Color.BLACK);
         }
+    }
+
+    private void executeDeleteSelected() {
+        int[] selectedRows = resultsTable.getSelectedRows();
+        if (selectedRows.length == 0) {
+            JOptionPane.showMessageDialog(frame,
+                "Please select one or more rows to delete.",
+                "No Selection",
+                JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        String message = "WARNING: This will permanently delete " + selectedRows.length +
+            " selected component(s) from the repository.\n\nAre you sure you want to continue?";
+
+        int choice = JOptionPane.showConfirmDialog(frame,
+            message,
+            "Confirm Deletion",
+            JOptionPane.YES_NO_OPTION,
+            JOptionPane.WARNING_MESSAGE);
+
+        if (choice != JOptionPane.YES_OPTION) {
+            setStatus("Delete operation cancelled by user", false);
+            return;
+        }
+
+        setStatus("Deleting " + selectedRows.length + " selected components...", false);
+
+        // Set busy cursor
+        frame.setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+        setButtonsEnabled(false);
+
+        // Get IDs of selected rows (convert view indices to model indices first)
+        String[] idsToDelete = new String[selectedRows.length];
+        for (int i = 0; i < selectedRows.length; i++) {
+            int modelRow = resultsTable.convertRowIndexToModel(selectedRows[i]);
+            idsToDelete[i] = (String) tableModel.getValueAt(modelRow, 0);
+        }
+
+        // Run in background thread
+        new SwingWorker<String, Void>() {
+            @Override
+            protected String doInBackground() {
+                StringBuilder output = new StringBuilder();
+                int deleted = 0;
+
+                for (String id : idsToDelete) {
+                    try {
+                        client.deleteComponent(id);
+                        deleted++;
+                        output.append("Deleted ID: ").append(id).append("\n");
+                        logger.info("Deleted component: {}", id);
+                    } catch (Exception e) {
+                        output.append("Failed to delete ID ").append(id).append(": ")
+                            .append(e.getMessage()).append("\n");
+                        logger.error("Failed to delete {}: {}", id, e.getMessage());
+                    }
+                }
+
+                // Clear cache after deletion
+                String repository = repositoryField.getText().trim();
+                if (!repository.isEmpty()) {
+                    client.clearCache(repository);
+                }
+
+                return "Deleted " + deleted + " of " + idsToDelete.length + " components\n\n" + output;
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    String result = get();
+
+                    // Show result in a dialog
+                    JTextArea textArea = new JTextArea(result);
+                    textArea.setEditable(false);
+                    textArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
+                    JScrollPane scrollPane = new JScrollPane(textArea);
+                    scrollPane.setPreferredSize(new Dimension(600, 300));
+
+                    JOptionPane.showMessageDialog(frame,
+                        scrollPane,
+                        "Delete Results",
+                        JOptionPane.INFORMATION_MESSAGE);
+
+                    // Remove deleted rows from table
+                    for (int i = selectedRows.length - 1; i >= 0; i--) {
+                        int modelRow = resultsTable.convertRowIndexToModel(selectedRows[i]);
+                        tableModel.removeRow(modelRow);
+                    }
+
+                    setStatus("Delete operation completed", false);
+                } catch (Exception e) {
+                    setStatus("Delete failed: " + e.getMessage(), true);
+                } finally {
+                    // Restore normal cursor
+                    frame.setCursor(Cursor.getDefaultCursor());
+                    setButtonsEnabled(true);
+                }
+            }
+        }.execute();
+    }
+
+    private void setButtonsEnabled(boolean enabled) {
+        listButton.setEnabled(enabled);
+        refreshButton.setEnabled(enabled);
+        deleteButton.setEnabled(enabled);
+        deleteSelectedButton.setEnabled(enabled);
+        clearButton.setEnabled(enabled);
     }
 }
