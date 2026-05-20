@@ -86,4 +86,72 @@ class NexusClientTest {
 
         assertEquals(specialId, record.id());
     }
+
+    @Test
+    void testComponentMetadataToRepoRecordConversion() {
+        ComponentMetadata metadata = new ComponentMetadata(
+            "test-id",
+            "path/to/file.jar",
+            12345L,
+            "application/java-archive",
+            "maven2",
+            null,
+            null,
+            null
+        );
+
+        RepoRecord record = metadata.toRepoRecord();
+
+        assertEquals(metadata.id(), record.id());
+        assertEquals(metadata.fileSize(), record.fileSize());
+        assertEquals(metadata.path(), record.path());
+    }
+
+    @Test
+    void testComponentMetadataPreservesAllFields() {
+        java.time.Instant created = java.time.Instant.parse("2024-01-15T10:30:00Z");
+        java.time.Instant modified = java.time.Instant.parse("2024-01-16T14:20:00Z");
+
+        ComponentMetadata metadata = new ComponentMetadata(
+            "abc123",
+            "com/example/artifact-1.0.0.jar",
+            1234567L,
+            "application/java-archive",
+            "maven2",
+            created,
+            modified,
+            "sha1:abcdef123456"
+        );
+
+        assertEquals("abc123", metadata.id());
+        assertEquals("com/example/artifact-1.0.0.jar", metadata.path());
+        assertEquals(1234567L, metadata.fileSize());
+        assertEquals("application/java-archive", metadata.contentType());
+        assertEquals("maven2", metadata.format());
+        assertEquals(created, metadata.createdDate());
+        assertEquals(modified, metadata.lastModified());
+        assertEquals("sha1:abcdef123456", metadata.checksum());
+    }
+
+    @Test
+    void testComponentMetadataWithNullOptionalFields() {
+        ComponentMetadata metadata = new ComponentMetadata(
+            "id1",
+            "path.jar",
+            1000L,
+            null,
+            null,
+            null,
+            null,
+            null
+        );
+
+        assertNotNull(metadata);
+        assertEquals("id1", metadata.id());
+        assertNull(metadata.contentType());
+        assertNull(metadata.format());
+        assertNull(metadata.createdDate());
+        assertNull(metadata.lastModified());
+        assertNull(metadata.checksum());
+    }
 }

@@ -36,14 +36,19 @@ HTTP/Nexus API
 ```
 
 ### Separation of Concerns
-- **JNexus.java**: CLI parsing, user interaction, command routing
-- **JNexusSwing.java**: Modern Swing GUI (JFrame, JPanel, SwingWorker) with automatic profile selection
+- **JNexus.java**: CLI parsing, user interaction, command routing (list, delete, stats commands)
+- **JNexusSwing.java**: Modern Swing GUI (JFrame, JPanel, SwingWorker) with automatic profile selection, advanced filters, statistics dialog
 - **JNexusAWT.java**: Classic AWT GUI (Frame, Button, TextField) with automatic profile selection
 - **JNexusUI.java**: Terminal UI using jcurses with text-based profile selection, pre-populated with default values from Credentials
-- **NexusService.java**: Business logic, filtering, statistics, output formatting
-- **NexusClient.java**: HTTP communication, pagination, JSON parsing
+- **NexusService.java**: Business logic, filtering, statistics calculation, output formatting
+- **NexusClient.java**: HTTP communication, pagination, JSON parsing, metadata extraction
 - **Credentials.java**: Configuration management (env vars → properties file) + optional UI defaults + profile discovery
-- **RepoRecord.java**: Immutable data model (Java record)
+
+**Data Models (Java records):**
+- **RepoRecord.java**: Basic component record (id, fileSize, path)
+- **ComponentMetadata.java**: Enhanced component with full metadata (contentType, format, createdDate, lastModified, checksum)
+- **SearchCriteria.java**: Advanced search filters (size range, date range, file extension, component name pattern) with Builder pattern
+- **RepositoryStats.java**: Comprehensive statistics (size distribution, file type breakdown, age distribution, largest components)
 
 ## Design Patterns
 
@@ -59,9 +64,78 @@ HTTP/Nexus API
 ### Cache-Aside Pattern
 - Time-based caching in NexusClient with configurable TTL
 - Cache key: repository name
-- Cache value: List<RepoRecord> + timestamp
+- Cache value: List<RepoRecord> + timestamp (also separate cache for ComponentMetadata)
 - Default TTL: 5 minutes (300 seconds)
 - Thread-safe using ConcurrentHashMap
+
+## Enhanced Features (Metadata, Search, Statistics)
+
+### Component Metadata Extraction
+**NexusClient** extracts full component metadata from Nexus API responses:
+- **New methods**: `listComponentsWithMetadata()`, `parseComponentsResponseWithMetadata()`
+- **Metadata fields** extracted from JSON:
+  - `contentType`: MIME type (e.g., "application/java-archive") from asset level
+  - `format`: Repository format (maven2, npm, docker, etc.) from component level
+  - `createdDate`: When component was uploaded (ISO 8601 format, parsed to `Instant`)
+  - `lastModified`: When component was last modified (ISO 8601 format)
+  - `checksum`: Primary checksum (prefers SHA1, falls back to MD5)
+- **Graceful handling**: Missing/null fields use defaults (null for optional metadata)
+- **Caching**: Separate metadata cache with same TTL pattern
+
+**JSON parsing example:**
+```java
+// Extract from Nexus API response:
+// {
+//   "items": [{
+//     "id": "...",
+//     "format": "maven2",
+//     "assets": [{
+//       "path": "...",
+//       "fileSize": 123456,
+//       "contentType": "application/java-archive",
+//       "blobCreated": "2024-01-15T10:30:00.000Z",
+//       "lastModified": "2024-01-15T10:30:00.000Z",
+//       "checksum": { "sha1": "...", "md5": "..." }
+//     }]
+//   }]
+// }
+```
+
+### Advanced Search and Filtering
+**NexusService.searchComponents()** applies multiple filter types:
+- **Size range**: `minSize` and `maxSize` in bytes (filter: `fileSize >= min && fileSize <= max`)
+- **Date range**: `createdAfter` and `createdBefore` as `Instant` (filter: `createdDate.isAfter(after) && isBefore(before)`)
+- **File extension**: Filter by extension (filter: `path.endsWith(extension)`)
+- **Component name pattern**: Regex matching on component name
+- **Path regex**: Existing regex filter on full path
+- **Combination**: All filters applied sequentially (AND logic)
+- **Client-side**: All filtering done after fetching (Nexus API v1 doesn't support query parameters)
+
+**SearchCriteria with Builder:**
+```java
+SearchCriteria criteria = new SearchCriteria.Builder()
+    .repository("maven-releases")
+    .minSize(1_000_000L)           // 1 MB minimum
+    .maxSize(100_000_000L)         // 100 MB maximum
+    .createdAfter(Instant.parse("2024-01-01T00:00:00Z"))
+    .fileExtension(".jar")
+    .regexFilter(".*SNAPSHOT.*")
+    .build();
+```
+
+### Repository Statistics
+**NexusService.calculateStatistics()** computes comprehensive analytics:
+- **Basic metrics**: totalComponents, totalSize, averageSize, medianSize
+- **Size distribution**: 5 buckets (<1MB, 1-10MB, 10-100MB, 100MB-1GB, >1GB)
+- **File type breakdown**: Map of extension → total size (e.g., ".jar" → 8.2 GB)
+- **Age distribution**: 4 buckets (last 7 days, 30 days, 90 days, older)
+- **Largest components**: Top 20 components sorted by size descending
+- **Helper methods**: `getTotalSizeMB()`, `getTotalSizeGB()`, `getAverageSizeMB()`, `getMedianSizeMB()`
+
+**Statistics algorithms:**
+- Median: Sort by size, take middle element (or average of two middle)
+- Size buckets: Use constants `SIZE_RANGE_UNDER_1MB`, `SIZE_RANGE_1_TO_10MB`, etc.
+- Age calculation: Compare `createdDate` to `Instant.now().minus(Duration.ofDays(N))`
 
 ## Important Implementation Details
 
@@ -218,14 +292,31 @@ export NEXUS_PROFILE=dev
 ### Four UI Options
 
 1. **Swing GUI (JNexusSwing.java)**
-   - Modern graphical interface with table-based display
+   - Modern graphical interface with enhanced table-based display and analytics
    - Uses JTable with DefaultTableModel for data display
-   - **4 columns**: ID, File Size (Bytes), File Size (MB), Path
-   - Sortable columns (JTable.setAutoCreateRowSorter)
+   - **7 columns**: ID, File Size (Bytes), File Size (MB), File Size (GB), Created, Content Type, Path
+   - Sortable columns with numeric sorting for size columns (JTable.setAutoCreateRowSorter)
    - Multi-row selection with ListSelectionModel.MULTIPLE_INTERVAL_SELECTION
    - Custom cell renderer highlights summary row (light blue background)
    - **Smart Delete Selected button** - visible only when rows are selected
    - **Selection listener** - updates status bar with selection summary
+   - **Advanced Filters Panel** (collapsible with toggle button):
+     - Min/max size filters (text fields for bytes)
+     - Created date range filters (text fields for ISO 8601 format)
+     - File extension filter (text field)
+     - Uses GridBagLayout for responsive filter layout
+   - **Component Details Dialog**:
+     - Double-click any row to view full metadata
+     - Shows: ID, path, file size, content type, format, created date, last modified, checksum
+     - Implemented with JOptionPane.showMessageDialog
+   - **Statistics Dialog** (accessible via "Statistics" button):
+     - JTabbedPane with 5 tabs: Overview, Size Distribution, File Types, Age Distribution, Largest Components
+     - Overview: total components, total size (MB/GB), average, median
+     - Size Distribution: histogram with 5 buckets and percentages
+     - File Types: breakdown by extension with sizes
+     - Age Distribution: components by age ranges (7/30/90 days, older)
+     - Largest Components: top 20 by size in JTable
+   - **Smart Status Area**: Shows totals from table footer (moved from table to dedicated status area)
    - Uses SwingWorker for background tasks
    - Native look and feel via UIManager
    - Busy cursor (WAIT_CURSOR) during operations
@@ -233,8 +324,7 @@ export NEXUS_PROFILE=dev
    - **Repository dropdown selector** - JComboBox with "All" + configured repos
    - **Nexus URL and Config File displays** - read-only fields showing connection details
    - **Automatic profile selection** - JOptionPane.showInputDialog with dropdown
-   - **Summary row** - Non-editable row with totals (filtered out from deletions)
-   - Best for: Desktop users who prefer modern GUIs with spreadsheet-like interface
+   - Best for: Desktop users who prefer modern GUIs with spreadsheet-like interface and analytics
 
 2. **AWT GUI (JNexusAWT.java)**
    - Classic graphical interface with formatted text output
@@ -257,10 +347,22 @@ export NEXUS_PROFILE=dev
    - Best for: SSH sessions, terminal users, servers
 
 4. **CLI (JNexus.java)**
-   - Command-line interface
+   - Command-line interface with three commands: list, delete, stats
+   - **List command** - Enhanced with advanced filtering options:
+     - `--min-size BYTES`: Minimum file size filter
+     - `--max-size BYTES`: Maximum file size filter
+     - `--created-after DATE`: Creation date filter (ISO 8601 format)
+     - `--created-before DATE`: Creation date filter
+     - `--extension EXT`: File extension filter
+     - `--show-metadata`: Display full component metadata (not just path)
+   - **Delete command** - Remove components with confirmation prompts
+   - **Stats command** - Repository statistics:
+     - `--format text`: Human-readable text output (default)
+     - `--format json`: JSON output for scripting
+     - Displays: totals, size distribution, file types, age distribution, largest components
    - Uses Picocli for argument parsing
-   - Supports --verbose, --quiet, and --profile flags
-   - Best for: Scripting, automation, CI/CD
+   - Supports --verbose, --quiet, and --profile global flags
+   - Best for: Scripting, automation, CI/CD, analytics
 
 ### UI Implementation Patterns
 
