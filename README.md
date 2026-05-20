@@ -4,20 +4,42 @@ A Java 21 command-line tool for interacting with Sonatype Nexus repositories. Su
 
 ## Features
 
+### Core Functionality
 - List components in a repository with optional filtering
 - Delete components with safety features (confirmation prompts, dry-run mode)
-- Regex-based filtering for targeted operations
+- **Advanced Search & Filtering**:
+  - Regex-based path filtering
+  - Size range filters (min/max bytes)
+  - Date range filters (created after/before)
+  - File extension filtering
+  - Component name pattern matching
+- **Repository Statistics**:
+  - Size distribution analysis (5 size buckets)
+  - File type breakdown by extension
+  - Age distribution (last 7/30/90 days, older)
+  - Largest components (top 20)
+  - Average and median size calculations
+
+### Technical Features
 - **Intelligent caching** with 5-minute TTL (reduces server load, faster responses)
 - **Automatic retry logic** with exponential backoff for transient network failures
 - **Configurable HTTP timeouts** via environment variables or properties file
 - **Verbose and quiet modes** for detailed logging or minimal output
-- **Multiple user interfaces:**
-  - **Swing GUI** - Modern graphical interface with native look and feel
-  - **AWT GUI** - Classic graphical interface for maximum compatibility
-  - **Terminal UI** - Full-screen ncurses interface for terminal users
-  - **Command-line interface** - For scripting and automation
+- **Component metadata extraction**:
+  - Content type, format, creation date, last modified, checksum
+  - Full metadata in Swing GUI and CLI with `--show-metadata`
 - Fast startup and minimal dependencies
 - Support for environment variables or configuration file
+
+### User Interfaces
+- **Swing GUI** - Modern graphical interface:
+  - Advanced filters panel (collapsible)
+  - Table with 7 metadata columns
+  - Component details dialog (double-click)
+  - Statistics dialog with 5 tabs
+- **AWT GUI** - Classic graphical interface for maximum compatibility
+- **Terminal UI** - Full-screen ncurses interface for terminal users
+- **Command-line interface** - For scripting and automation with advanced filters
 
 ## Known Limitations
 

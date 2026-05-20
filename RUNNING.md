@@ -114,18 +114,36 @@ The Swing GUI provides a modern, native-looking graphical interface:
 
 - **Modern look and feel** that matches your operating system
 - **Responsive design** with background task execution
-- **Table-based display** with sortable columns - click column headers to sort
-- **4 columns**: ID, File Size (Bytes), File Size (MB), Path
+- **Enhanced table display** with 7 columns:
+  - ID, File Size (Bytes), File Size (MB), File Size (GB), Created, Content Type, Path
+  - Sortable columns with numeric sorting for size fields
+  - Click column headers to sort ascending/descending
+- **Advanced Filters Panel** (collapsible):
+  - Click "▶ Advanced Filters" to expand/collapse
+  - Min/max size filters (in bytes)
+  - Created date range filters (ISO 8601 format: 2024-01-01T00:00:00Z)
+  - File extension filter (e.g., .jar, .war)
+  - All filters can be combined with regex filter
+- **Component Details Dialog**:
+  - Double-click any row to view full metadata
+  - Shows ID, path, file size, content type, format, created date, last modified, checksum
+- **Repository Statistics Dialog**:
+  - Click "Statistics" button to analyze current results
+  - 5 tabs:
+    - Overview: total components, total size, average, median
+    - Size Distribution: histogram across 5 size buckets
+    - File Types: breakdown by extension with sizes and percentages
+    - Age Distribution: components grouped by age (7/30/90 days, older)
+    - Largest Components: top 20 sorted by size
 - **Multi-row selection** - select multiple rows with CTRL/SHIFT click
 - **Smart Delete Selected button** - appears only when rows are selected
-- **Selection status display** - shows total size of selected components in status bar
-- **Summary row** - shows total components and bytes (non-editable, highlighted in light blue)
-- **Repository dropdown selector** - choose from "All" or configured repositories (no text field needed)
-- **Nexus URL display** - see which Nexus server you're connected to
-- **Config file display** - see which configuration file is being used
+- **Status bar** with comprehensive totals:
+  - Shows grand total: "Total: X components - Y bytes (Z MB / W GB)"
+  - When rows selected: "Selected: A components | Total: X components"
+- **Repository dropdown selector** - choose from "All" or configured repositories
+- **Nexus URL and Config file display** - see connection details (read-only)
 - **Enter key shortcut** - press Enter in Regex field to trigger List operation
 - **Busy cursor** - visual feedback during operations with disabled buttons
-- **Easy to use** with familiar GUI controls
 - **No special dependencies** - uses Java's built-in Swing library
 - **Interactive credential collection** - if no configuration files exist, shows a dialog to enter credentials
 - **Automatic profile selection** - if multiple profiles exist, shows a selection dialog on startup
@@ -139,7 +157,7 @@ The Swing GUI provides a modern, native-looking graphical interface:
 
    **Note:** If multiple configuration profiles exist (e.g., `nexus.properties`, `nexus-dev.properties`, `nexus-prod.properties`), a dialog will appear asking you to select which profile to use. The application will automatically use it if only one profile exists.
 
-2. **Select repository and configure options:**
+2. **Select repository and configure basic options:**
    - **Repository dropdown**: Choose from "All" or configured repositories
      - "All" searches across all repositories
      - Select specific repository to narrow search
@@ -149,25 +167,44 @@ The Swing GUI provides a modern, native-looking graphical interface:
    - **Nexus URL**: Shows which server you're connected to (read-only)
    - **Config File**: Shows which configuration file is being used (read-only)
 
-3. **Choose your operation:**
-   - **List** - Shows components in table (uses cached data if available, fast)
-   - **Refresh** - Shows components in table (bypasses cache, always fresh)
-   - **Delete All** - Deletes all components matching the filter (shows confirmation dialog first)
+3. **Optional: Use Advanced Filters:**
+   - Click **"▶ Advanced Filters"** to expand the panel
+   - **Min Size**: Minimum file size in bytes (e.g., 1048576 for 1 MB)
+   - **Max Size**: Maximum file size in bytes
+   - **Created After**: ISO 8601 date (e.g., 2024-01-01T00:00:00Z)
+   - **Created Before**: ISO 8601 date
+   - **File Extension**: Extension including dot (e.g., .jar, .war)
+   - All filters are optional and can be combined
+   - Click **"▼ Advanced Filters"** again to collapse the panel
+
+4. **Choose your operation:**
+   - **List** - Shows components in table with all active filters
+   - **Refresh** - Refreshes components (bypasses cache, always fresh)
+   - **Delete All** - Deletes all components matching the filters (shows confirmation dialog first)
    - **Delete Selected** - Appears when rows are selected; deletes only selected components
-   - **Clear Results** - Clears the table
+   - **Clear Results** - Clears the table and current results
+   - **Statistics** - Shows comprehensive statistics for current results
    - **Quit** - Exits the application
 
-4. **Work with the results table:**
-   - **4 columns displayed**: ID, File Size (Bytes), File Size (MB), Path
-   - **Sort columns** - Click column headers to sort ascending/descending
+5. **Work with the results table:**
+   - **7 columns displayed**: ID, File Size (Bytes), File Size (MB), File Size (GB), Created, Content Type, Path
+   - **Sort columns** - Click column headers to sort ascending/descending (numeric sorting for size columns)
    - **Select rows** - Click to select one row, CTRL+click for multiple, SHIFT+click for range
-   - **Selection status** - Status bar shows: "Selected: 3 component(s) - 2,048,123 bytes (1.95 MB)"
+   - **Double-click row** - Opens component details dialog with full metadata
    - **Delete selected** - "Delete Selected" button appears when rows are selected
-   - **View summary** - Bottom row shows total components and bytes (highlighted in light blue)
 
-5. **Check status** at the bottom of the window
-   - Shows operation progress, cache status, component count
-   - When rows are selected, shows total size of selection
+6. **View Statistics:**
+   - Click **"Statistics"** button to analyze current results
+   - Statistics dialog has 5 tabs:
+     - **Overview**: Total/average/median size
+     - **Size Distribution**: Histogram across size ranges
+     - **File Types**: Breakdown by extension
+     - **Age Distribution**: Components by age ranges
+     - **Largest Components**: Top 20 by size
+
+7. **Check status** at the bottom of the window:
+   - Shows grand total: "Total: X component(s) - Y bytes (Z MB / W GB)"
+   - When rows selected: "Selected: A component(s) - B bytes (C MB / D GB) | Total: X component(s) - Y bytes (Z MB / W GB)"
 
 ### Swing GUI Benefits
 
@@ -355,6 +392,43 @@ List components matching a regex pattern:
 ./jnexus.sh list my-repository ".*SNAPSHOT.*"
 ```
 
+**Advanced Filtering** (new):
+```bash
+# Filter by size range (min/max in bytes)
+./jnexus.sh list my-repository --min-size 1000000 --max-size 10000000
+
+# Filter by creation date (ISO 8601 format)
+./jnexus.sh list my-repository --created-after 2024-01-01T00:00:00Z --created-before 2024-12-31T00:00:00Z
+
+# Filter by file extension
+./jnexus.sh list my-repository --extension .jar
+
+# Combine multiple filters
+./jnexus.sh list my-repository ".*SNAPSHOT.*" --min-size 100000 --extension .war
+
+# Show full metadata (includes content type, format, created date, checksum)
+./jnexus.sh list my-repository --show-metadata
+```
+
+#### Repository Statistics (new)
+
+Show comprehensive repository statistics:
+```bash
+# Text format (default)
+./jnexus.sh stats my-repository
+
+# JSON format
+./jnexus.sh stats my-repository --format json
+```
+
+Statistics include:
+- Total components and size
+- Average and median size
+- Size distribution (5 buckets: <1MB, 1-10MB, 10-100MB, 100MB-1GB, >1GB)
+- File type breakdown by extension
+- Age distribution (last 7/30/90 days, older)
+- Largest components (top 10)
+
 #### Delete components
 
 **Always use --dry-run first!**
@@ -381,6 +455,8 @@ Skip confirmation prompt:
 
 ### CLI Options
 
+#### Global Options
+
 | Option | Short | Description |
 |--------|-------|-------------|
 | `--help` | `-h` | Show help message |
@@ -388,8 +464,30 @@ Skip confirmation prompt:
 | `--verbose` | `-v` | Enable debug logging |
 | `--quiet` | `-q` | Only show warnings and errors |
 | `--profile` | `-p` | Use a specific configuration profile (e.g., dev, prod, staging) |
-| `--dry-run` | `-n` | (Delete only) Preview deletions without executing |
-| `--yes` | `-y` | (Delete only) Skip confirmation prompt |
+
+#### List Command Options
+
+| Option | Description |
+|--------|-------------|
+| `--min-size BYTES` | Minimum file size in bytes (e.g., 1048576 for 1 MB) |
+| `--max-size BYTES` | Maximum file size in bytes |
+| `--created-after DATE` | Filter by creation date (ISO format: 2024-01-01T00:00:00Z) |
+| `--created-before DATE` | Filter by creation date (ISO format) |
+| `--extension EXT` | Filter by file extension (e.g., .jar, .war) |
+| `--show-metadata` | Display full component metadata (content type, format, dates, checksum) |
+
+#### Delete Command Options
+
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--dry-run` | `-n` | Preview deletions without executing |
+| `--yes` | `-y` | Skip confirmation prompt |
+
+#### Stats Command Options
+
+| Option | Description |
+|--------|-------------|
+| `--format FORMAT` | Output format: text (default) or json |
 
 ### CLI Examples
 

@@ -53,11 +53,21 @@ public class NexusClient {
 
     // Cache storage: repository -> CacheEntry
     private final Map<String, CacheEntry> cache = new ConcurrentHashMap<>();
+    private final Map<String, MetadataCacheEntry> metadataCache = new ConcurrentHashMap<>();
 
     /**
      * Cache entry holding component list and timestamp.
      */
     private record CacheEntry(List<RepoRecord> records, Instant timestamp) {
+        boolean isExpired(long ttlSeconds) {
+            return Instant.now().isAfter(timestamp.plusSeconds(ttlSeconds));
+        }
+    }
+
+    /**
+     * Cache entry holding component metadata list and timestamp.
+     */
+    private record MetadataCacheEntry(List<ComponentMetadata> records, Instant timestamp) {
         boolean isExpired(long ttlSeconds) {
             return Instant.now().isAfter(timestamp.plusSeconds(ttlSeconds));
         }
@@ -166,6 +176,74 @@ public class NexusClient {
     }
 
     /**
+     * Lists all components with full metadata in the specified repository.
+     * <p>
+     * This method automatically handles pagination and uses the default cache behavior.
+     * </p>
+     *
+     * @param repository the name of the repository to list components from
+     * @return a list of all components with full metadata found in the repository
+     * @throws IOException          if an I/O error occurs during the HTTP request
+     * @throws InterruptedException if the operation is interrupted
+     */
+    public List<ComponentMetadata> listComponentsWithMetadata(String repository) throws IOException, InterruptedException {
+        return listComponentsWithMetadata(repository, false);
+    }
+
+    /**
+     * Lists all components with full metadata in the specified repository with optional cache bypass.
+     * <p>
+     * This method automatically handles pagination by following continuation tokens
+     * returned by the Nexus API until all components have been retrieved.
+     * Results are cached for the configured TTL duration unless forceRefresh is true.
+     * </p>
+     * <p>
+     * Extracts full metadata including content type, format, creation date, last modified date,
+     * and checksums from the Nexus API response.
+     * </p>
+     *
+     * @param repository the name of the repository to list components from
+     * @param forceRefresh if true, bypasses cache and fetches fresh data
+     * @return a list of all components with full metadata found in the repository
+     * @throws IOException          if an I/O error occurs during the HTTP request
+     * @throws InterruptedException if the operation is interrupted
+     */
+    public List<ComponentMetadata> listComponentsWithMetadata(String repository, boolean forceRefresh) throws IOException, InterruptedException {
+        // Check cache if not forcing refresh and caching is enabled
+        if (!forceRefresh && cacheTtlSeconds > 0) {
+            MetadataCacheEntry entry = metadataCache.get(repository);
+            if (entry != null && !entry.isExpired(cacheTtlSeconds)) {
+                long age = Duration.between(entry.timestamp(), Instant.now()).getSeconds();
+                logger.debug("Metadata cache HIT for repository: {} (age: {}s)", repository, age);
+                return new LinkedList<>(entry.records()); // Return copy to prevent modification
+            }
+        }
+
+        // Cache miss or expired - fetch from server
+        logger.debug("Metadata cache MISS for repository: {} - fetching from server", repository);
+        List<ComponentMetadata> records = new LinkedList<>();
+        String url = baseUrl + "/service/rest/v1/components?repository=" + repository;
+        String continuationToken = null;
+
+        do {
+            String fetchUrl = continuationToken == null
+                ? url
+                : url + "&continuationToken=" + continuationToken;
+
+            ComponentsMetadataResponse response = fetchComponentsWithMetadata(fetchUrl);
+            records.addAll(response.records());
+            continuationToken = response.continuationToken();
+        } while (continuationToken != null);
+
+        // Update cache if caching is enabled
+        if (cacheTtlSeconds > 0) {
+            metadataCache.put(repository, new MetadataCacheEntry(new LinkedList<>(records), Instant.now()));
+        }
+
+        return records;
+    }
+
+    /**
      * Fetches a single page of components from the given URL with retry logic.
      *
      * @param url the complete URL to fetch components from (including any continuation token)
@@ -193,6 +271,50 @@ public class NexusClient {
                 }
 
                 return parseComponentsResponse(response.body());
+            } catch (IOException e) {
+                lastException = e;
+                if (attempt < MAX_RETRIES && isRetryable(e)) {
+                    long delay = INITIAL_RETRY_DELAY_MS * (1L << (attempt - 1)); // Exponential backoff
+                    logger.warn("Request failed (attempt {}/{}): {}. Retrying in {}ms...",
+                        attempt, MAX_RETRIES, e.getMessage(), delay);
+                    Thread.sleep(delay);
+                } else {
+                    break;
+                }
+            }
+        }
+
+        throw lastException;
+    }
+
+    /**
+     * Fetches a single page of components with metadata from the given URL with retry logic.
+     *
+     * @param url the complete URL to fetch components from (including any continuation token)
+     * @return a ComponentsMetadataResponse containing the metadata records and optional continuation token
+     * @throws IOException          if an HTTP error occurs or the response status is not 200
+     * @throws InterruptedException if the operation is interrupted
+     */
+    private ComponentsMetadataResponse fetchComponentsWithMetadata(String url) throws IOException, InterruptedException {
+        logger.debug("Fetching with metadata: {}", url);
+
+        HttpRequest request = HttpRequest.newBuilder()
+            .uri(URI.create(url))
+            .header("Authorization", authHeader)
+            .header("Accept", "application/json")
+            .GET()
+            .build();
+
+        IOException lastException = null;
+        for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+            try {
+                HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+
+                if (response.statusCode() != 200) {
+                    throw new IOException("HTTP " + response.statusCode() + ": " + response.body());
+                }
+
+                return parseComponentsResponseWithMetadata(response.body());
             } catch (IOException e) {
                 lastException = e;
                 if (attempt < MAX_RETRIES && isRetryable(e)) {
@@ -264,6 +386,106 @@ public class NexusClient {
     }
 
     /**
+     * Parses a JSON response from the Nexus API into component metadata records.
+     * <p>
+     * Extracts full component metadata including ID, file size, path, content type,
+     * format, creation date, last modified date, and checksum from the first asset
+     * of each component. Components with no assets are skipped.
+     * </p>
+     * <p>
+     * Handles missing/null fields gracefully by using default values:
+     * </p>
+     * <ul>
+     *   <li>contentType: defaults to "unknown"</li>
+     *   <li>format: defaults to "unknown"</li>
+     *   <li>createdDate: null if not present</li>
+     *   <li>lastModified: null if not present</li>
+     *   <li>checksum: null if not present</li>
+     * </ul>
+     *
+     * @param jsonResponse the JSON string response from Nexus API
+     * @return a ComponentsMetadataResponse containing parsed metadata records and continuation token (if any)
+     * @throws IOException if JSON parsing fails
+     */
+    private ComponentsMetadataResponse parseComponentsResponseWithMetadata(String jsonResponse) throws IOException {
+        Map<String, Object> map = objectMapper.readValue(jsonResponse, new TypeReference<>() {});
+        JSONObject json = new JSONObject(map);
+
+        List<ComponentMetadata> records = new LinkedList<>();
+        JSONArray items = json.getJSONArray("items");
+
+        for (int i = 0; i < items.length(); i++) {
+            JSONObject item = items.getJSONObject(i);
+            String id = item.getString("id");
+
+            // Extract format from component level (e.g., "maven2", "npm", "docker")
+            String format = item.optString("format", "unknown");
+
+            JSONArray assets = item.getJSONArray("assets");
+
+            if (assets.length() > 0) {
+                // Note: Only processes the first asset per component
+                // Components can have multiple assets, but for simplicity we use the first
+                JSONObject asset = assets.getJSONObject(0);
+
+                // Required fields
+                long fileSize = asset.getLong("fileSize");
+                String path = asset.getString("path");
+
+                // Optional fields with defaults
+                String contentType = asset.optString("contentType", "unknown");
+
+                // Parse timestamps (ISO 8601 format)
+                Instant createdDate = null;
+                if (asset.has("blobCreated") && !asset.isNull("blobCreated")) {
+                    try {
+                        createdDate = Instant.parse(asset.getString("blobCreated"));
+                    } catch (Exception e) {
+                        logger.warn("Failed to parse blobCreated date: {}", asset.getString("blobCreated"));
+                    }
+                }
+
+                Instant lastModified = null;
+                if (asset.has("lastModified") && !asset.isNull("lastModified")) {
+                    try {
+                        lastModified = Instant.parse(asset.getString("lastModified"));
+                    } catch (Exception e) {
+                        logger.warn("Failed to parse lastModified date: {}", asset.getString("lastModified"));
+                    }
+                }
+
+                // Extract checksum (prefer SHA1, fallback to MD5)
+                String checksum = null;
+                if (asset.has("checksum") && !asset.isNull("checksum")) {
+                    JSONObject checksumObj = asset.getJSONObject("checksum");
+                    if (checksumObj.has("sha1")) {
+                        checksum = checksumObj.getString("sha1");
+                    } else if (checksumObj.has("md5")) {
+                        checksum = checksumObj.getString("md5");
+                    }
+                }
+
+                records.add(new ComponentMetadata(
+                    id,
+                    path,
+                    fileSize,
+                    contentType,
+                    format,
+                    createdDate,
+                    lastModified,
+                    checksum
+                ));
+            }
+        }
+
+        String continuationToken = json.isNull("continuationToken")
+            ? null
+            : json.getString("continuationToken");
+
+        return new ComponentsMetadataResponse(records, continuationToken);
+    }
+
+    /**
      * Deletes a component from the Nexus repository with retry logic.
      *
      * @param componentId the unique identifier of the component to delete
@@ -312,6 +534,7 @@ public class NexusClient {
      */
     public void clearCache(String repository) {
         cache.remove(repository);
+        metadataCache.remove(repository);
         logger.debug("Cache cleared for repository: {}", repository);
     }
 
@@ -319,8 +542,9 @@ public class NexusClient {
      * Clears all cached repository data.
      */
     public void clearAllCache() {
-        int size = cache.size();
+        int size = cache.size() + metadataCache.size();
         cache.clear();
+        metadataCache.clear();
         logger.debug("Cleared cache for {} repositories", size);
     }
 
@@ -355,4 +579,6 @@ public class NexusClient {
      * @param continuationToken optional token for fetching the next page, or null if this is the last page
      */
     private record ComponentsResponse(List<RepoRecord> records, String continuationToken) {}
+
+    private record ComponentsMetadataResponse(List<ComponentMetadata> records, String continuationToken) {}
 }

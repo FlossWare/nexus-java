@@ -8,6 +8,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Enhanced Nexus API Integration** - Advanced search, filtering, and statistics
+  - **ComponentMetadata** data model with full metadata fields (contentType, format, createdDate, lastModified, checksum)
+  - **SearchCriteria** data model with advanced filter support
+  - **RepositoryStats** data model for comprehensive statistics
+  - **Advanced Search & Filtering**:
+    - Size range filters (min/max bytes)
+    - Date range filters (created after/before)
+    - File extension filter
+    - Component name pattern matching
+    - All filters can be combined
+  - **Repository Statistics**:
+    - Size distribution across 5 buckets (<1MB, 1-10MB, 10-100MB, 100MB-1GB, >1GB)
+    - File type breakdown by extension
+    - Age distribution (last 7/30/90 days, older)
+    - Largest components (top 20)
+    - Average and median size calculations
+- **Enhanced CLI** (JNexus.java):
+  - New `stats` command for repository statistics (text and JSON output)
+  - Enhanced `list` command with new options:
+    - `--min-size BYTES` - Minimum file size filter
+    - `--max-size BYTES` - Maximum file size filter
+    - `--created-after DATE` - Creation date filter (ISO 8601 format)
+    - `--created-before DATE` - Creation date filter
+    - `--extension EXT` - File extension filter
+    - `--show-metadata` - Display full component metadata
+- **Enhanced Swing GUI** (JNexusSwing.java):
+  - **Advanced Filters Panel** (collapsible):
+    - Min/max size filters
+    - Created date range filters (ISO 8601 format)
+    - File extension filter
+  - **Enhanced Table Display**:
+    - 7 columns: ID, File Size (Bytes), File Size (MB), File Size (GB), Created, Content Type, Path
+    - Numeric sorting for all size columns
+    - Date display in "yyyy-MM-dd HH:mm" format
+  - **Component Details Dialog**:
+    - Double-click any row to view full metadata
+    - Shows ID, path, file size, content type, format, created date, last modified, checksum
+  - **Statistics Dialog** with 5 tabs:
+    - Overview: total components, total size, average, median
+    - Size Distribution: histogram with percentages
+    - File Types: breakdown by extension with sizes
+    - Age Distribution: components by age ranges
+    - Largest Components: top 20 by size
+  - **Statistics Button**: Analyze current results
+- **Metadata Caching**: Separate cache for component metadata with same TTL pattern
+
+## [1.0] - 2024
+
+### Added
 - **Swing GUI** (JNexusSwing.java) - Modern graphical interface
   - Native look and feel using UIManager.setLookAndFeel
   - Background task execution with SwingWorker

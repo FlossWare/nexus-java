@@ -8,6 +8,10 @@ import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
 import picocli.CommandLine.Parameters;
 
+import java.text.NumberFormat;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.Callable;
 
 /**
@@ -33,7 +37,8 @@ import java.util.concurrent.Callable;
     version = "jnexus 1.0",
     subcommands = {
         JNexus.ListCommand.class,
-        JNexus.DeleteCommand.class
+        JNexus.DeleteCommand.class,
+        JNexus.StatsCommand.class
     }
 )
 public class JNexus implements Callable<Integer> {
@@ -104,11 +109,29 @@ public class JNexus implements Callable<Integer> {
         @Parameters(index = "1", arity = "0..1", description = "Optional regex filter for component paths")
         private String regexFilter;
 
+        @Option(names = {"--min-size"}, description = "Minimum file size in bytes")
+        private Long minSize;
+
+        @Option(names = {"--max-size"}, description = "Maximum file size in bytes")
+        private Long maxSize;
+
+        @Option(names = {"--created-after"}, description = "Filter by creation date (ISO format: 2024-01-01T00:00:00Z)")
+        private String createdAfter;
+
+        @Option(names = {"--created-before"}, description = "Filter by creation date (ISO format: 2024-01-01T00:00:00Z)")
+        private String createdBefore;
+
+        @Option(names = {"--extension"}, description = "Filter by file extension (e.g., .jar, .war)")
+        private String extension;
+
+        @Option(names = {"--show-metadata"}, description = "Display full component metadata")
+        private boolean showMetadata;
+
         /**
          * Executes the list command.
          * <p>
          * Loads credentials, creates client and service instances, and lists
-         * components from the specified repository.
+         * components from the specified repository with optional advanced filtering.
          * </p>
          *
          * @return exit code: 0 for success, 1 for error
@@ -128,12 +151,44 @@ public class JNexus implements Callable<Integer> {
                 }
 
                 System.out.println("Listing components in repository: " + repository);
-                if (regexFilter != null) {
-                    System.out.println("Filter: " + regexFilter);
-                }
+                printActiveFilters();
                 System.out.println();
 
-                service.listRepository(repository, regexFilter);
+                // Check if advanced filters are used
+                boolean hasAdvancedFilters = minSize != null || maxSize != null
+                    || createdAfter != null || createdBefore != null || extension != null;
+
+                if (hasAdvancedFilters || showMetadata) {
+                    // Use advanced search with metadata
+                    SearchCriteria.Builder criteriaBuilder = SearchCriteria.builder()
+                        .repository(repository)
+                        .regexFilter(regexFilter)
+                        .minSize(minSize)
+                        .maxSize(maxSize)
+                        .fileExtension(extension);
+
+                    // Parse date strings to Instant if provided
+                    if (createdAfter != null) {
+                        criteriaBuilder.createdAfter(java.time.Instant.parse(createdAfter));
+                    }
+                    if (createdBefore != null) {
+                        criteriaBuilder.createdBefore(java.time.Instant.parse(createdBefore));
+                    }
+
+                    SearchCriteria criteria = criteriaBuilder.build();
+                    List<ComponentMetadata> components = service.searchComponents(criteria, false);
+
+                    if (showMetadata) {
+                        printComponentsWithMetadata(components);
+                    } else {
+                        printComponents(components);
+                    }
+                    printComponentStatistics(components.size(), components);
+                } else {
+                    // Use simple list (backward compatible)
+                    service.listRepository(repository, regexFilter);
+                }
+
                 return 0;
             } catch (IllegalArgumentException e) {
                 logger.error("Error: {}", e.getMessage());
@@ -145,6 +200,82 @@ public class JNexus implements Callable<Integer> {
                 }
                 return 1;
             }
+        }
+
+        private void printActiveFilters() {
+            if (regexFilter != null) {
+                System.out.println("Regex filter: " + regexFilter);
+            }
+            if (minSize != null) {
+                System.out.printf("Min size: %,d bytes%n", minSize);
+            }
+            if (maxSize != null) {
+                System.out.printf("Max size: %,d bytes%n", maxSize);
+            }
+            if (createdAfter != null) {
+                System.out.println("Created after: " + createdAfter);
+            }
+            if (createdBefore != null) {
+                System.out.println("Created before: " + createdBefore);
+            }
+            if (extension != null) {
+                System.out.println("Extension: " + extension);
+            }
+        }
+
+        private void printComponents(List<ComponentMetadata> components) {
+            System.out.println("ID                                    File Size (bytes)  Path");
+            System.out.println("====================================  ================  ================================");
+
+            for (ComponentMetadata component : components) {
+                System.out.printf("%s  %,15d  %s%n",
+                    component.id(),
+                    component.fileSize(),
+                    component.path());
+            }
+        }
+
+        private void printComponentsWithMetadata(List<ComponentMetadata> components) {
+            System.out.println("ID                                    File Size          Created              Type              Path");
+            System.out.println("====================================  ================  ===================  ===============  ================================");
+
+            java.text.DateFormat dateFormat = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+            dateFormat.setTimeZone(java.util.TimeZone.getTimeZone("UTC"));
+
+            for (ComponentMetadata component : components) {
+                String createdDate = component.createdDate() != null
+                    ? dateFormat.format(java.util.Date.from(component.createdDate()))
+                    : "N/A";
+                String contentType = component.contentType() != null ? component.contentType() : "unknown";
+
+                System.out.printf("%s  %,15d  %19s  %15s  %s%n",
+                    component.id(),
+                    component.fileSize(),
+                    createdDate,
+                    truncate(contentType, 15),
+                    component.path());
+            }
+        }
+
+        private void printComponentStatistics(int totalComponents, List<ComponentMetadata> components) {
+            long totalSize = components.stream()
+                .mapToLong(ComponentMetadata::fileSize)
+                .sum();
+
+            System.out.println("\n");
+            System.out.println("Total components: " + totalComponents);
+            System.out.printf("Total size:       %,d bytes (%.2f MB / %.4f GB)%n",
+                totalSize,
+                totalSize / 1024.0 / 1024.0,
+                totalSize / 1024.0 / 1024.0 / 1024.0);
+            System.out.println();
+        }
+
+        private String truncate(String text, int maxLength) {
+            if (text.length() <= maxLength) {
+                return text;
+            }
+            return text.substring(0, maxLength - 3) + "...";
         }
     }
 
@@ -247,6 +378,197 @@ public class JNexus implements Callable<Integer> {
                 }
                 return 1;
             }
+        }
+    }
+
+    /**
+     * Subcommand for showing repository statistics.
+     * <p>
+     * Analyzes all components in a repository and displays comprehensive statistics
+     * including size distribution, file type breakdown, age analysis, and largest components.
+     * </p>
+     */
+    @Command(
+        name = "stats",
+        description = "Show repository statistics"
+    )
+    static class StatsCommand implements Callable<Integer> {
+        @CommandLine.ParentCommand
+        private JNexus parent;
+
+        @Parameters(index = "0", description = "Repository name")
+        private String repository;
+
+        @Option(names = {"--format"}, description = "Output format: text or json (default: text)")
+        private String format = "text";
+
+        /**
+         * Executes the stats command.
+         * <p>
+         * Loads credentials, fetches all components with metadata, calculates statistics,
+         * and displays them in the requested format.
+         * </p>
+         *
+         * @return exit code: 0 for success, 1 for error
+         */
+        @Override
+        public Integer call() {
+            parent.configureLogging();
+            org.slf4j.Logger logger = LoggerFactory.getLogger(JNexus.class);
+
+            try {
+                Credentials credentials = new Credentials(parent.profile);
+                NexusClient client = new NexusClient(credentials);
+                NexusService service = new NexusService(client);
+
+                if (credentials.getProfile() != null) {
+                    logger.debug("Using profile: {}", credentials.getProfile());
+                }
+
+                System.out.println("Calculating statistics for repository: " + repository);
+                System.out.println();
+
+                // Fetch all components with metadata
+                List<ComponentMetadata> components = client.listComponentsWithMetadata(repository);
+
+                // Calculate statistics
+                RepositoryStats stats = service.calculateStatistics(repository, components);
+
+                // Display statistics
+                if ("json".equalsIgnoreCase(format)) {
+                    printStatsAsJson(stats);
+                } else {
+                    printStatsAsText(stats);
+                }
+
+                return 0;
+            } catch (IllegalArgumentException e) {
+                logger.error("Error: {}", e.getMessage());
+                return 1;
+            } catch (Exception e) {
+                logger.error("Error: {}", e.getMessage());
+                if (parent.verbose) {
+                    logger.error("Stack trace:", e);
+                }
+                return 1;
+            }
+        }
+
+        private void printStatsAsText(RepositoryStats stats) {
+            NumberFormat numberFormat = NumberFormat.getNumberInstance(Locale.US);
+
+            System.out.println("Repository Statistics: " + stats.repository());
+            System.out.println("=====================================");
+            System.out.printf("Total Components: %,d%n", stats.totalComponents());
+            System.out.printf("Total Size:       %s bytes (%.2f MB / %.4f GB)%n",
+                numberFormat.format(stats.totalSize()),
+                stats.getTotalSizeMB(),
+                stats.getTotalSizeGB());
+            System.out.printf("Average Size:     %s bytes (%.2f MB)%n",
+                numberFormat.format(stats.averageSize()),
+                stats.getAverageSizeMB());
+            System.out.printf("Median Size:      %s bytes (%.2f MB)%n",
+                numberFormat.format(stats.medianSize()),
+                stats.getMedianSizeMB());
+            System.out.println();
+
+            // Size Distribution
+            System.out.println("Size Distribution:");
+            for (Map.Entry<String, Integer> entry : stats.sizeDistribution().entrySet()) {
+                double percentage = (entry.getValue() * 100.0) / stats.totalComponents();
+                System.out.printf("  %-20s %,6d components (%5.1f%%)%n",
+                    entry.getKey() + ":",
+                    entry.getValue(),
+                    percentage);
+            }
+            System.out.println();
+
+            // File Type Breakdown
+            System.out.println("File Type Breakdown:");
+            long totalSize = stats.totalSize();
+            for (Map.Entry<String, Long> entry : stats.fileTypeBreakdown().entrySet()) {
+                double percentage = (entry.getValue() * 100.0) / totalSize;
+                double sizeMB = entry.getValue() / 1024.0 / 1024.0;
+                System.out.printf("  %-15s %10.2f MB (%5.1f%%)%n",
+                    entry.getKey() + ":",
+                    sizeMB,
+                    percentage);
+            }
+            System.out.println();
+
+            // Age Distribution
+            System.out.println("Age Distribution:");
+            for (Map.Entry<String, Integer> entry : stats.ageDistribution().entrySet()) {
+                System.out.printf("  %-20s %,6d components%n",
+                    entry.getKey() + ":",
+                    entry.getValue());
+            }
+            System.out.println();
+
+            // Largest Components
+            System.out.println("Largest Components (Top 10):");
+            System.out.println("  ID                                    Size          Path");
+            System.out.println("  ====================================  ============  ================================");
+
+            stats.largestComponents().stream()
+                .limit(10)
+                .forEach(component -> {
+                    double sizeMB = component.fileSize() / 1024.0 / 1024.0;
+                    System.out.printf("  %s  %10.2f MB  %s%n",
+                        component.id(),
+                        sizeMB,
+                        truncate(component.path(), 32));
+                });
+            System.out.println();
+        }
+
+        private void printStatsAsJson(RepositoryStats stats) {
+            // Simple JSON output (could use Jackson for proper formatting)
+            System.out.println("{");
+            System.out.printf("  \"repository\": \"%s\",%n", stats.repository());
+            System.out.printf("  \"totalComponents\": %d,%n", stats.totalComponents());
+            System.out.printf("  \"totalSize\": %d,%n", stats.totalSize());
+            System.out.printf("  \"averageSize\": %d,%n", stats.averageSize());
+            System.out.printf("  \"medianSize\": %d,%n", stats.medianSize());
+
+            System.out.println("  \"sizeDistribution\": {");
+            int sizeDistCount = 0;
+            for (Map.Entry<String, Integer> entry : stats.sizeDistribution().entrySet()) {
+                System.out.printf("    \"%s\": %d%s%n",
+                    entry.getKey(),
+                    entry.getValue(),
+                    ++sizeDistCount < stats.sizeDistribution().size() ? "," : "");
+            }
+            System.out.println("  },");
+
+            System.out.println("  \"fileTypeBreakdown\": {");
+            int fileTypeCount = 0;
+            for (Map.Entry<String, Long> entry : stats.fileTypeBreakdown().entrySet()) {
+                System.out.printf("    \"%s\": %d%s%n",
+                    entry.getKey(),
+                    entry.getValue(),
+                    ++fileTypeCount < stats.fileTypeBreakdown().size() ? "," : "");
+            }
+            System.out.println("  },");
+
+            System.out.println("  \"ageDistribution\": {");
+            int ageDistCount = 0;
+            for (Map.Entry<String, Integer> entry : stats.ageDistribution().entrySet()) {
+                System.out.printf("    \"%s\": %d%s%n",
+                    entry.getKey(),
+                    entry.getValue(),
+                    ++ageDistCount < stats.ageDistribution().size() ? "," : "");
+            }
+            System.out.println("  }");
+
+            System.out.println("}");
+        }
+
+        private String truncate(String text, int maxLength) {
+            if (text.length() <= maxLength) {
+                return text;
+            }
+            return text.substring(0, maxLength - 3) + "...";
         }
     }
 

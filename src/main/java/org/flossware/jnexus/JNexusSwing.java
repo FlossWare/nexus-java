@@ -4,18 +4,27 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.swing.*;
+import javax.swing.event.MouseInputAdapter;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableRowSorter;
 import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.text.DateFormat;
 import java.text.NumberFormat;
+import java.text.SimpleDateFormat;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 /**
  * Swing-based GUI for interacting with Nexus Repository Manager.
@@ -43,11 +52,25 @@ public class JNexusSwing {
     private JButton deleteButton;
     private JButton deleteSelectedButton;
     private JButton clearButton;
+    private JButton statsButton;
+
+    // Advanced filter components
+    private JTextField minSizeField;
+    private JTextField maxSizeField;
+    private JTextField createdAfterField;
+    private JTextField createdBeforeField;
+    private JTextField extensionField;
+    private JPanel advancedFiltersPanel;
+    private JButton toggleFiltersButton;
 
     // Services
     private NexusClient client;
     private NexusService service;
     private Credentials credentials;
+
+    // Current data
+    private List<ComponentMetadata> currentComponents = new ArrayList<>();
+    private String currentRepository = "";
 
     public static void main(String[] args) {
         // Set system look and feel for native appearance
@@ -344,9 +367,34 @@ public class JNexusSwing {
         dryRunCheckbox.setSelected(credentials.isDefaultDryRun());
         panel.add(dryRunCheckbox, gbc);
 
-        // Nexus URL display (read-only)
+        // Advanced filters toggle button
         gbc.gridx = 0;
         gbc.gridy = 3;
+        gbc.gridwidth = 2;
+        gbc.anchor = GridBagConstraints.WEST;
+        toggleFiltersButton = new JButton("▶ Advanced Filters");
+        toggleFiltersButton.setBorderPainted(false);
+        toggleFiltersButton.setContentAreaFilled(false);
+        toggleFiltersButton.setFocusPainted(false);
+        toggleFiltersButton.setForeground(Color.BLUE);
+        toggleFiltersButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        toggleFiltersButton.addActionListener(e -> toggleAdvancedFilters());
+        panel.add(toggleFiltersButton, gbc);
+
+        // Advanced filters panel (initially hidden)
+        gbc.gridx = 0;
+        gbc.gridy = 4;
+        gbc.gridwidth = 2;
+        gbc.fill = GridBagConstraints.BOTH;
+        advancedFiltersPanel = createAdvancedFiltersPanel();
+        advancedFiltersPanel.setVisible(false);
+        panel.add(advancedFiltersPanel, gbc);
+
+        // Nexus URL display (read-only)
+        gbc.gridx = 0;
+        gbc.gridy = 5;
+        gbc.gridwidth = 1;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.weightx = 0.0;
         gbc.gridwidth = 1;
         gbc.anchor = GridBagConstraints.WEST;
@@ -364,7 +412,7 @@ public class JNexusSwing {
 
         // Property file display (read-only)
         gbc.gridx = 0;
-        gbc.gridy = 4;
+        gbc.gridy = 6;
         gbc.weightx = 0.0;
         gbc.gridwidth = 1;
         gbc.anchor = GridBagConstraints.WEST;
@@ -385,12 +433,88 @@ public class JNexusSwing {
 
         // Buttons panel
         gbc.gridx = 0;
-        gbc.gridy = 5;
+        gbc.gridy = 7;
         gbc.gridwidth = 2;
         gbc.anchor = GridBagConstraints.CENTER;
         panel.add(createButtonPanel(), gbc);
 
         return panel;
+    }
+
+    private JPanel createAdvancedFiltersPanel() {
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBorder(BorderFactory.createTitledBorder("Advanced Filters"));
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        // Min Size
+        gbc.gridx = 0;
+        gbc.gridy = 0;
+        gbc.weightx = 0.0;
+        panel.add(new JLabel("Min Size (bytes):"), gbc);
+
+        gbc.gridx = 1;
+        gbc.weightx = 1.0;
+        minSizeField = new JTextField(15);
+        minSizeField.setToolTipText("Minimum file size in bytes (e.g., 1048576 for 1 MB)");
+        panel.add(minSizeField, gbc);
+
+        // Max Size
+        gbc.gridx = 2;
+        gbc.weightx = 0.0;
+        panel.add(new JLabel("Max Size (bytes):"), gbc);
+
+        gbc.gridx = 3;
+        gbc.weightx = 1.0;
+        maxSizeField = new JTextField(15);
+        maxSizeField.setToolTipText("Maximum file size in bytes (e.g., 10485760 for 10 MB)");
+        panel.add(maxSizeField, gbc);
+
+        // Created After
+        gbc.gridx = 0;
+        gbc.gridy = 1;
+        gbc.weightx = 0.0;
+        panel.add(new JLabel("Created After:"), gbc);
+
+        gbc.gridx = 1;
+        gbc.weightx = 1.0;
+        createdAfterField = new JTextField(15);
+        createdAfterField.setToolTipText("ISO format: 2024-01-01T00:00:00Z");
+        panel.add(createdAfterField, gbc);
+
+        // Created Before
+        gbc.gridx = 2;
+        gbc.weightx = 0.0;
+        panel.add(new JLabel("Created Before:"), gbc);
+
+        gbc.gridx = 3;
+        gbc.weightx = 1.0;
+        createdBeforeField = new JTextField(15);
+        createdBeforeField.setToolTipText("ISO format: 2024-01-01T00:00:00Z");
+        panel.add(createdBeforeField, gbc);
+
+        // Extension
+        gbc.gridx = 0;
+        gbc.gridy = 2;
+        gbc.weightx = 0.0;
+        panel.add(new JLabel("File Extension:"), gbc);
+
+        gbc.gridx = 1;
+        gbc.weightx = 1.0;
+        gbc.gridwidth = 3;
+        extensionField = new JTextField(15);
+        extensionField.setToolTipText("File extension including dot (e.g., .jar, .war, .zip)");
+        panel.add(extensionField, gbc);
+
+        return panel;
+    }
+
+    private void toggleAdvancedFilters() {
+        boolean visible = advancedFiltersPanel.isVisible();
+        advancedFiltersPanel.setVisible(!visible);
+        toggleFiltersButton.setText(visible ? "▶ Advanced Filters" : "▼ Advanced Filters");
+        frame.pack(); // Resize window to fit content
     }
 
     private JPanel createButtonPanel() {
@@ -420,9 +544,15 @@ public class JNexusSwing {
         clearButton = new JButton("Clear Results");
         clearButton.addActionListener(e -> {
             tableModel.setRowCount(0);
+            currentComponents.clear();
             setStatus("Results cleared", false);
         });
         panel.add(clearButton);
+
+        statsButton = new JButton("Statistics");
+        statsButton.setToolTipText("Show repository statistics for current results");
+        statsButton.addActionListener(e -> showStatisticsDialog());
+        panel.add(statsButton);
 
         JButton quitButton = new JButton("Quit");
         quitButton.addActionListener(e -> System.exit(0));
@@ -436,7 +566,7 @@ public class JNexusSwing {
         panel.setBorder(BorderFactory.createTitledBorder("Results"));
 
         // Create table model with columns
-        String[] columnNames = {"ID", "File Size (Bytes)", "File Size (MB)", "File Size (GB)", "Path"};
+        String[] columnNames = {"ID", "File Size (Bytes)", "File Size (MB)", "File Size (GB)", "Created", "Content Type", "Path"};
         tableModel = new DefaultTableModel(columnNames, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
@@ -493,12 +623,27 @@ public class JNexusSwing {
         resultsTable.getColumnModel().getColumn(1).setPreferredWidth(130); // File Size (Bytes)
         resultsTable.getColumnModel().getColumn(2).setPreferredWidth(90);  // File Size (MB)
         resultsTable.getColumnModel().getColumn(3).setPreferredWidth(90);  // File Size (GB)
-        resultsTable.getColumnModel().getColumn(4).setPreferredWidth(400); // Path
+        resultsTable.getColumnModel().getColumn(4).setPreferredWidth(150); // Created
+        resultsTable.getColumnModel().getColumn(5).setPreferredWidth(150); // Content Type
+        resultsTable.getColumnModel().getColumn(6).setPreferredWidth(350); // Path
 
         // Add selection listener to update status and button visibility
         resultsTable.getSelectionModel().addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting()) {
                 updateSelectionStatus();
+            }
+        });
+
+        // Add double-click listener for component details
+        resultsTable.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                if (e.getClickCount() == 2) {
+                    int row = resultsTable.getSelectedRow();
+                    if (row >= 0) {
+                        showComponentDetailsDialog(row);
+                    }
+                }
             }
         });
 
@@ -533,15 +678,14 @@ public class JNexusSwing {
 
         // "All" means empty repository (search all)
         String repository = "All".equals(selected) ? "" : selected;
+        currentRepository = repository;
 
         String regex = regexField.getText().trim();
         if (regex.isEmpty()) {
             regex = null;
         }
 
-        String cacheStatus = service.getCacheStatus(repository);
-        String mode = forceRefresh ? " (refreshing cache)" : " (" + cacheStatus + ")";
-        setStatus("Listing components from: " + repository + mode + "...", false);
+        setStatus("Listing components from: " + repository + "...", false);
 
         // Set busy cursor
         frame.setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
@@ -549,11 +693,43 @@ public class JNexusSwing {
 
         // Run in background thread to keep UI responsive
         String finalRegex = regex;
-        new SwingWorker<List<RepoRecord>, Void>() {
+        new SwingWorker<List<ComponentMetadata>, Void>() {
             @Override
-            protected List<RepoRecord> doInBackground() {
+            protected List<ComponentMetadata> doInBackground() {
                 try {
-                    return service.getRepositoryRecords(repository, finalRegex, forceRefresh);
+                    // Build search criteria
+                    SearchCriteria.Builder builder = SearchCriteria.builder()
+                        .repository(repository)
+                        .regexFilter(finalRegex);
+
+                    // Add advanced filters if provided
+                    String minSizeText = minSizeField.getText().trim();
+                    if (!minSizeText.isEmpty()) {
+                        builder.minSize(Long.parseLong(minSizeText));
+                    }
+
+                    String maxSizeText = maxSizeField.getText().trim();
+                    if (!maxSizeText.isEmpty()) {
+                        builder.maxSize(Long.parseLong(maxSizeText));
+                    }
+
+                    String createdAfterText = createdAfterField.getText().trim();
+                    if (!createdAfterText.isEmpty()) {
+                        builder.createdAfter(Instant.parse(createdAfterText));
+                    }
+
+                    String createdBeforeText = createdBeforeField.getText().trim();
+                    if (!createdBeforeText.isEmpty()) {
+                        builder.createdBefore(Instant.parse(createdBeforeText));
+                    }
+
+                    String extensionText = extensionField.getText().trim();
+                    if (!extensionText.isEmpty()) {
+                        builder.fileExtension(extensionText);
+                    }
+
+                    SearchCriteria criteria = builder.build();
+                    return service.searchComponents(criteria, forceRefresh);
                 } catch (Exception e) {
                     logger.error("List operation failed", e);
                     return null;
@@ -563,38 +739,53 @@ public class JNexusSwing {
             @Override
             protected void done() {
                 try {
-                    List<RepoRecord> records = get();
+                    List<ComponentMetadata> components = get();
 
-                    if (records == null) {
+                    if (components == null) {
                         setStatus("List failed - check logs for details", true);
                         return;
                     }
+
+                    // Store current results
+                    currentComponents = new ArrayList<>(components);
 
                     // Clear existing rows
                     tableModel.setRowCount(0);
 
                     // Populate table
                     NumberFormat numberFormat = NumberFormat.getNumberInstance(Locale.US);
+                    DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm");
                     long totalBytes = 0;
-                    for (RepoRecord record : records) {
-                        double sizeMB = record.fileSize() / 1024.0 / 1024.0;
-                        double sizeGB = record.fileSize() / 1024.0 / 1024.0 / 1024.0;
+
+                    for (ComponentMetadata component : components) {
+                        double sizeMB = component.fileSize() / 1024.0 / 1024.0;
+                        double sizeGB = component.fileSize() / 1024.0 / 1024.0 / 1024.0;
+
+                        String createdDate = component.createdDate() != null
+                            ? dateFormat.format(Date.from(component.createdDate()))
+                            : "N/A";
+
+                        String contentType = component.contentType() != null
+                            ? component.contentType()
+                            : "unknown";
+
                         tableModel.addRow(new Object[]{
-                            record.id(),
-                            numberFormat.format(record.fileSize()),
+                            component.id(),
+                            numberFormat.format(component.fileSize()),
                             String.format("%.2f", sizeMB),
                             String.format("%.4f", sizeGB),
-                            record.path()
+                            createdDate,
+                            contentType,
+                            component.path()
                         });
-                        totalBytes += record.fileSize();
+                        totalBytes += component.fileSize();
                     }
 
                     // Update status with grand total
-                    String newCacheStatus = service.getCacheStatus(repository);
                     double totalMB = totalBytes / 1024.0 / 1024.0;
                     double totalGB = totalBytes / 1024.0 / 1024.0 / 1024.0;
-                    setStatus(String.format("Total: %d component(s) - %s bytes (%.2f MB / %.4f GB) - %s",
-                        records.size(), numberFormat.format(totalBytes), totalMB, totalGB, newCacheStatus), false);
+                    setStatus(String.format("Total: %d component(s) - %s bytes (%.2f MB / %.4f GB)",
+                        components.size(), numberFormat.format(totalBytes), totalMB, totalGB), false);
 
                     // Trigger selection status update to show grand total
                     updateSelectionStatus();
@@ -944,11 +1135,301 @@ public class JNexusSwing {
             totalComponents, numberFormat.format(grandTotalBytes), grandTotalMB, grandTotalGB), false);
     }
 
+    private void showComponentDetailsDialog(int viewRow) {
+        int modelRow = resultsTable.convertRowIndexToModel(viewRow);
+        if (modelRow < 0 || modelRow >= currentComponents.size()) {
+            return;
+        }
+
+        ComponentMetadata component = currentComponents.get(modelRow);
+
+        JPanel panel = new JPanel(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(5, 5, 5, 5);
+        gbc.anchor = GridBagConstraints.WEST;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        int row = 0;
+
+        // ID
+        gbc.gridx = 0;
+        gbc.gridy = row++;
+        gbc.weightx = 0.0;
+        panel.add(new JLabel("ID:"), gbc);
+        gbc.gridx = 1;
+        gbc.weightx = 1.0;
+        JTextField idField = new JTextField(component.id());
+        idField.setEditable(false);
+        panel.add(idField, gbc);
+
+        // Path
+        gbc.gridx = 0;
+        gbc.gridy = row++;
+        gbc.weightx = 0.0;
+        panel.add(new JLabel("Path:"), gbc);
+        gbc.gridx = 1;
+        gbc.weightx = 1.0;
+        JTextField pathField = new JTextField(component.path());
+        pathField.setEditable(false);
+        panel.add(pathField, gbc);
+
+        // File Size
+        gbc.gridx = 0;
+        gbc.gridy = row++;
+        gbc.weightx = 0.0;
+        panel.add(new JLabel("File Size:"), gbc);
+        gbc.gridx = 1;
+        gbc.weightx = 1.0;
+        NumberFormat numberFormat = NumberFormat.getNumberInstance(Locale.US);
+        double sizeMB = component.fileSize() / 1024.0 / 1024.0;
+        double sizeGB = component.fileSize() / 1024.0 / 1024.0 / 1024.0;
+        String sizeText = String.format("%s bytes (%.2f MB / %.4f GB)",
+            numberFormat.format(component.fileSize()), sizeMB, sizeGB);
+        JTextField sizeField = new JTextField(sizeText);
+        sizeField.setEditable(false);
+        panel.add(sizeField, gbc);
+
+        // Content Type
+        gbc.gridx = 0;
+        gbc.gridy = row++;
+        gbc.weightx = 0.0;
+        panel.add(new JLabel("Content Type:"), gbc);
+        gbc.gridx = 1;
+        gbc.weightx = 1.0;
+        JTextField typeField = new JTextField(component.contentType() != null ? component.contentType() : "unknown");
+        typeField.setEditable(false);
+        panel.add(typeField, gbc);
+
+        // Format
+        gbc.gridx = 0;
+        gbc.gridy = row++;
+        gbc.weightx = 0.0;
+        panel.add(new JLabel("Format:"), gbc);
+        gbc.gridx = 1;
+        gbc.weightx = 1.0;
+        JTextField formatField = new JTextField(component.format() != null ? component.format() : "unknown");
+        formatField.setEditable(false);
+        panel.add(formatField, gbc);
+
+        // Created Date
+        gbc.gridx = 0;
+        gbc.gridy = row++;
+        gbc.weightx = 0.0;
+        panel.add(new JLabel("Created:"), gbc);
+        gbc.gridx = 1;
+        gbc.weightx = 1.0;
+        DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss z");
+        String createdText = component.createdDate() != null
+            ? dateFormat.format(Date.from(component.createdDate()))
+            : "N/A";
+        JTextField createdField = new JTextField(createdText);
+        createdField.setEditable(false);
+        panel.add(createdField, gbc);
+
+        // Last Modified
+        gbc.gridx = 0;
+        gbc.gridy = row++;
+        gbc.weightx = 0.0;
+        panel.add(new JLabel("Last Modified:"), gbc);
+        gbc.gridx = 1;
+        gbc.weightx = 1.0;
+        String modifiedText = component.lastModified() != null
+            ? dateFormat.format(Date.from(component.lastModified()))
+            : "N/A";
+        JTextField modifiedField = new JTextField(modifiedText);
+        modifiedField.setEditable(false);
+        panel.add(modifiedField, gbc);
+
+        // Checksum
+        gbc.gridx = 0;
+        gbc.gridy = row++;
+        gbc.weightx = 0.0;
+        panel.add(new JLabel("Checksum:"), gbc);
+        gbc.gridx = 1;
+        gbc.weightx = 1.0;
+        JTextField checksumField = new JTextField(component.checksum() != null ? component.checksum() : "N/A");
+        checksumField.setEditable(false);
+        panel.add(checksumField, gbc);
+
+        JOptionPane.showMessageDialog(frame,
+            panel,
+            "Component Details",
+            JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    private void showStatisticsDialog() {
+        if (currentComponents.isEmpty()) {
+            JOptionPane.showMessageDialog(frame,
+                "No components loaded. Please run List or Refresh first.",
+                "No Data",
+                JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        // Calculate statistics
+        RepositoryStats stats = service.calculateStatistics(currentRepository, currentComponents);
+
+        JTabbedPane tabs = new JTabbedPane();
+        tabs.addTab("Overview", createOverviewPanel(stats));
+        tabs.addTab("Size Distribution", createSizeDistributionPanel(stats));
+        tabs.addTab("File Types", createFileTypePanel(stats));
+        tabs.addTab("Age Distribution", createAgePanel(stats));
+        tabs.addTab("Largest Components", createLargestComponentsPanel(stats));
+
+        JDialog dialog = new JDialog(frame, "Repository Statistics: " + stats.repository(), true);
+        dialog.add(tabs);
+        dialog.setSize(900, 600);
+        dialog.setLocationRelativeTo(frame);
+        dialog.setVisible(true);
+    }
+
+    private JPanel createOverviewPanel(RepositoryStats stats) {
+        JPanel panel = new JPanel(new GridBagLayout());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(10, 10, 10, 10);
+        gbc.anchor = GridBagConstraints.WEST;
+        gbc.fill = GridBagConstraints.HORIZONTAL;
+
+        NumberFormat numberFormat = NumberFormat.getNumberInstance(Locale.US);
+        int row = 0;
+
+        // Total Components
+        gbc.gridx = 0;
+        gbc.gridy = row++;
+        panel.add(new JLabel("Total Components:"), gbc);
+        gbc.gridx = 1;
+        panel.add(new JLabel(numberFormat.format(stats.totalComponents())), gbc);
+
+        // Total Size
+        gbc.gridx = 0;
+        gbc.gridy = row++;
+        panel.add(new JLabel("Total Size:"), gbc);
+        gbc.gridx = 1;
+        String totalSizeText = String.format("%s bytes (%.2f MB / %.4f GB)",
+            numberFormat.format(stats.totalSize()),
+            stats.getTotalSizeMB(),
+            stats.getTotalSizeGB());
+        panel.add(new JLabel(totalSizeText), gbc);
+
+        // Average Size
+        gbc.gridx = 0;
+        gbc.gridy = row++;
+        panel.add(new JLabel("Average Size:"), gbc);
+        gbc.gridx = 1;
+        String avgSizeText = String.format("%s bytes (%.2f MB)",
+            numberFormat.format(stats.averageSize()),
+            stats.getAverageSizeMB());
+        panel.add(new JLabel(avgSizeText), gbc);
+
+        // Median Size
+        gbc.gridx = 0;
+        gbc.gridy = row++;
+        panel.add(new JLabel("Median Size:"), gbc);
+        gbc.gridx = 1;
+        String medianSizeText = String.format("%s bytes (%.2f MB)",
+            numberFormat.format(stats.medianSize()),
+            stats.getMedianSizeMB());
+        panel.add(new JLabel(medianSizeText), gbc);
+
+        return panel;
+    }
+
+    private JPanel createSizeDistributionPanel(RepositoryStats stats) {
+        String[] columnNames = {"Size Range", "Count", "Percentage"};
+        Object[][] data = new Object[stats.sizeDistribution().size()][3];
+
+        int i = 0;
+        for (Map.Entry<String, Integer> entry : stats.sizeDistribution().entrySet()) {
+            double percentage = (entry.getValue() * 100.0) / stats.totalComponents();
+            data[i][0] = entry.getKey();
+            data[i][1] = NumberFormat.getNumberInstance(Locale.US).format(entry.getValue());
+            data[i][2] = String.format("%.1f%%", percentage);
+            i++;
+        }
+
+        JTable table = new JTable(data, columnNames);
+        table.setEnabled(false);
+        JScrollPane scrollPane = new JScrollPane(table);
+
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.add(scrollPane, BorderLayout.CENTER);
+        return panel;
+    }
+
+    private JPanel createFileTypePanel(RepositoryStats stats) {
+        String[] columnNames = {"File Extension", "Total Size", "Percentage"};
+        Object[][] data = new Object[stats.fileTypeBreakdown().size()][3];
+
+        NumberFormat numberFormat = NumberFormat.getNumberInstance(Locale.US);
+        int i = 0;
+        for (Map.Entry<String, Long> entry : stats.fileTypeBreakdown().entrySet()) {
+            double percentage = (entry.getValue() * 100.0) / stats.totalSize();
+            double sizeMB = entry.getValue() / 1024.0 / 1024.0;
+            data[i][0] = entry.getKey();
+            data[i][1] = String.format("%.2f MB", sizeMB);
+            data[i][2] = String.format("%.1f%%", percentage);
+            i++;
+        }
+
+        JTable table = new JTable(data, columnNames);
+        table.setEnabled(false);
+        JScrollPane scrollPane = new JScrollPane(table);
+
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.add(scrollPane, BorderLayout.CENTER);
+        return panel;
+    }
+
+    private JPanel createAgePanel(RepositoryStats stats) {
+        String[] columnNames = {"Age Range", "Count"};
+        Object[][] data = new Object[stats.ageDistribution().size()][2];
+
+        NumberFormat numberFormat = NumberFormat.getNumberInstance(Locale.US);
+        int i = 0;
+        for (Map.Entry<String, Integer> entry : stats.ageDistribution().entrySet()) {
+            data[i][0] = entry.getKey();
+            data[i][1] = numberFormat.format(entry.getValue());
+            i++;
+        }
+
+        JTable table = new JTable(data, columnNames);
+        table.setEnabled(false);
+        JScrollPane scrollPane = new JScrollPane(table);
+
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.add(scrollPane, BorderLayout.CENTER);
+        return panel;
+    }
+
+    private JPanel createLargestComponentsPanel(RepositoryStats stats) {
+        String[] columnNames = {"ID", "Size (MB)", "Path"};
+        List<ComponentMetadata> largest = stats.largestComponents();
+        Object[][] data = new Object[Math.min(20, largest.size())][3];
+
+        for (int i = 0; i < Math.min(20, largest.size()); i++) {
+            ComponentMetadata component = largest.get(i);
+            double sizeMB = component.fileSize() / 1024.0 / 1024.0;
+            data[i][0] = component.id();
+            data[i][1] = String.format("%.2f", sizeMB);
+            data[i][2] = component.path();
+        }
+
+        JTable table = new JTable(data, columnNames);
+        table.setEnabled(false);
+        JScrollPane scrollPane = new JScrollPane(table);
+
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.add(scrollPane, BorderLayout.CENTER);
+        return panel;
+    }
+
     private void setButtonsEnabled(boolean enabled) {
         listButton.setEnabled(enabled);
         refreshButton.setEnabled(enabled);
         deleteButton.setEnabled(enabled);
         deleteSelectedButton.setEnabled(enabled);
         clearButton.setEnabled(enabled);
+        statsButton.setEnabled(enabled);
     }
 }
+

@@ -4,9 +4,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.List;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.*;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
+import java.util.stream.Collectors;
 
 /**
  * Service layer for Nexus repository operations.
@@ -301,5 +304,288 @@ public class NexusService {
         System.out.printf("Total size:                     %,d bytes (%.2f MB)%n",
             totalSize, totalSize / 1024.0 / 1024.0);
         System.out.println();
+    }
+
+    /**
+     * Searches components using advanced filter criteria.
+     * <p>
+     * Fetches all components with metadata from the repository and applies
+     * client-side filtering based on the provided criteria. All filter criteria
+     * are optional (null values mean no filtering on that criterion).
+     * </p>
+     *
+     * @param criteria the search criteria containing all filter parameters
+     * @param forceRefresh if true, bypasses cache and fetches fresh data
+     * @return a list of components matching all specified criteria
+     * @throws IOException          if an HTTP error occurs
+     * @throws InterruptedException if the operation is interrupted
+     */
+    public List<ComponentMetadata> searchComponents(SearchCriteria criteria, boolean forceRefresh)
+            throws IOException, InterruptedException {
+        // Validate regex filter if present
+        if (criteria.regexFilter() != null) {
+            validateRegex(criteria.regexFilter());
+        }
+
+        // Fetch all components with metadata
+        List<ComponentMetadata> allComponents = client.listComponentsWithMetadata(
+            criteria.repository(),
+            forceRefresh
+        );
+
+        // Apply filters sequentially
+        return allComponents.stream()
+            .filter(component -> matchesRegexFilter(component, criteria.regexFilter()))
+            .filter(component -> matchesSizeRange(component, criteria.minSize(), criteria.maxSize()))
+            .filter(component -> matchesDateRange(component, criteria.createdAfter(), criteria.createdBefore()))
+            .filter(component -> matchesFileExtension(component, criteria.fileExtension()))
+            .filter(component -> matchesComponentNamePattern(component, criteria.componentNamePattern()))
+            .toList();
+    }
+
+    /**
+     * Checks if a component matches the regex filter.
+     */
+    private boolean matchesRegexFilter(ComponentMetadata component, String regexFilter) {
+        if (regexFilter == null || regexFilter.isEmpty()) {
+            return true;
+        }
+        return component.path().matches(regexFilter);
+    }
+
+    /**
+     * Checks if a component matches the size range filter.
+     */
+    private boolean matchesSizeRange(ComponentMetadata component, Long minSize, Long maxSize) {
+        if (minSize != null && component.fileSize() < minSize) {
+            return false;
+        }
+        if (maxSize != null && component.fileSize() > maxSize) {
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Checks if a component matches the date range filter.
+     */
+    private boolean matchesDateRange(ComponentMetadata component, Instant createdAfter, Instant createdBefore) {
+        if (component.createdDate() == null) {
+            return true; // If no creation date, pass all date filters
+        }
+        if (createdAfter != null && component.createdDate().isBefore(createdAfter)) {
+            return false;
+        }
+        if (createdBefore != null && component.createdDate().isAfter(createdBefore)) {
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Checks if a component matches the file extension filter.
+     */
+    private boolean matchesFileExtension(ComponentMetadata component, String fileExtension) {
+        if (fileExtension == null || fileExtension.isEmpty()) {
+            return true;
+        }
+        return component.path().endsWith(fileExtension);
+    }
+
+    /**
+     * Checks if a component matches the component name pattern filter.
+     */
+    private boolean matchesComponentNamePattern(ComponentMetadata component, String componentNamePattern) {
+        if (componentNamePattern == null || componentNamePattern.isEmpty()) {
+            return true;
+        }
+        // Match against the component ID (which typically contains group/name/version)
+        return component.id().matches(componentNamePattern);
+    }
+
+    /**
+     * Calculates comprehensive statistics for a list of components.
+     * <p>
+     * Analyzes the provided components to generate size distribution,
+     * file type breakdown, age distribution, and identifies the largest components.
+     * </p>
+     *
+     * @param repository the name of the repository being analyzed
+     * @param components the list of components to analyze
+     * @return a RepositoryStats record containing all calculated statistics
+     */
+    public RepositoryStats calculateStatistics(String repository, List<ComponentMetadata> components) {
+        if (components.isEmpty()) {
+            return new RepositoryStats(
+                repository,
+                0,
+                0L,
+                0L,
+                0L,
+                Map.of(),
+                Map.of(),
+                Map.of(),
+                List.of()
+            );
+        }
+
+        int totalComponents = components.size();
+
+        // Calculate total size
+        long totalSize = components.stream()
+            .mapToLong(ComponentMetadata::fileSize)
+            .sum();
+
+        // Calculate average size
+        long averageSize = totalSize / totalComponents;
+
+        // Calculate median size
+        long medianSize = calculateMedianSize(components);
+
+        // Calculate size distribution
+        Map<String, Integer> sizeDistribution = calculateSizeDistribution(components);
+
+        // Calculate file type breakdown
+        Map<String, Long> fileTypeBreakdown = calculateFileTypeBreakdown(components);
+
+        // Calculate age distribution
+        Map<String, Integer> ageDistribution = calculateAgeDistribution(components);
+
+        // Get largest components (top 20)
+        List<ComponentMetadata> largestComponents = components.stream()
+            .sorted(Comparator.comparingLong(ComponentMetadata::fileSize).reversed())
+            .limit(20)
+            .toList();
+
+        return new RepositoryStats(
+            repository,
+            totalComponents,
+            totalSize,
+            averageSize,
+            medianSize,
+            sizeDistribution,
+            fileTypeBreakdown,
+            ageDistribution,
+            largestComponents
+        );
+    }
+
+    /**
+     * Calculates the median file size from a list of components.
+     */
+    private long calculateMedianSize(List<ComponentMetadata> components) {
+        List<Long> sizes = components.stream()
+            .map(ComponentMetadata::fileSize)
+            .sorted()
+            .toList();
+
+        int middle = sizes.size() / 2;
+        if (sizes.size() % 2 == 0) {
+            return (sizes.get(middle - 1) + sizes.get(middle)) / 2;
+        } else {
+            return sizes.get(middle);
+        }
+    }
+
+    /**
+     * Calculates size distribution across predefined buckets.
+     */
+    private Map<String, Integer> calculateSizeDistribution(List<ComponentMetadata> components) {
+        Map<String, Integer> distribution = new LinkedHashMap<>();
+
+        // Define size ranges in bytes
+        long mb = 1024L * 1024L;
+        long gb = 1024L * 1024L * 1024L;
+
+        int under1mb = 0;
+        int from1to10mb = 0;
+        int from10to100mb = 0;
+        int from100mbTo1gb = 0;
+        int over1gb = 0;
+
+        for (ComponentMetadata component : components) {
+            long size = component.fileSize();
+            if (size < mb) {
+                under1mb++;
+            } else if (size < 10 * mb) {
+                from1to10mb++;
+            } else if (size < 100 * mb) {
+                from10to100mb++;
+            } else if (size < gb) {
+                from100mbTo1gb++;
+            } else {
+                over1gb++;
+            }
+        }
+
+        distribution.put(RepositoryStats.SIZE_RANGE_UNDER_1MB, under1mb);
+        distribution.put(RepositoryStats.SIZE_RANGE_1_TO_10MB, from1to10mb);
+        distribution.put(RepositoryStats.SIZE_RANGE_10_TO_100MB, from10to100mb);
+        distribution.put(RepositoryStats.SIZE_RANGE_100MB_TO_1GB, from100mbTo1gb);
+        distribution.put(RepositoryStats.SIZE_RANGE_OVER_1GB, over1gb);
+
+        return distribution;
+    }
+
+    /**
+     * Calculates file type breakdown by extension.
+     */
+    private Map<String, Long> calculateFileTypeBreakdown(List<ComponentMetadata> components) {
+        return components.stream()
+            .collect(Collectors.groupingBy(
+                this::getFileExtension,
+                Collectors.summingLong(ComponentMetadata::fileSize)
+            ));
+    }
+
+    /**
+     * Extracts file extension from a path.
+     */
+    private String getFileExtension(ComponentMetadata component) {
+        String path = component.path();
+        int lastDot = path.lastIndexOf('.');
+        if (lastDot > 0 && lastDot < path.length() - 1) {
+            return path.substring(lastDot);
+        }
+        return "(no extension)";
+    }
+
+    /**
+     * Calculates age distribution based on creation dates.
+     */
+    private Map<String, Integer> calculateAgeDistribution(List<ComponentMetadata> components) {
+        Map<String, Integer> distribution = new LinkedHashMap<>();
+
+        Instant now = Instant.now();
+        int last7days = 0;
+        int last30days = 0;
+        int last90days = 0;
+        int older = 0;
+
+        for (ComponentMetadata component : components) {
+            if (component.createdDate() == null) {
+                older++; // Count components without creation date as "older"
+                continue;
+            }
+
+            long daysAgo = Duration.between(component.createdDate(), now).toDays();
+
+            if (daysAgo <= 7) {
+                last7days++;
+            } else if (daysAgo <= 30) {
+                last30days++;
+            } else if (daysAgo <= 90) {
+                last90days++;
+            } else {
+                older++;
+            }
+        }
+
+        distribution.put(RepositoryStats.AGE_RANGE_LAST_7_DAYS, last7days);
+        distribution.put(RepositoryStats.AGE_RANGE_LAST_30_DAYS, last30days);
+        distribution.put(RepositoryStats.AGE_RANGE_LAST_90_DAYS, last90days);
+        distribution.put(RepositoryStats.AGE_RANGE_OLDER, older);
+
+        return distribution;
     }
 }
