@@ -35,6 +35,14 @@
         </repository>
     </distributionManagement>
 
+    <repositories>
+        <repository>
+            <id>packagecloud-flossware</id>
+            <name>packagecloud-flossware</name>
+            <url>https://packagecloud.io/flossware/java/maven2/</url>
+        </repository>
+    </repositories>
+
     <dependencies>
         <!-- CLI Framework -->
         <dependency>
