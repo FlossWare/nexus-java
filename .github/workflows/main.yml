@@ -3,6 +3,13 @@ name: CD-CI
 on:
   push:
     branches: [ main ]
+    paths-ignore:
+      - 'jnexus-android/**'
+      - 'jnexus-core/**'
+      - '*.md'
+      - '.github/workflows/android*.yml'
+      - 'gradle*'
+      - 'settings.gradle'
 
 jobs:
   build:
