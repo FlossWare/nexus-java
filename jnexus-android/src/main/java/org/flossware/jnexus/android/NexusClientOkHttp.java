@@ -91,7 +91,7 @@ public class NexusClientOkHttp implements NexusHttpClient {
      * @param credentials the Nexus credentials containing URL, username, and password
      * @param cacheTtlSeconds cache time-to-live in seconds (0 to disable caching)
      */
-    public NexusClientOkHttp(Credentials credentials, long cacheTtlSeconds) {
+    public NexusClientOkHttp(org.flossware.jnexus.Credentials credentials, long cacheTtlSeconds) {
         this.baseUrl = credentials.getUrl();
         this.objectMapper = new ObjectMapper();
         this.cacheTtlSeconds = cacheTtlSeconds;
