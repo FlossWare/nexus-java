@@ -32,6 +32,13 @@ A Java 21 command-line tool for interacting with Sonatype Nexus repositories. Su
 - Support for environment variables or configuration file
 
 ### User Interfaces
+- **Android Mobile App** - Native Android app with Jetpack Compose UI (NEW in v1.1):
+  - List, search, and delete components on mobile devices
+  - Advanced filters (size, date, extension, regex)
+  - Repository statistics with charts
+  - Secure credential storage with AES256 encryption
+  - Material Design 3 UI
+  - See [Android README](jnexus-android/README.md) for installation
 - **Swing GUI** - Modern graphical interface:
   - Advanced filters panel (collapsible)
   - Table with 7 metadata columns
@@ -47,19 +54,44 @@ A Java 21 command-line tool for interacting with Sonatype Nexus repositories. Su
 
 ## Requirements
 
+### Desktop (CLI, Swing, AWT, Terminal UIs)
 - Java 21 or higher
 - Maven (or use included Maven wrapper `./mvnw`)
 - Access to a Nexus repository with valid credentials
 
+### Android Mobile App
+- Android 8.0+ (API level 26 or higher)
+- Gradle 8.2+ (for building from source)
+- Access to a Nexus repository with valid credentials
+
 ## Installation
 
-### Build from source
+### Desktop - Build from source
 
 ```bash
 ./mvnw clean package
 ```
 
 This creates an executable JAR at `target/jnexus-1.0-jar-with-dependencies.jar`.
+
+### Android - Build from source
+
+```bash
+# Build the debug APK
+./gradlew :jnexus-android:assembleDebug
+
+# Or build the release APK (requires signing configuration)
+./gradlew :jnexus-android:assembleRelease
+```
+
+The APK will be at `jnexus-android/build/outputs/apk/debug/jnexus-android-debug.apk`.
+
+Install on your Android device:
+```bash
+adb install jnexus-android/build/outputs/apk/debug/jnexus-android-debug.apk
+```
+
+See the [Android README](jnexus-android/README.md) for detailed setup instructions.
 
 ## Configuration
 
@@ -152,14 +184,63 @@ Environment variables take precedence over properties file values for authentica
 
 ## Usage
 
-JNexus provides **four different interfaces** to suit your preference:
+JNexus provides **five different interfaces** to suit your preference:
 
-1. **Swing GUI** - Modern graphical interface (recommended for desktop users)
-2. **AWT GUI** - Classic graphical interface (maximum compatibility)
-3. **Terminal UI** - Full-screen ncurses interface (for terminal users)
-4. **Command-line Interface** - For scripting and automation
+1. **Android Mobile App** - Native mobile app (for on-the-go repository management)
+2. **Swing GUI** - Modern graphical interface (recommended for desktop users)
+3. **AWT GUI** - Classic graphical interface (maximum compatibility)
+4. **Terminal UI** - Full-screen ncurses interface (for terminal users)
+5. **Command-line Interface** - For scripting and automation
 
-### Swing GUI (Recommended)
+### Android Mobile App
+
+The Android app provides full Nexus repository management on mobile devices:
+
+**Installation:**
+1. Install the APK on your Android device (Android 8.0+ required)
+2. Open the app and navigate to **Settings**
+3. Enter your Nexus server URL, username, and password
+4. Optionally configure repository list and defaults
+5. Tap **Save** (credentials are encrypted with AES256)
+
+**Features:**
+- **List Screen**: Browse components in repositories
+  - Repository dropdown selector
+  - List (cached) and Refresh (force update) buttons
+  - Component cards with size and creation date
+  - Tap component to view full metadata
+  - Delete with confirmation dialog
+- **Search Screen**: Advanced filtering
+  - Size range filters (min/max bytes)
+  - Date range filters (ISO 8601 format)
+  - File extension filter
+  - Component name pattern
+  - Path regex filter
+  - Collapsible filter panel
+- **Stats Screen**: Repository analytics
+  - Total components and size (MB/GB)
+  - Average and median size
+  - Size distribution (5 buckets)
+  - File type breakdown
+  - Age distribution (7/30/90 days, older)
+  - Largest components list
+- **Settings Screen**: Configuration
+  - Nexus URL, username, password
+  - Repository list (comma-separated)
+  - Default values (repository, regex, dry-run)
+  - HTTP timeout
+  - Encrypted credential storage (AES256_GCM)
+
+**Architecture:**
+- Uses same business logic as desktop versions (jnexus-core shared library)
+- OkHttp for HTTP communication
+- Jetpack Compose for modern, declarative UI
+- Material Design 3 for consistent Android experience
+- EncryptedSharedPreferences for secure credential storage
+
+See the [Android README](jnexus-android/README.md) for detailed documentation.
+
+### Swing GUI (Desktop)
 
 The Swing interface provides a modern, native-looking graphical interface:
 

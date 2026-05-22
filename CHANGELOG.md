@@ -7,6 +7,84 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2] - 2026-05-22
+
+### Added
+- **Android Mobile App** (jnexus-android/) - NEW native Android application
+  - **Multi-module architecture**:
+    - `jnexus-core`: Shared business logic module (Java 11, platform-agnostic)
+    - `jnexus-android`: Android app module (Kotlin, Jetpack Compose, Material Design 3)
+    - Desktop modules continue to use existing `src/` with Maven
+  - **Platform abstraction interfaces**:
+    - `NexusHttpClient` interface for HTTP layer (desktop uses java.net.http, Android uses OkHttp)
+    - `Credentials` interface for credential storage (desktop uses file-based, Android uses EncryptedSharedPreferences)
+  - **Android implementation**:
+    - `NexusClientOkHttp`: OkHttp-based HTTP client with same caching, retry logic, and pagination as desktop
+    - `CredentialsAndroid`: Secure credential storage using AES256_GCM encryption
+    - `NexusApplication`: Application class for dependency injection
+  - **Jetpack Compose UI with 4 screens**:
+    - **List Screen**: Browse repository components
+      - Repository dropdown selector
+      - List (cached) and Refresh (force update) buttons
+      - Component cards with size, creation date
+      - Tap to view full metadata dialog
+      - Delete with confirmation
+    - **Search Screen**: Advanced filtering
+      - Size range filters (min/max bytes)
+      - Date range filters (ISO 8601 format)
+      - File extension filter
+      - Component name pattern
+      - Path regex filter
+      - Collapsible filter panel
+    - **Stats Screen**: Repository analytics
+      - Overview: total components, total size (MB/GB), average, median
+      - Size distribution (5 buckets with percentages)
+      - File type breakdown (top 10)
+      - Age distribution (7/30/90 days, older)
+      - Largest components (top 10)
+    - **Settings Screen**: Configuration
+      - Nexus URL, username, password (encrypted)
+      - Repository list (comma-separated)
+      - Default values (repository, regex, dry-run)
+      - HTTP timeout
+      - Save/clear actions
+  - **Technical features**:
+    - Material Design 3 UI with bottom navigation
+    - Coroutines for async operations
+    - Same SearchCriteria and RepositoryStats as desktop
+    - Same caching (5-minute TTL) and retry logic (3 retries, exponential backoff)
+    - Desugaring for Java 11 features (records) on Android 8.0+
+  - **Security**:
+    - AES256_GCM encryption for credentials
+    - HTTPS-only (`usesCleartextTraffic=false`)
+    - Minimal permissions (INTERNET, ACCESS_NETWORK_STATE)
+  - **Testing**:
+    - Unit tests for `NexusClientOkHttp` (OkHttp MockWebServer)
+    - Instrumented tests for `CredentialsAndroid` (Android runtime)
+  - **Documentation**:
+    - `jnexus-android/README.md`: Complete Android documentation
+    - `jnexus-android/ANDROID.md`: Setup and usage guide
+  - **Requirements**: Android 8.0+ (API 26+)
+  - **Build system**: Gradle 8.2.2, Kotlin 1.9.22, Compose 1.5.8
+
+### Changed
+- Refactored core business logic into shared `jnexus-core` module
+  - Moved `NexusService`, `ComponentMetadata`, `SearchCriteria`, `RepositoryStats`, `RepoRecord` to jnexus-core
+  - Created `NexusHttpClient` and `Credentials` interfaces for platform abstraction
+  - Desktop `NexusClient` unchanged (implements NexusHttpClient implicitly via same method signatures)
+  - All 155 desktop tests still passing, no breaking changes
+- Updated project structure:
+  - Root `build.gradle` and `settings.gradle` for Gradle multi-module build
+  - Desktop continues using `pom.xml` and Maven (backward compatible)
+  - New `jnexus-core/build.gradle` for shared library
+  - New `jnexus-android/build.gradle` for Android app
+- Updated README.md:
+  - Added Android mobile app section
+  - Updated from "four interfaces" to "five interfaces"
+  - Added Android requirements and installation instructions
+
+## [1.1] - 2024
+
 ### Added
 - **Enhanced Nexus API Integration** - Advanced search, filtering, and statistics
   - **ComponentMetadata** data model with full metadata fields (contentType, format, createdDate, lastModified, checksum)
