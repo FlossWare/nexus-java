@@ -57,4 +57,20 @@ public interface NexusHttpClient {
      * Clears all cached data.
      */
     void clearAllCache();
+
+    /**
+     * Checks if cache contains valid (non-expired) data for a repository.
+     *
+     * @param repository the name of the repository to check
+     * @return true if cache contains valid data, false otherwise
+     */
+    boolean isCached(String repository);
+
+    /**
+     * Gets the cache age for a repository in seconds.
+     *
+     * @param repository the name of the repository to check
+     * @return cache age in seconds, or -1 if not cached
+     */
+    long getCacheAge(String repository);
 }
