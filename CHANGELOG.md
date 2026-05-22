@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.2.1] - 2026-05-22
+## [1.2] - 2026-05-22
 
 ### Fixed
 - **Android Release APK**: Changed release workflow to publish debug-signed APK instead of unsigned release APK
@@ -19,8 +19,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Latest release badge with version number
   - Direct download links for Android APK
   - Quick Download section prominently placed
-
-## [1.2] - 2026-05-22
 
 ### Added
 - **Android Mobile App** (jnexus-android/) - NEW native Android application

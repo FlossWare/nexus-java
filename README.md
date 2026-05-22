@@ -1,7 +1,7 @@
 # JNexus
 
 [![Latest Release](https://img.shields.io/github/v/release/FlossWare/jnexus)](https://github.com/FlossWare/jnexus/releases/latest)
-[![Android APK](https://img.shields.io/badge/Android%20APK-Download-green)](https://github.com/FlossWare/jnexus/releases/latest/download/jnexus-android-1.2.1.apk)
+[![Android APK](https://img.shields.io/badge/Android%20APK-Download-green)](https://github.com/FlossWare/jnexus/releases/latest/download/jnexus-android-1.2.apk)
 [![Desktop JAR](https://img.shields.io/badge/Desktop%20JAR-Download-blue)](https://github.com/FlossWare/jnexus/packages)
 
 A cross-platform tool for managing Sonatype Nexus repositories - available as CLI, GUI (Swing/AWT/Terminal), and Android mobile app.
