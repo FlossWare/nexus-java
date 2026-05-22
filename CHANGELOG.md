@@ -7,6 +7,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## iOS/macOS v1.0 - 2026-05-22
+
+### Added
+- **iOS/iPadOS/macOS Native Apps** (jnexus-ios/) - NEW native Swift applications for Apple platforms
+  - **Multiplatform architecture**:
+    - Shared Swift codebase (~95% code reuse across iOS, iPadOS, macOS)
+    - Platform-specific UI adaptations for each platform
+  - **iOS/iPadOS features**:
+    - TabView navigation with 4 tabs (List, Search, Stats, Settings)
+    - Swipe-to-delete gestures
+    - iPad-optimized layouts (split view in landscape, adaptive sizing)
+    - iPad multitasking support (Split View, Slide Over)
+    - All orientations supported (portrait, landscape)
+  - **macOS features**:
+    - Sidebar navigation with NavigationSplitView
+    - Menu bar with keyboard shortcuts (⌘L List, ⌘R Refresh, ⌘F Search, ⌘, Settings)
+    - Separate Settings window (⌘,)
+    - Multi-window support with window restoration
+    - Window size constraints (min 800x600)
+  - **Core functionality** (all platforms):
+    - List components with caching (5-minute TTL)
+    - Advanced search with filters (size, date, extension, regex)
+    - Repository statistics (distribution, file types, age, largest components)
+    - Component metadata viewing (content type, format, dates, checksum)
+    - Delete with confirmation dialogs
+  - **Platform implementations**:
+    - `NexusClientURLSession`: URLSession-based HTTP client
+      - Caching with 5-minute TTL (same as Android)
+      - Retry logic with exponential backoff (1s, 2s, 4s)
+      - Automatic pagination with continuation tokens
+      - Configurable timeouts
+    - `CredentialsKeychain`: iOS/macOS Keychain secure storage
+      - AES-256 hardware-backed encryption (Secure Enclave when available)
+      - URL, username, password stored in Keychain
+      - Settings (repositories, defaults) stored in UserDefaults
+  - **Security**:
+    - App Sandbox enabled (macOS)
+    - HTTPS-only network traffic (allows local networking)
+    - Keychain access entitlement
+    - No data persistence except credentials and settings
+  - **Requirements**:
+    - iOS/iPadOS: 16.0+ (for async/await, modern SwiftUI)
+    - macOS: 13.0+ (Ventura, for SwiftUI NavigationSplitView)
+  - **Distribution**:
+    - Enterprise/Ad-Hoc distribution (IPA for iOS, DMG for macOS)
+    - No App Store submission required
+  - **Documentation**:
+    - `jnexus-ios/README.md`: Complete Apple platforms documentation
+    - Building from source instructions (Xcode 15+)
+    - Installation guides for iOS/iPadOS/macOS
+
+### Technical Details
+- **SwiftUI**: Declarative UI framework with adaptive layouts
+- **Async/await**: Modern Swift concurrency for network operations
+- **Codable**: Automatic JSON serialization for all data models
+- **Security framework**: Native Keychain access APIs
+- **No external dependencies**: Uses only Apple frameworks
+
 ## [1.2] - 2026-05-22
 
 ### Fixed

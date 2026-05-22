@@ -4,11 +4,13 @@
 [![Android APK](https://img.shields.io/badge/Android%20APK-Download-green)](https://github.com/FlossWare/jnexus/releases/latest/download/jnexus-android-1.2.apk)
 [![Desktop JAR](https://img.shields.io/badge/Desktop%20JAR-Download-blue)](https://github.com/FlossWare/jnexus/packages)
 
-A cross-platform tool for managing Sonatype Nexus repositories - available as CLI, GUI (Swing/AWT/Terminal), and Android mobile app.
+A cross-platform tool for managing Sonatype Nexus repositories - available as CLI, GUI (Swing/AWT/Terminal), Android mobile app, and iOS/iPadOS/macOS native apps.
 
 ## Quick Download
 
 - **📱 Android App**: [Download APK](https://github.com/FlossWare/jnexus/releases/latest) (Android 8.0+)
+- **🍎 iOS/iPadOS App**: [Download IPA](https://github.com/FlossWare/jnexus/releases/tag/ios-v1.0) (iOS 16.0+)
+- **🖥️ macOS App**: [Download DMG](https://github.com/FlossWare/jnexus/releases/tag/macos-v1.0) (macOS 13.0+)
 - **💻 Desktop (CLI/GUI)**: Available via [packagecloud.io](https://packagecloud.io/flossware/java) or build from source
 
 ## Features
@@ -41,13 +43,31 @@ A cross-platform tool for managing Sonatype Nexus repositories - available as CL
 - Support for environment variables or configuration file
 
 ### User Interfaces
-- **Android Mobile App** - Native Android app with Jetpack Compose UI (NEW in v1.1):
-  - List, search, and delete components on mobile devices
+
+**Mobile Apps:**
+- **iOS/iPadOS Native App** - Native Swift app with SwiftUI (NEW in v1.0):
+  - List, search, and delete components on iPhone and iPad
+  - Advanced filters (size, date, extension, regex)
+  - Repository statistics with analytics
+  - Secure Keychain credential storage (AES256 hardware-backed)
+  - iPad-optimized layouts (split view, landscape support)
+  - SwiftUI with Material Design patterns
+  - See [iOS README](jnexus-ios/README.md) for installation
+- **Android Mobile App** - Native Android app with Jetpack Compose UI (v1.2):
+  - List, search, and delete components on Android devices
   - Advanced filters (size, date, extension, regex)
   - Repository statistics with charts
   - Secure credential storage with AES256 encryption
   - Material Design 3 UI
   - See [Android README](jnexus-android/README.md) for installation
+
+**Desktop Apps:**
+- **macOS Native App** - Native Swift app with SwiftUI (NEW in v1.0):
+  - Sidebar navigation with keyboard shortcuts (⌘L, ⌘R, ⌘F)
+  - Menu bar integration
+  - Multi-window support
+  - Secure Keychain credential storage
+  - See [iOS README](jnexus-ios/README.md) for installation
 - **Swing GUI** - Modern graphical interface:
   - Advanced filters panel (collapsible)
   - Table with 7 metadata columns
@@ -71,6 +91,16 @@ A cross-platform tool for managing Sonatype Nexus repositories - available as CL
 ### Android Mobile App
 - Android 8.0+ (API level 26 or higher)
 - Gradle 8.2+ (for building from source)
+- Access to a Nexus repository with valid credentials
+
+### iOS/iPadOS Mobile App
+- iOS/iPadOS 16.0 or higher
+- Xcode 15.0+ (for building from source)
+- Access to a Nexus repository with valid credentials
+
+### macOS Native App
+- macOS 13.0 (Ventura) or higher
+- Xcode 15.0+ (for building from source)
 - Access to a Nexus repository with valid credentials
 
 ## Installation

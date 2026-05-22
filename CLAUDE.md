@@ -7,10 +7,13 @@
 **Multi-platform support:**
 - **Desktop**: Java 21 with 4 UIs (CLI, Swing, AWT, Terminal)
 - **Android**: Native mobile app (Android 8.0+) with Jetpack Compose UI
+- **iOS/iPadOS**: Native Swift app (iOS 16.0+) with SwiftUI
+- **macOS**: Native Swift app (macOS 13.0+) with SwiftUI
 
 **Multi-module architecture:**
 - `jnexus-core`: Shared business logic (Java 11, platform-agnostic)
 - `jnexus-android`: Android app (Gradle, Kotlin, Jetpack Compose)
+- `jnexus-ios`: iOS/iPadOS/macOS apps (Xcode, Swift, SwiftUI)
 - `src/`: Desktop app (Maven, Java 21)
 
 ## Key Architectural Decisions
@@ -46,6 +49,16 @@
 - **Logback-Android**: SLF4J implementation for Android
 - **Gradle**: Build system for Android module
 
+**iOS/iPadOS/macOS (Swift):**
+- **URLSession**: Native HTTP client (Apple's standard networking API)
+- **SwiftUI**: Modern declarative UI framework
+- **Keychain Services**: Secure credential storage (AES-256 hardware-backed)
+- **Security Framework**: Native encryption and keychain access
+- **Async/await**: Native Swift concurrency (mirrors Kotlin coroutines)
+- **Codable**: Automatic JSON serialization/deserialization
+- **No external dependencies**: Uses only Apple frameworks
+- **Xcode**: IDE and build system for Apple platforms
+
 ## Code Architecture
 
 ### Multi-Module Structure
@@ -66,6 +79,33 @@ jnexus/                         (root project)
 │   ├── NexusApplication.java       # DI container
 │   ├── MainActivity.kt             # Main activity
 │   └── ui/screens/                 # Jetpack Compose screens
+├── jnexus-ios/                (iOS/iPadOS/macOS apps - Swift, Xcode)
+│   ├── Shared/                     # 95% code reuse
+│   │   ├── Core/
+│   │   │   ├── NexusHttpClient.swift      # Protocol (mirrors Java interface)
+│   │   │   ├── Credentials.swift          # Protocol (mirrors Java interface)
+│   │   │   ├── NexusService.swift         # Business logic (ports Java)
+│   │   │   └── AppState.swift             # DI container
+│   │   ├── Platform/
+│   │   │   ├── NexusClientURLSession.swift  # URLSession implementation
+│   │   │   └── CredentialsKeychain.swift    # Keychain storage
+│   │   ├── Models/                  # Data models (Swift structs)
+│   │   │   ├── RepoRecord.swift
+│   │   │   ├── ComponentMetadata.swift
+│   │   │   ├── SearchCriteria.swift
+│   │   │   └── RepositoryStats.swift
+│   │   └── UI/Screens/             # SwiftUI screens (shared)
+│   │       ├── RepositoryListView.swift
+│   │       ├── SearchView.swift
+│   │       ├── StatsView.swift
+│   │       └── SettingsView.swift
+│   ├── iOS/                        # iOS-specific (5%)
+│   │   ├── JNexusApp.swift         # App entry point
+│   │   └── ContentView.swift       # TabView navigation
+│   └── macOS/                      # macOS-specific (5%)
+│       ├── JNexusApp.swift         # App entry point
+│       ├── ContentView.swift       # Sidebar navigation
+│       └── MenuCommands.swift      # Keyboard shortcuts
 └── src/                       (Desktop app - Java 21, Maven)
     ├── JNexus.java                 # CLI
     ├── JNexusSwing.java            # Swing GUI
@@ -77,15 +117,21 @@ jnexus/                         (root project)
 
 ### Platform Abstraction Layers
 
-**NexusHttpClient Interface** (in jnexus-core):
-- Desktop: `NexusClient` (uses java.net.http.HttpClient)
-- Android: `NexusClientOkHttp` (uses OkHttp)
+**NexusHttpClient Interface/Protocol**:
+- **Java** (jnexus-core): Interface definition
+- **Desktop**: `NexusClient` (uses java.net.http.HttpClient)
+- **Android**: `NexusClientOkHttp` (uses OkHttp)
+- **iOS/macOS**: `NexusClientURLSession` (uses URLSession)
 - Methods: `listComponents()`, `listComponentsWithMetadata()`, `deleteComponent()`, `clearCache()`
 
-**Credentials Interface** (in jnexus-core):
-- Desktop: `Credentials` class (uses ~/.flossware/nexus/nexus.properties)
-- Android: `CredentialsAndroid` (uses EncryptedSharedPreferences with AES256_GCM)
+**Credentials Interface/Protocol**:
+- **Java** (jnexus-core): Interface definition
+- **Desktop**: `Credentials` class (uses ~/.flossware/nexus/nexus.properties)
+- **Android**: `CredentialsAndroid` (uses EncryptedSharedPreferences with AES256_GCM)
+- **iOS/macOS**: `CredentialsKeychain` (uses Keychain Services with AES-256 hardware-backed)
 - Methods: `getUrl()`, `getUser()`, `getPassword()`, `getRepositories()`, etc.
+
+**Note**: iOS/macOS re-implements these as Swift protocols with identical semantics but no code sharing with Java (Swift ↔ Java interop too complex).
 
 ### Desktop Layered Architecture
 ```
@@ -109,6 +155,17 @@ Client Layer (NexusClientOkHttp.java implements NexusHttpClient)
 HTTP/Nexus API (OkHttp)
 ```
 
+### iOS/macOS Layered Architecture
+```
+UI Layer (SwiftUI screens: List, Search, Stats, Settings)
+    ↓
+Service Layer (NexusService.swift - ported from Java)
+    ↓
+Client Layer (NexusClientURLSession.swift implements NexusHttpClient protocol)
+    ↓
+HTTP/Nexus API (URLSession)
+```
+
 ### Desktop Module Components
 - **JNexus.java**: CLI parsing, user interaction, command routing (list, delete, stats commands)
 - **JNexusSwing.java**: Modern Swing GUI (JFrame, JPanel, SwingWorker) with automatic profile selection, advanced filters, statistics dialog
@@ -126,6 +183,46 @@ HTTP/Nexus API (OkHttp)
 - **NexusClientOkHttp.java**: HTTP communication, pagination, JSON parsing, metadata extraction (OkHttp)
 - **CredentialsAndroid.java**: Encrypted credential storage (EncryptedSharedPreferences)
 - **NexusApplication.java**: Application class for dependency injection
+
+### iOS/iPadOS/macOS Module Components
+
+**Shared (95% code reuse across platforms):**
+- **Core Protocols**:
+  - **NexusHttpClient.swift**: HTTP client protocol (mirrors Java interface)
+  - **Credentials.swift**: Credentials protocol (mirrors Java interface)
+  - **NexusService.swift**: Business logic ported from Java (~200 lines)
+  - **AppState.swift**: ObservableObject for dependency injection
+- **Platform Implementations**:
+  - **NexusClientURLSession.swift**: URLSession-based HTTP client (~350 lines)
+    - Caching with 5-minute TTL, retry with exponential backoff, pagination
+  - **CredentialsKeychain.swift**: Keychain Services storage (~180 lines)
+    - AES-256 hardware-backed encryption, UserDefaults for non-sensitive settings
+- **Data Models** (Swift structs, Codable):
+  - **RepoRecord.swift**, **ComponentMetadata.swift**, **SearchCriteria.swift**, **RepositoryStats.swift**
+- **UI Screens** (SwiftUI, adaptive layouts):
+  - **RepositoryListView.swift**: List/refresh/delete with swipe gestures (~200 lines)
+  - **SearchView.swift**: Advanced filters with DisclosureGroup (~180 lines)
+  - **StatsView.swift**: Repository analytics with GroupBox sections (~200 lines)
+  - **SettingsView.swift**: Credential management with Form (~150 lines)
+
+**iOS-specific (5%):**
+- **JNexusApp.swift**: App entry point with @main, StateObject initialization
+- **ContentView.swift**: TabView with 4 tabs (List, Search, Stats, Settings)
+- **Info.plist**: App configuration, network security (HTTPS-only, local networking allowed)
+
+**macOS-specific (5%):**
+- **JNexusApp.swift**: App entry point with WindowGroup and Settings scene
+- **ContentView.swift**: NavigationSplitView with sidebar (replaces TabView)
+- **MenuCommands.swift**: Menu bar commands and keyboard shortcuts (⌘L, ⌘R, ⌘F, ⌘,)
+- **JNexus.entitlements**: App Sandbox, network client, keychain access
+- **Info.plist**: macOS minimum version 13.0 (Ventura)
+
+**Platform Differences**:
+- Navigation: iOS uses TabView, macOS uses NavigationSplitView (sidebar)
+- Settings: iOS is a tab, macOS is a separate window (⌘,)
+- Keyboard shortcuts: macOS only (via MenuCommands)
+- Multi-window: macOS supports multiple windows, iOS does not
+- Layout: iPad uses split view in landscape via `horizontalSizeClass` detection
 
 ### Shared Data Models (in jnexus-core)
 All data models are Java records, shared between desktop and Android:
