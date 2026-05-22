@@ -6,7 +6,7 @@
 
     <groupId>org.flossware</groupId>
     <artifactId>jnexus</artifactId>
-    <version>1.14</version>
+    <version>1.15</version>
 
     <name>JNexus</name>
     <description>Command line Java app to interact with Sonatype Nexus</description>
