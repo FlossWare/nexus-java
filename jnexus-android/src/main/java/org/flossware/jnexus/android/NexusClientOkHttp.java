@@ -77,7 +77,7 @@ public class NexusClientOkHttp implements NexusHttpClient {
      *
      * @param credentials the Nexus credentials containing URL, username, and password
      */
-    public NexusClientOkHttp(Credentials credentials) {
+    public NexusClientOkHttp(org.flossware.jnexus.Credentials credentials) {
         this(credentials, DEFAULT_CACHE_TTL_SECONDS);
     }
 
