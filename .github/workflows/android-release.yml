@@ -1,0 +1,67 @@
+name: Android Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  release-android:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 11
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Build Android Release APK
+        run: gradle :jnexus-android:assembleRelease
+
+      - name: Get version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Rename APK
+        run: |
+          mv jnexus-android/build/outputs/apk/release/jnexus-android-release-unsigned.apk \
+             jnexus-android-${{ steps.version.outputs.VERSION }}.apk
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: jnexus-android-${{ steps.version.outputs.VERSION }}.apk
+          name: JNexus v${{ steps.version.outputs.VERSION }}
+          body: |
+            ## JNexus Android Mobile App v${{ steps.version.outputs.VERSION }}
+
+            ### Installation
+            1. Download the APK below
+            2. Enable "Install from unknown sources" in Android settings
+            3. Install the APK on your Android device (Android 8.0+)
+            4. Open app and configure credentials in Settings
+
+            ### Features
+            - List and manage Nexus repository components
+            - Advanced search with filters (size, date, extension, regex)
+            - Repository statistics and analytics
+            - Secure credential storage (AES256 encryption)
+            - Material Design 3 UI
+
+            ### Requirements
+            - Android 8.0+ (API 26 or higher)
+            - Internet connection
+            - Valid Nexus repository credentials
+
+            **Note:** This is an unsigned APK. For production use, you should sign it with your own keystore.
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
