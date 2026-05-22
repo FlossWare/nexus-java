@@ -133,7 +133,7 @@ fun StatsScreen(app: NexusApplication) {
                 // File types section
                 item {
                     StatsCard(title = "File Types (Top 10)") {
-                        val fileTypes = stats.fileTypes().entries
+                        val fileTypes = stats.fileTypeBreakdown().entries
                             .sortedByDescending { it.value }
                             .take(10)
 
@@ -145,8 +145,8 @@ fun StatsScreen(app: NexusApplication) {
                             )
                         } else {
                             Column {
-                                fileTypes.forEach { (ext, size) ->
-                                    StatRow(ext, String.format("%.2f MB", size / 1_000_000.0))
+                                fileTypes.forEach { entry ->
+                                    StatRow(entry.key, String.format("%.2f MB", entry.value / 1_000_000.0))
                                 }
                             }
                         }
@@ -157,10 +157,10 @@ fun StatsScreen(app: NexusApplication) {
                 item {
                     StatsCard(title = "Age Distribution") {
                         val ageDistribution = stats.ageDistribution()
-                        StatRow("Last 7 days", ageDistribution.getOrDefault("AGE_LAST_7_DAYS", 0).toString())
-                        StatRow("Last 30 days", ageDistribution.getOrDefault("AGE_LAST_30_DAYS", 0).toString())
-                        StatRow("Last 90 days", ageDistribution.getOrDefault("AGE_LAST_90_DAYS", 0).toString())
-                        StatRow("Older", ageDistribution.getOrDefault("AGE_OLDER", 0).toString())
+                        StatRow("Last 7 days", ageDistribution.getOrDefault("Last 7 days", 0).toString())
+                        StatRow("Last 30 days", ageDistribution.getOrDefault("Last 30 days", 0).toString())
+                        StatRow("Last 90 days", ageDistribution.getOrDefault("Last 90 days", 0).toString())
+                        StatRow("Older than 90 days", ageDistribution.getOrDefault("Older than 90 days", 0).toString())
                     }
                 }
 
