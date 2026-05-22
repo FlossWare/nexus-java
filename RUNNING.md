@@ -2,11 +2,16 @@
 
 This guide explains how to run the different interfaces of the JNexus tool.
 
-JNexus provides **four different user interfaces**:
+JNexus provides **five different user interfaces**:
+
+**Desktop (Java 21):**
 1. **Swing GUI** - Modern graphical interface (recommended for desktop users)
 2. **AWT GUI** - Classic graphical interface (maximum compatibility)
 3. **Terminal UI** - Full-screen ncurses interface (for SSH/terminal users)
 4. **Command-Line Interface** - For scripting and automation
+
+**Mobile (Android 8.0+):**
+5. **Android App** - Native mobile app with Jetpack Compose UI
 
 ## Prerequisites
 

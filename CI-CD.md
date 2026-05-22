@@ -4,17 +4,34 @@ This project supports both **GitHub Actions** and **GitLab CI** for continuous i
 
 ## Overview
 
+### Desktop (Maven/Java)
+
 | Platform | Config File | Status |
 |----------|-------------|--------|
 | GitHub Actions | `.github/workflows/main.yml` | ✅ Configured |
 | GitLab CI | `.gitlab-ci.yml` | ✅ Configured |
 
-Both configurations provide:
+Desktop workflows provide:
 - ✅ Automated building and testing on push to main
 - ✅ Automated version bumping (X.Y format)
 - ✅ Deployment to PackageCloud
 - ✅ Git tagging with version numbers
 - ✅ Skip CI loops (via `[ci skip]` in commit messages)
+- ✅ Path filtering (only runs when desktop files change)
+
+### Android (Gradle/Kotlin)
+
+| Platform | Config File | Status |
+|----------|-------------|--------|
+| GitHub Actions | `.github/workflows/android.yml` | ✅ Configured (CI) |
+| GitHub Actions | `.github/workflows/android-release.yml` | ✅ Configured (Release) |
+
+Android workflows provide:
+- ✅ Build debug and release APKs on push to main
+- ✅ Run unit tests (jnexus-core + jnexus-android)
+- ✅ Upload APK artifacts (30-90 day retention)
+- ✅ Create GitHub Releases on version tags
+- ✅ Signed debug APKs for easy installation
 
 ## GitHub Actions
 
@@ -73,6 +90,72 @@ mvn clean install
 
 # View new version
 mvn help:evaluate -Dexpression=project.version -q -DforceStdout
+```
+
+## Android Workflows (GitHub Actions)
+
+### Android CI Workflow
+
+**File:** `.github/workflows/android.yml`
+
+**Triggers:** Push to `main` branch
+
+**Workflow:**
+1. ✅ Set up JDK 21
+2. ✅ Build jnexus-core (shared library)
+3. ✅ Run jnexus-core unit tests
+4. ✅ Build Android Debug APK
+5. ✅ Build Android Release APK
+6. ✅ Run Android unit tests
+7. ✅ Upload APKs as artifacts (30-90 day retention)
+
+**APK Artifacts:**
+- **Debug APK**: `jnexus-android-debug` (signed with debug keystore)
+- **Release APK**: `jnexus-android-release` (unsigned, requires signing)
+
+**Download artifacts:**
+```bash
+# Via GitHub CLI
+gh run download <run-id> -n jnexus-android-debug
+
+# Or from web: Actions → Workflow run → Artifacts section
+```
+
+### Android Release Workflow
+
+**File:** `.github/workflows/android-release.yml`
+
+**Triggers:** Git tags matching `v*` (e.g., `v1.2.1`)
+
+**Workflow:**
+1. ✅ Build Android Debug APK (signed)
+2. ✅ Rename APK with version number
+3. ✅ Create GitHub Release
+4. ✅ Attach APK to release
+
+**Creating a release:**
+```bash
+# Tag and push
+git tag -a v1.2.1 -m "Release v1.2.1: Description"
+git push github v1.2.1
+
+# Release appears at: https://github.com/FlossWare/jnexus/releases
+```
+
+### Local Testing (Android)
+
+```bash
+# Build debug APK
+./gradlew :jnexus-android:assembleDebug
+
+# Build release APK
+./gradlew :jnexus-android:assembleRelease
+
+# Run tests
+./gradlew :jnexus-android:testDebugUnitTest
+
+# Install on device
+adb install jnexus-android/build/outputs/apk/debug/jnexus-android-debug.apk
 ```
 
 ## GitLab CI
