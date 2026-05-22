@@ -1,8 +1,17 @@
-# JNexus CLI - Codebase Documentation for AI Assistants
+# JNexus - Codebase Documentation for AI Assistants
 
 ## Project Overview
 
-**JNexus CLI** is a Java 21 command-line tool for managing components in Sonatype Nexus Repository Manager. It provides list and delete operations with regex filtering, safety features, and minimal dependencies.
+**JNexus** is a cross-platform tool for managing components in Sonatype Nexus Repository Manager. It provides list, delete, search, and statistics operations with advanced filtering, safety features, and minimal dependencies.
+
+**Multi-platform support:**
+- **Desktop**: Java 21 with 4 UIs (CLI, Swing, AWT, Terminal)
+- **Android**: Native mobile app (Android 8.0+) with Jetpack Compose UI
+
+**Multi-module architecture:**
+- `jnexus-core`: Shared business logic (Java 11, platform-agnostic)
+- `jnexus-android`: Android app (Gradle, Kotlin, Jetpack Compose)
+- `src/`: Desktop app (Maven, Java 21)
 
 ## Key Architectural Decisions
 
@@ -12,61 +21,310 @@
 - **Result**: 2.7MB JAR, <200ms startup time
 
 ### Technology Choices
-- **Java 21**: Modern features (records, text blocks, pattern matching)
+
+**Desktop (Java 21):**
 - **Picocli**: Lightweight CLI framework with subcommands and option parsing
 - **Java HttpClient**: Built-in HTTP/2 client (no external dependencies)
-- **Jackson**: Standard JSON processing
 - **Swing**: Modern GUI framework (built into JDK, no external dependencies)
 - **AWT**: Classic GUI framework (built into JDK, maximum compatibility)
 - **jcurses**: Terminal UI library for ncurses-based interface
-- **SLF4J + Logback**: Logging framework with proper log levels
+- **Maven**: Build system for desktop module
+
+**Shared Core (Java 11):**
+- **Jackson**: Standard JSON processing (Android-compatible)
+- **SLF4J**: Logging API (Android-compatible)
 - **JUnit 5 + Mockito**: Modern testing stack
+- **Gradle**: Build system for core module
+
+**Android (Kotlin + Java):**
+- **OkHttp**: HTTP client (replaces java.net.http for Android compatibility)
+- **Jetpack Compose**: Modern declarative UI framework
+- **Material Design 3**: Android design system
+- **EncryptedSharedPreferences**: Secure credential storage (AES256_GCM)
+- **Kotlin Coroutines**: Async/concurrent operations
+- **Desugaring**: Backport Java 11 features (records) to Android 8.0+
+- **Logback-Android**: SLF4J implementation for Android
+- **Gradle**: Build system for Android module
 
 ## Code Architecture
 
-### Layered Architecture
+### Multi-Module Structure
+
+```
+jnexus/                         (root project)
+├── jnexus-core/               (Shared library - Java 11, Gradle)
+│   ├── NexusService.java           # Business logic (filtering, statistics)
+│   ├── NexusHttpClient.java        # HTTP client interface
+│   ├── Credentials.java            # Credentials interface
+│   ├── ComponentMetadata.java      # Data models (records)
+│   ├── SearchCriteria.java
+│   ├── RepositoryStats.java
+│   └── RepoRecord.java
+├── jnexus-android/            (Android app - Kotlin, Gradle)
+│   ├── NexusClientOkHttp.java      # OkHttp implementation
+│   ├── CredentialsAndroid.java     # Encrypted storage
+│   ├── NexusApplication.java       # DI container
+│   ├── MainActivity.kt             # Main activity
+│   └── ui/screens/                 # Jetpack Compose screens
+└── src/                       (Desktop app - Java 21, Maven)
+    ├── JNexus.java                 # CLI
+    ├── JNexusSwing.java            # Swing GUI
+    ├── JNexusAWT.java              # AWT GUI
+    ├── JNexusUI.java               # Terminal UI
+    ├── NexusClient.java            # java.net.http implementation
+    └── Credentials.java            # File-based storage
+```
+
+### Platform Abstraction Layers
+
+**NexusHttpClient Interface** (in jnexus-core):
+- Desktop: `NexusClient` (uses java.net.http.HttpClient)
+- Android: `NexusClientOkHttp` (uses OkHttp)
+- Methods: `listComponents()`, `listComponentsWithMetadata()`, `deleteComponent()`, `clearCache()`
+
+**Credentials Interface** (in jnexus-core):
+- Desktop: `Credentials` class (uses ~/.flossware/nexus/nexus.properties)
+- Android: `CredentialsAndroid` (uses EncryptedSharedPreferences with AES256_GCM)
+- Methods: `getUrl()`, `getUser()`, `getPassword()`, `getRepositories()`, etc.
+
+### Desktop Layered Architecture
 ```
 UI Layer (JNexus.java, JNexusSwing.java, JNexusAWT.java, JNexusUI.java)
     ↓
-Service Layer (NexusService.java)
+Service Layer (NexusService.java from jnexus-core)
     ↓
-Client Layer (NexusClient.java)
+Client Layer (NexusClient.java implements NexusHttpClient)
     ↓
-HTTP/Nexus API
+HTTP/Nexus API (java.net.http.HttpClient)
 ```
 
-### Separation of Concerns
+### Android Layered Architecture
+```
+UI Layer (Jetpack Compose screens: List, Search, Stats, Settings)
+    ↓
+Service Layer (NexusService.java from jnexus-core)
+    ↓
+Client Layer (NexusClientOkHttp.java implements NexusHttpClient)
+    ↓
+HTTP/Nexus API (OkHttp)
+```
+
+### Desktop Module Components
 - **JNexus.java**: CLI parsing, user interaction, command routing (list, delete, stats commands)
 - **JNexusSwing.java**: Modern Swing GUI (JFrame, JPanel, SwingWorker) with automatic profile selection, advanced filters, statistics dialog
 - **JNexusAWT.java**: Classic AWT GUI (Frame, Button, TextField) with automatic profile selection
 - **JNexusUI.java**: Terminal UI using jcurses with text-based profile selection, pre-populated with default values from Credentials
-- **NexusService.java**: Business logic, filtering, statistics calculation, output formatting
-- **NexusClient.java**: HTTP communication, pagination, JSON parsing, metadata extraction
+- **NexusClient.java**: HTTP communication, pagination, JSON parsing, metadata extraction (java.net.http)
 - **Credentials.java**: Configuration management (env vars → properties file) + optional UI defaults + profile discovery
 
-**Data Models (Java records):**
+### Android Module Components
+- **MainActivity.kt**: Main activity with bottom navigation (4 tabs)
+- **RepositoryListScreen.kt**: List/delete components with caching
+- **SearchScreen.kt**: Advanced filtering interface
+- **StatsScreen.kt**: Repository statistics with analytics
+- **SettingsScreen.kt**: Credential and configuration management
+- **NexusClientOkHttp.java**: HTTP communication, pagination, JSON parsing, metadata extraction (OkHttp)
+- **CredentialsAndroid.java**: Encrypted credential storage (EncryptedSharedPreferences)
+- **NexusApplication.java**: Application class for dependency injection
+
+### Shared Data Models (in jnexus-core)
+All data models are Java records, shared between desktop and Android:
 - **RepoRecord.java**: Basic component record (id, fileSize, path)
 - **ComponentMetadata.java**: Enhanced component with full metadata (contentType, format, createdDate, lastModified, checksum)
 - **SearchCriteria.java**: Advanced search filters (size range, date range, file extension, component name pattern) with Builder pattern
 - **RepositoryStats.java**: Comprehensive statistics (size distribution, file type breakdown, age distribution, largest components)
 
+## Android Implementation Details
+
+### OkHttp HTTP Client (NexusClientOkHttp.java)
+
+Mirrors desktop NexusClient.java functionality using OkHttp instead of java.net.http:
+
+**Key differences from desktop:**
+- Uses `OkHttpClient.Builder()` instead of `HttpClient.newBuilder()`
+- Uses `Request.Builder()` and `Response` instead of `HttpRequest` and `HttpResponse`
+- Implements retry logic via `Interceptor` instead of manual retry loop
+- Same caching structure (ConcurrentHashMap with CacheEntry records)
+- Same pagination handling (continuation tokens)
+- Same JSON parsing (Jackson + org.json)
+
+**Retry interceptor:**
+```java
+private static class RetryInterceptor implements Interceptor {
+    private final int maxRetries;
+    private final long initialDelayMs;
+    
+    @Override
+    public Response intercept(Chain chain) throws IOException {
+        // Exponential backoff: 1s, 2s, 4s
+        // Retries on: 5xx, 408, 429, connection errors, timeouts
+    }
+}
+```
+
+**Cache implementation:**
+- Same 5-minute TTL as desktop
+- Same thread-safe ConcurrentHashMap
+- Separate caches for RepoRecord and ComponentMetadata
+- `isCached()` and `getCacheAge()` helper methods
+
+### Android Credential Storage (CredentialsAndroid.java)
+
+Uses Android's secure storage instead of file-based:
+
+**Encryption:**
+- Master key: Generated by Android Keystore with AES256_GCM scheme
+- Key encryption: AES256_SIV (deterministic encryption for keys)
+- Value encryption: AES256_GCM (authenticated encryption for values)
+- Storage: Private app directory (inaccessible to other apps)
+
+**Implementation:**
+```java
+MasterKey masterKey = new MasterKey.Builder(context)
+    .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+    .build();
+
+SharedPreferences prefs = EncryptedSharedPreferences.create(
+    context,
+    "nexus_credentials",
+    masterKey,
+    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+);
+```
+
+**Additional methods:**
+- `hasCredentials()`: Check if credentials configured
+- `clearAll()`: Remove all stored data
+- `saveCredentials()`, `saveRepositories()`, `saveDefaults()`: Setters for UI
+
+### Jetpack Compose UI Screens
+
+**RepositoryListScreen.kt:**
+- Repository dropdown (uses `ExposedDropdownMenuBox`)
+- List/Refresh buttons (coroutines with Dispatchers.IO)
+- LazyColumn for component cards
+- Delete confirmation dialogs
+- Component details dialog (AlertDialog with metadata)
+- Error handling with Card + error color scheme
+
+**SearchScreen.kt:**
+- Collapsible filter panel (AnimatedVisibility)
+- Size range inputs (OutlinedTextField with KeyboardType.Number)
+- Date inputs (ISO 8601 format with validation)
+- Extension and regex filters
+- Clear filters button
+- SearchCriteria.Builder pattern usage
+
+**StatsScreen.kt:**
+- LazyColumn with multiple Card sections
+- Overview metrics (total, average, median with MB/GB formatting)
+- Size distribution with percentage bars
+- File types sorted by size
+- Age distribution with bucket counts
+- Largest components list (top 10)
+
+**SettingsScreen.kt:**
+- Credential inputs (URL, user, password with PasswordVisualTransformation)
+- Show/hide password toggle
+- Repository list (comma-separated with parsing)
+- Default values (repository, regex, dry-run checkbox)
+- HTTP timeout configuration
+- Save/Clear buttons with success/error feedback
+- Security info card explaining AES256_GCM encryption
+
+**Common patterns:**
+- `rememberCoroutineScope()` for launching IO operations
+- `withContext(Dispatchers.IO)` for background work
+- `remember { mutableStateOf() }` for UI state
+- Material3 components (Card, Button, OutlinedTextField, etc.)
+- Error display with errorContainer color scheme
+
+### Android Testing
+
+**Unit Tests (NexusClientOkHttpTest.java):**
+- Uses OkHttp MockWebServer for HTTP mocking
+- Tests: pagination, caching, retry logic, metadata parsing, error handling
+- JUnit 5 + Mockito
+- 13 tests covering all NexusHttpClient methods
+
+**Instrumented Tests (CredentialsAndroidTest.kt):**
+- Requires Android runtime for EncryptedSharedPreferences
+- Tests: save/get credentials, repository parsing, encryption, persistence
+- AndroidX Test framework
+- 15 tests covering all Credentials methods
+
+**Test patterns:**
+```kotlin
+@RunWith(AndroidJUnit4::class)
+class CredentialsAndroidTest {
+    private lateinit var context: Context
+    private lateinit var credentials: CredentialsAndroid
+    
+    @Before
+    fun setUp() {
+        context = ApplicationProvider.getApplicationContext()
+        credentials = CredentialsAndroid(context)
+        credentials.clearAll() // Clean state
+    }
+}
+```
+
+### Build Configuration
+
+**jnexus-core (Gradle):**
+- Java 11 source/target compatibility
+- Dependencies: Jackson, org.json, SLF4J (all Android-compatible)
+- No Android-specific dependencies
+
+**jnexus-android (Gradle):**
+- Android SDK 34, minSdk 26 (Android 8.0+)
+- Jetpack Compose enabled (compose: true)
+- Desugaring enabled for Java 11 features (records on API 26+)
+- Dependencies: jnexus-core module, OkHttp, Compose BOM, Material3, EncryptedSharedPreferences
+- ProGuard for release builds
+
+**Desktop (Maven):**
+- Java 21 source/target
+- No changes to existing build
+- Does not depend on jnexus-core explicitly (code duplication in src/)
+
 ## Design Patterns
+
+### Interface Segregation Pattern (Platform Abstraction)
+- **NexusHttpClient** interface abstracts HTTP layer
+  - Desktop: `NexusClient` (java.net.http)
+  - Android: `NexusClientOkHttp` (OkHttp)
+- **Credentials** interface abstracts storage layer
+  - Desktop: File-based (`~/.flossware/nexus/nexus.properties`)
+  - Android: `CredentialsAndroid` (EncryptedSharedPreferences)
+- Allows jnexus-core to be platform-agnostic
 
 ### Strategy Pattern
 - Multiple configuration sources (env vars vs properties file) with fallback
+- Multiple HTTP implementations (java.net.http vs OkHttp)
+- Multiple credential storage strategies (file vs encrypted prefs)
 
 ### Builder Pattern
-- HttpClient creation with configuration
+- HttpClient creation with configuration (both desktop and Android)
+- SearchCriteria with fluent API
+- OkHttpClient.Builder for Android
 
 ### Repository Pattern
-- NexusClient abstracts HTTP API details from business logic
+- NexusHttpClient abstracts HTTP API details from business logic
+- Desktop and Android have different implementations but same interface
+
+### Dependency Injection Pattern
+- Android: `NexusApplication` class provides singleton instances
+- Desktop: Direct instantiation in UI classes
 
 ### Cache-Aside Pattern
-- Time-based caching in NexusClient with configurable TTL
+- Time-based caching in both NexusClient and NexusClientOkHttp with configurable TTL
 - Cache key: repository name
 - Cache value: List<RepoRecord> + timestamp (also separate cache for ComponentMetadata)
 - Default TTL: 5 minutes (300 seconds)
 - Thread-safe using ConcurrentHashMap
+- Identical implementation on both platforms
 
 ## Enhanced Features (Metadata, Search, Statistics)
 
@@ -503,33 +761,80 @@ if (!credentials.getRepositories().isEmpty()) {
 
 ## Build and Release
 
-### Building
+### Building Desktop (Maven)
 ```bash
 ./mvnw clean package
 ```
 
-### Artifacts
-- `nexus-1.0.jar`: Thin JAR (18KB, requires classpath)
-- `jnexus-1.0-jar-with-dependencies.jar`: Fat JAR (2.7MB, standalone)
+**Artifacts:**
+- `target/jnexus-1.0-jar-with-dependencies.jar`: Fat JAR (2.7MB, standalone)
 
-### Running
+**Running:**
 ```bash
 java -jar target/jnexus-1.0-jar-with-dependencies.jar [command] [options]
 ```
+
+### Building jnexus-core (Gradle)
+```bash
+gradle :jnexus-core:build
+gradle :jnexus-core:test
+```
+
+**Artifacts:**
+- `jnexus-core/build/libs/jnexus-core-1.2.jar`: Shared library
+
+### Building Android (Gradle)
+```bash
+# Build debug APK
+gradle :jnexus-android:assembleDebug
+
+# Build release APK (requires signing configuration)
+gradle :jnexus-android:assembleRelease
+
+# Run tests
+gradle :jnexus-android:testDebugUnitTest
+gradle :jnexus-android:connectedDebugAndroidTest
+```
+
+**Artifacts:**
+- `jnexus-android/build/outputs/apk/debug/jnexus-android-debug.apk`: Debug APK
+- `jnexus-android/build/outputs/apk/release/jnexus-android-release-unsigned.apk`: Release APK
+
+**Installing on Android:**
+```bash
+adb install jnexus-android/build/outputs/apk/debug/jnexus-android-debug.apk
+```
+
+### CI/CD
+
+**GitHub Actions:**
+- `.github/workflows/main.yml`: Desktop build (Maven) on every push
+  - Builds JAR
+  - Runs 155 tests
+  - Deploys to packagecloud.io
+  - Auto-bumps version
+  
+- `.github/workflows/android.yml`: Android build on every push
+  - Builds jnexus-core and jnexus-android
+  - Runs unit tests
+  - Uploads APKs as artifacts (30-90 day retention)
+  
+- `.github/workflows/android-release.yml`: Release on version tags
+  - Triggered by `git tag v1.2 && git push github v1.2`
+  - Builds release APK
+  - Creates GitHub Release with APK attachment
 
 ## Future Enhancements (Not Yet Implemented)
 
 ### High Priority
 - Upload command for publishing artifacts
-- Search command with advanced filtering
 - Batch operations from file input
 - Progress bars for large operations
 
 ### Medium Priority
-- Support for multiple repository operations
 - Export/import component lists (CSV, JSON)
-- Verbose/debug logging modes
-- Configuration profiles for multiple Nexus instances
+- Google Play Store distribution for Android app
+- F-Droid submission for Android app
 
 ### Low Priority
 - Tab completion for bash/zsh
