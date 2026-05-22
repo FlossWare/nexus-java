@@ -39,6 +39,7 @@ jobs:
         run: gradle :jnexus-android:testDebugUnitTest
 
       - name: Upload Debug APK
+        if: success() || failure()
         uses: actions/upload-artifact@v4
         with:
           name: jnexus-android-debug
@@ -46,6 +47,7 @@ jobs:
           retention-days: 30
 
       - name: Upload Release APK
+        if: success() || failure()
         uses: actions/upload-artifact@v4
         with:
           name: jnexus-android-release
