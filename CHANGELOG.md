@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.1] - 2026-05-22
+
+### Fixed
+- **Android Release APK**: Changed release workflow to publish debug-signed APK instead of unsigned release APK
+  - Debug APKs are automatically signed with debug keystore and can be installed without manual signing
+  - Fixes "app not installed as package appears invalid" error
+  - Release workflow now builds `assembleDebug` instead of `assembleRelease`
+  - APK artifacts now upload even when unit tests fail (`if: success() || failure()`)
+- **README**: Added release badges and quick download section for better visibility
+  - Latest release badge with version number
+  - Direct download links for Android APK
+  - Quick Download section prominently placed
+
 ## [1.2] - 2026-05-22
 
 ### Added
