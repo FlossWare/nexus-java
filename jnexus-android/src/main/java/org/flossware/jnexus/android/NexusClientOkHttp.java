@@ -290,8 +290,9 @@ public class NexusClientOkHttp implements NexusHttpClient {
      * @throws IOException if JSON parsing fails
      */
     private ComponentsResponse parseComponentsResponse(String jsonResponse) throws IOException {
-        Map<String, Object> map = objectMapper.readValue(jsonResponse, new TypeReference<>() {});
-        JSONObject json = new JSONObject(map);
+        try {
+            Map<String, Object> map = objectMapper.readValue(jsonResponse, new TypeReference<>() {});
+            JSONObject json = new JSONObject(map);
 
         List<RepoRecord> records = new LinkedList<>();
         JSONArray items = json.getJSONArray("items");
@@ -311,11 +312,14 @@ public class NexusClientOkHttp implements NexusHttpClient {
             }
         }
 
-        String continuationToken = json.isNull("continuationToken")
-            ? null
-            : json.getString("continuationToken");
+            String continuationToken = json.isNull("continuationToken")
+                ? null
+                : json.getString("continuationToken");
 
-        return new ComponentsResponse(records, continuationToken);
+            return new ComponentsResponse(records, continuationToken);
+        } catch (org.json.JSONException e) {
+            throw new IOException("Failed to parse JSON response", e);
+        }
     }
 
     /**
@@ -341,8 +345,9 @@ public class NexusClientOkHttp implements NexusHttpClient {
      * @throws IOException if JSON parsing fails
      */
     private ComponentsMetadataResponse parseComponentsResponseWithMetadata(String jsonResponse) throws IOException {
-        Map<String, Object> map = objectMapper.readValue(jsonResponse, new TypeReference<>() {});
-        JSONObject json = new JSONObject(map);
+        try {
+            Map<String, Object> map = objectMapper.readValue(jsonResponse, new TypeReference<>() {});
+            JSONObject json = new JSONObject(map);
 
         List<ComponentMetadata> records = new LinkedList<>();
         JSONArray items = json.getJSONArray("items");
@@ -411,11 +416,14 @@ public class NexusClientOkHttp implements NexusHttpClient {
             }
         }
 
-        String continuationToken = json.isNull("continuationToken")
-            ? null
-            : json.getString("continuationToken");
+            String continuationToken = json.isNull("continuationToken")
+                ? null
+                : json.getString("continuationToken");
 
-        return new ComponentsMetadataResponse(records, continuationToken);
+            return new ComponentsMetadataResponse(records, continuationToken);
+        } catch (org.json.JSONException e) {
+            throw new IOException("Failed to parse JSON response with metadata", e);
+        }
     }
 
     /**
