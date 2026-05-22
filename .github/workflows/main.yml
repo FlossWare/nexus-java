@@ -8,6 +8,7 @@ on:
       - 'jnexus-core/**'
       - '*.md'
       - '.github/workflows/android*.yml'
+      - '.github/workflows/main.yml'
       - 'gradle*'
       - 'settings.gradle'
 
