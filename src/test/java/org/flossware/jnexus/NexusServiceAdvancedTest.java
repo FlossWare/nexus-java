@@ -161,7 +161,7 @@ class NexusServiceAdvancedTest {
         verify(mockClient, never()).deleteComponent(anyString());
 
         String output = outputStream.toString();
-        assertTrue(output.contains("Would delete:"));
+        assertTrue(output.contains("DRY-RUN MODE"));
         assertTrue(output.contains("artifact1.jar"));
         assertTrue(output.contains("artifact2.jar"));
         assertTrue(output.contains("artifact3.jar"));

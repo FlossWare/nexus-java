@@ -148,10 +148,11 @@ public class NexusService {
             return;
         }
 
-        System.out.println(dryRun ? "Would delete:" : "Deleting:");
-        printRecords(recordsToDelete);
-
-        if (!dryRun) {
+        if (dryRun) {
+            printDryRunVisualization(recordsToDelete);
+        } else {
+            System.out.println("Deleting:");
+            printRecords(recordsToDelete);
             int deleted = 0;
             int total = recordsToDelete.size();
             boolean showProgress = total > 10; // Show progress for >10 components
@@ -301,6 +302,60 @@ public class NexusService {
         for (RepoRecord record : records) {
             System.out.printf("%s  %,15d  %s%n", record.id(), record.fileSize(), record.path());
         }
+    }
+
+    /**
+     * Prints a visual representation of what would be deleted in dry-run mode.
+     * <p>
+     * Shows a clear header, bordered list of components, and summary statistics
+     * to help users understand the impact before running an actual deletion.
+     * </p>
+     *
+     * @param recordsToDelete the list of records that would be deleted
+     */
+    private void printDryRunVisualization(List<RepoRecord> recordsToDelete) {
+        long totalSize = recordsToDelete.stream()
+            .mapToLong(RepoRecord::fileSize)
+            .sum();
+
+        // Header
+        System.out.println();
+        System.out.println("╔" + "═".repeat(78) + "╗");
+        System.out.println("║" + centerText("DRY-RUN MODE: SIMULATION ONLY - NO ACTUAL DELETION", 78) + "║");
+        System.out.println("╠" + "═".repeat(78) + "╣");
+        System.out.println("║" + centerText("The following components WOULD BE DELETED:", 78) + "║");
+        System.out.println("╚" + "═".repeat(78) + "╝");
+        System.out.println();
+
+        // List components
+        printRecords(recordsToDelete);
+
+        // Summary box
+        System.out.println();
+        System.out.println("┌" + "─".repeat(78) + "┐");
+        System.out.println("│" + centerText("DRY-RUN SUMMARY", 78) + "│");
+        System.out.println("├" + "─".repeat(78) + "┤");
+        System.out.printf("│  Components that would be deleted: %-47d│%n", recordsToDelete.size());
+        System.out.printf("│  Total size: %,d bytes (%.2f MB)%-38s│%n",
+            totalSize, totalSize / 1024.0 / 1024.0, " ");
+        System.out.println("├" + "─".repeat(78) + "┤");
+        System.out.println("│" + centerText("⚠ NO ACTUAL DELETION PERFORMED", 78) + "│");
+        System.out.println("│" + centerText("To delete these components, run without --dry-run flag", 78) + "│");
+        System.out.println("└" + "─".repeat(78) + "┘");
+        System.out.println();
+    }
+
+    /**
+     * Centers text within a given width.
+     *
+     * @param text the text to center
+     * @param width the total width
+     * @return centered text padded with spaces
+     */
+    private String centerText(String text, int width) {
+        int padding = (width - text.length()) / 2;
+        int extraPadding = (width - text.length()) % 2;
+        return " ".repeat(padding) + text + " ".repeat(padding + extraPadding);
     }
 
     /**

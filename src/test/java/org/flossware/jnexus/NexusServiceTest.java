@@ -84,7 +84,7 @@ class NexusServiceTest {
         verify(mockClient, never()).deleteComponent(anyString());
 
         String output = outputStream.toString();
-        assertTrue(output.contains("Would delete:"));
+        assertTrue(output.contains("DRY-RUN MODE"));
     }
 
     @Test
