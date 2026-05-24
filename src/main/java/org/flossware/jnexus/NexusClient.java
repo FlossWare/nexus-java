@@ -350,24 +350,48 @@ public class NexusClient {
 
     /**
      * Determines if an exception is retryable.
+     * <p>
+     * Prioritizes exception type checking over message parsing for robustness.
+     * Retryable conditions include:
+     * - Network timeouts (SocketTimeoutException, HttpTimeoutException)
+     * - Connection failures (ConnectException, NoRouteToHostException, UnknownHostException)
+     * - HTTP 5xx server errors (detected from exception message)
+     * - Temporary network issues (PortUnreachableException)
+     * </p>
      *
      * @param e the exception to check
      * @return true if the exception is retryable, false otherwise
      */
     private boolean isRetryable(IOException e) {
-        String message = safeExceptionMessage(e);
-        if (message == null) {
-            // If no message, check exception type
-            return e instanceof java.net.SocketTimeoutException ||
-                   e instanceof java.net.ConnectException ||
-                   e instanceof java.net.UnknownHostException;
+        // 1. Check exception type first (most reliable)
+        if (e instanceof java.net.SocketTimeoutException ||
+            e instanceof java.net.http.HttpTimeoutException ||
+            e instanceof java.net.ConnectException ||
+            e instanceof java.net.NoRouteToHostException ||
+            e instanceof java.net.UnknownHostException ||
+            e instanceof java.net.PortUnreachableException) {
+            return true;
         }
 
-        message = message.toLowerCase();
-        // Retry on connection errors, timeouts, and 5xx server errors
-        return message.contains("timeout") ||
-               message.contains("connection") ||
-               message.contains("http 5");
+        // 2. Check HTTP status code from exception message (for 5xx server errors)
+        String message = e.getMessage();
+        if (message != null) {
+            String lowerMessage = message.toLowerCase();
+            // Check for HTTP 5xx status codes (server errors that are typically transient)
+            if (lowerMessage.matches(".*http\\s+5\\d{2}.*")) {
+                return true;
+            }
+            // Also check for explicit timeout/connection keywords as fallback
+            if (lowerMessage.contains("timeout") ||
+                lowerMessage.contains("timed out") ||
+                lowerMessage.contains("connection reset") ||
+                lowerMessage.contains("connection refused")) {
+                return true;
+            }
+        }
+
+        // 3. Not retryable
+        return false;
     }
 
     /**
