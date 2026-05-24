@@ -83,16 +83,16 @@ public class JNexusUI {
             System.exit(1);
         }
 
-        // Check terminal size (requires 120x40 minimum)
+        // Check terminal size (requires 80x24 minimum - standard terminal size)
         int[] termSize = getTerminalSize();
-        if (termSize[0] < 40 || termSize[1] < 120) {
+        if (termSize[0] < 24 || termSize[1] < 80) {
             System.err.println("ERROR: Terminal too small!");
             System.err.println("Current size: " + termSize[1] + " columns × " + termSize[0] + " rows");
-            System.err.println("Required size: 120 columns × 40 rows (minimum)");
+            System.err.println("Required size: 80 columns × 24 rows (minimum - standard terminal)");
             System.err.println();
             System.err.println("Solutions:");
-            System.err.println("  1. Resize your terminal window to be larger");
-            System.err.println("  2. Run in xterm: xterm -geometry 120x40 -e './jnexus-ui.sh'");
+            System.err.println("  1. Resize your terminal window to at least 80×24");
+            System.err.println("  2. Run in xterm: xterm -geometry 80x24 -e './jnexus-ui.sh'");
             System.err.println("  3. Use Swing GUI instead: ./jnexus-swing.sh");
             System.err.println("  4. Use AWT GUI instead: ./jnexus-awt.sh");
             System.err.println("  5. Use CLI instead: ./jnexus.sh --help");
@@ -271,128 +271,126 @@ public class JNexusUI {
     }
 
     private static void setupUI() {
-        buffer = new char[40][120];
+        buffer = new char[24][80];
 
         RootPane root = RootPane.getInstance();
-        root.setSize(120, 40);
+        root.setSize(80, 24);
 
-        // Create main frame
-        JFrame frame = new JFrame("Nexus Repository Manager - TAB: navigate, SPACE: activate, Q/ESC: quit");
+        // Create main frame (shorter title for 80 cols)
+        JFrame frame = new JFrame("Nexus Repo - TAB:nav SPACE:select Q:quit");
         frame.setLocation(0, 0);
-        frame.setSize(120, 38);
+        frame.setSize(80, 22);
         frame.setVisible(true);
 
         // Create main panel
         JPanel panel = new JPanel();
-        panel.setLocation(2, 3);
-        panel.setSize(116, 32);
+        panel.setLocation(1, 2);
+        panel.setSize(78, 18);
         panel.setBordered(true);
 
         // Title
         JLabel title = new JLabel("Nexus Repository Manager");
-        title.setLocation(4, 5);
-        title.setSize(50, 1);
+        title.setLocation(2, 3);
+        title.setSize(30, 1);
         title.setAlignment(JLabel.ALIGN_LEFT);
 
-        // Repository field
-        JLabel repoLabel = new JLabel("Repository:");
-        repoLabel.setLocation(4, 7);
-        repoLabel.setSize(15, 1);
+        // Repository and Regex on same line
+        JLabel repoLabel = new JLabel("Repo:");
+        repoLabel.setLocation(2, 4);
+        repoLabel.setSize(6, 1);
 
         repositoryField = new JTextField();
-        repositoryField.setLocation(20, 7);
-        repositoryField.setSize(40, 1);
+        repositoryField.setLocation(8, 4);
+        repositoryField.setSize(20, 1);
         repositoryField.setText(credentials.getDefaultRepository());
         focusableComponents.add(repositoryField);
 
-        // Regex filter field
-        JLabel regexLabel = new JLabel("Regex Filter:");
-        regexLabel.setLocation(4, 9);
-        regexLabel.setSize(15, 1);
+        JLabel regexLabel = new JLabel("Regex:");
+        regexLabel.setLocation(30, 4);
+        regexLabel.setSize(7, 1);
 
         regexField = new JTextField();
-        regexField.setLocation(20, 9);
-        regexField.setSize(40, 1);
+        regexField.setLocation(37, 4);
+        regexField.setSize(20, 1);
         regexField.setText(credentials.getDefaultRegex());
         focusableComponents.add(regexField);
 
-        // Dry run checkbox
-        dryRunCheckbox = new JCheckbox("Dry Run (preview only)");
-        dryRunCheckbox.setLocation(65, 9);
-        dryRunCheckbox.setSize(30, 1);
+        // Dry run checkbox and repos on same line
+        dryRunCheckbox = new JCheckbox("Dry Run");
+        dryRunCheckbox.setLocation(2, 5);
+        dryRunCheckbox.setSize(12, 1);
         dryRunCheckbox.setChecked(credentials.isDefaultDryRun());
         focusableComponents.add(dryRunCheckbox);
 
-        // Available repositories label (if configured)
+        // Available repositories label (if configured) - truncated
         JLabel reposDisplayLabel = null;
         if (!credentials.getRepositories().isEmpty()) {
-            JLabel reposLabelText = new JLabel("Available Repos:");
-            reposLabelText.setLocation(4, 11);
-            reposLabelText.setSize(18, 1);
+            JLabel reposLabelText = new JLabel("Repos:");
+            reposLabelText.setLocation(16, 5);
+            reposLabelText.setSize(7, 1);
 
-            reposDisplayLabel = new JLabel(String.join(", ", credentials.getRepositories()));
-            reposDisplayLabel.setLocation(23, 11);
-            reposDisplayLabel.setSize(90, 1);
+            String reposList = String.join(", ", credentials.getRepositories());
+            // Truncate if too long (max 54 chars to fit in 80 cols)
+            if (reposList.length() > 54) {
+                reposList = reposList.substring(0, 51) + "...";
+            }
+            reposDisplayLabel = new JLabel(reposList);
+            reposDisplayLabel.setLocation(23, 5);
+            reposDisplayLabel.setSize(54, 1);
 
             panel.add(reposLabelText);
             panel.add(reposDisplayLabel);
         }
 
-        // Buttons (adjusted y position if repos are shown)
-        int buttonY = credentials.getRepositories().isEmpty() ? 12 : 13;
-
+        // Buttons - all on one row
         JButton listButton = new JButton("List");
-        listButton.setLocation(4, buttonY);
-        listButton.setSize(10, 1);
+        listButton.setLocation(2, 7);
+        listButton.setSize(8, 1);
         listButton.addActionListener(() -> executeList(false));
         focusableComponents.add(listButton);
 
         JButton refreshButton = new JButton("Refresh");
-        refreshButton.setLocation(16, buttonY);
-        refreshButton.setSize(12, 1);
+        refreshButton.setLocation(11, 7);
+        refreshButton.setSize(10, 1);
         refreshButton.addActionListener(() -> executeList(true));
         focusableComponents.add(refreshButton);
 
         JButton deleteButton = new JButton("Delete");
-        deleteButton.setLocation(30, buttonY);
-        deleteButton.setSize(12, 1);
+        deleteButton.setLocation(22, 7);
+        deleteButton.setSize(9, 1);
         deleteButton.addActionListener(() -> executeDelete());
         focusableComponents.add(deleteButton);
 
         JButton clearButton = new JButton("Clear");
-        clearButton.setLocation(44, buttonY);
-        clearButton.setSize(10, 1);
+        clearButton.setLocation(32, 7);
+        clearButton.setSize(8, 1);
         clearButton.addActionListener(() -> {
             setupResultsPanel();
-            statusLabel.setText("Results cleared");
+            statusLabel.setText("Cleared");
             markDirty();
         });
         focusableComponents.add(clearButton);
 
         JButton quitButton = new JButton("Quit");
-        quitButton.setLocation(56, buttonY);
-        quitButton.setSize(10, 1);
+        quitButton.setLocation(41, 7);
+        quitButton.setSize(7, 1);
         quitButton.addActionListener(() -> running = false);
         focusableComponents.add(quitButton);
 
-        // Status label (adjusted y position)
-        int statusY = credentials.getRepositories().isEmpty() ? 15 : 16;
-        statusLabel = new JLabel("Ready - List:cached, Refresh:bypass cache, Delete:always fresh");
-        statusLabel.setLocation(4, statusY);
-        statusLabel.setSize(110, 1);
+        // Status label - shorter message
+        statusLabel = new JLabel("Ready (List=cached, Refresh=fresh, Delete=fresh)");
+        statusLabel.setLocation(2, 9);
+        statusLabel.setSize(72, 1);
 
-        // Results label (adjusted y position)
-        int resultsLabelY = credentials.getRepositories().isEmpty() ? 17 : 18;
+        // Results label
         JLabel resultsLabel = new JLabel("Results:");
-        resultsLabel.setLocation(4, resultsLabelY);
-        resultsLabel.setSize(15, 1);
+        resultsLabel.setLocation(2, 10);
+        resultsLabel.setSize(10, 1);
 
-        // Results panel (adjusted y position and size)
-        int resultsPanelY = credentials.getRepositories().isEmpty() ? 18 : 19;
-        int resultsPanelHeight = credentials.getRepositories().isEmpty() ? 14 : 13;
+        // Results panel - smaller (9 rows instead of 13-14)
         resultsPanel = new JPanel();
-        resultsPanel.setLocation(4, resultsPanelY);
-        resultsPanel.setSize(110, resultsPanelHeight);
+        resultsPanel.setLocation(2, 11);
+        resultsPanel.setSize(74, 9);
         resultsPanel.setBordered(false);
 
         // Add all components to panel
@@ -631,8 +629,8 @@ public class JNexusUI {
 
     private static void render() throws Throwable {
         // Clear buffer
-        for (int i = 0; i < 40; i++) {
-            for (int j = 0; j < 120; j++) {
+        for (int i = 0; i < 24; i++) {
+            for (int j = 0; j < 80; j++) {
                 buffer[i][j] = ' ';
             }
         }
@@ -648,18 +646,18 @@ public class JNexusUI {
             int w = focused.getWidth();
 
             // Draw focus indicator
-            if (x > 0 && y >= 0 && y < 40) {
+            if (x > 0 && y >= 0 && y < 24) {
                 buffer[y][x - 1] = '>';
             }
-            if (x + w < 120 && y >= 0 && y < 40) {
+            if (x + w < 80 && y >= 0 && y < 24) {
                 buffer[y][x + w] = '<';
             }
         }
 
         // Send to ncurses
         NcursesBridge.clear();
-        for (int y = 0; y < 40; y++) {
-            for (int x = 0; x < 120; x++) {
+        for (int y = 0; y < 24; y++) {
+            for (int x = 0; x < 80; x++) {
                 NcursesBridge.moveCursor(y, x, buffer[y][x]);
             }
         }
