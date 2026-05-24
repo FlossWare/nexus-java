@@ -47,9 +47,9 @@ public class NexusClient {
     private static final long DEFAULT_CACHE_TTL_SECONDS = 300; // 5 minutes
     private final long cacheTtlSeconds;
 
-    // Retry configuration
-    private static final int MAX_RETRIES = 3;
-    private static final long INITIAL_RETRY_DELAY_MS = 1000; // 1 second
+    // Retry configuration (configurable via Credentials)
+    private final int maxRetries;
+    private final long initialRetryDelayMs;
 
     // Cache storage: repository -> CacheEntry
     private final Map<String, CacheEntry> cache = new ConcurrentHashMap<>();
@@ -103,6 +103,10 @@ public class NexusClient {
 
         String auth = credentials.getUser() + ":" + credentials.getPassword();
         this.authHeader = "Basic " + Base64.getEncoder().encodeToString(auth.getBytes());
+
+        // Initialize retry configuration from credentials
+        this.maxRetries = credentials.getMaxRetries();
+        this.initialRetryDelayMs = credentials.getInitialRetryDelayMs();
 
         this.httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(credentials.getHttpTimeoutSeconds()))
@@ -268,7 +272,7 @@ public class NexusClient {
             .build();
 
         IOException lastException = null;
-        for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        for (int attempt = 1; attempt <= maxRetries; attempt++) {
             try {
                 HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
@@ -279,10 +283,10 @@ public class NexusClient {
                 return parseComponentsResponse(response.body());
             } catch (IOException e) {
                 lastException = e;
-                if (attempt < MAX_RETRIES && isRetryable(e)) {
-                    long delay = INITIAL_RETRY_DELAY_MS * (1L << (attempt - 1)); // Exponential backoff
+                if (attempt < maxRetries && isRetryable(e)) {
+                    long delay = initialRetryDelayMs * (1L << (attempt - 1)); // Exponential backoff
                     logger.warn("Request failed (attempt {}/{}): {}. Retrying in {}ms...",
-                        attempt, MAX_RETRIES, safeExceptionMessage(e), delay);
+                        attempt, maxRetries, safeExceptionMessage(e), delay);
                     Thread.sleep(delay);
                 } else {
                     break;
@@ -312,7 +316,7 @@ public class NexusClient {
             .build();
 
         IOException lastException = null;
-        for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        for (int attempt = 1; attempt <= maxRetries; attempt++) {
             try {
                 HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
@@ -323,10 +327,10 @@ public class NexusClient {
                 return parseComponentsResponseWithMetadata(response.body());
             } catch (IOException e) {
                 lastException = e;
-                if (attempt < MAX_RETRIES && isRetryable(e)) {
-                    long delay = INITIAL_RETRY_DELAY_MS * (1L << (attempt - 1)); // Exponential backoff
+                if (attempt < maxRetries && isRetryable(e)) {
+                    long delay = initialRetryDelayMs * (1L << (attempt - 1)); // Exponential backoff
                     logger.warn("Request failed (attempt {}/{}): {}. Retrying in {}ms...",
-                        attempt, MAX_RETRIES, safeExceptionMessage(e), delay);
+                        attempt, maxRetries, safeExceptionMessage(e), delay);
                     Thread.sleep(delay);
                 } else {
                     break;
@@ -551,7 +555,7 @@ public class NexusClient {
             .build();
 
         IOException lastException = null;
-        for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        for (int attempt = 1; attempt <= maxRetries; attempt++) {
             try {
                 HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
@@ -562,10 +566,10 @@ public class NexusClient {
                 return; // Success
             } catch (IOException e) {
                 lastException = e;
-                if (attempt < MAX_RETRIES && isRetryable(e)) {
-                    long delay = INITIAL_RETRY_DELAY_MS * (1L << (attempt - 1)); // Exponential backoff
+                if (attempt < maxRetries && isRetryable(e)) {
+                    long delay = initialRetryDelayMs * (1L << (attempt - 1)); // Exponential backoff
                     logger.warn("Delete failed for {} (attempt {}/{}): {}. Retrying in {}ms...",
-                        componentId, attempt, MAX_RETRIES, safeExceptionMessage(e), delay);
+                        componentId, attempt, maxRetries, safeExceptionMessage(e), delay);
                     Thread.sleep(delay);
                 } else {
                     break;

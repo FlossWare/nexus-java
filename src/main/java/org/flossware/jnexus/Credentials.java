@@ -61,6 +61,8 @@ public class Credentials {
 
     // Optional HTTP configuration
     private final int httpTimeoutSeconds;
+    private final int maxRetries;
+    private final long initialRetryDelayMs;
 
     // Profile used for loading configuration
     private final String profile;
@@ -129,6 +131,8 @@ public class Credentials {
         this.defaultRegex = "";
         this.defaultDryRun = true;
         this.httpTimeoutSeconds = 30;
+        this.maxRetries = 3;
+        this.initialRetryDelayMs = 1000;
     }
 
     /**
@@ -223,6 +227,43 @@ public class Credentials {
             }
         }
         this.httpTimeoutSeconds = timeout;
+
+        // Load optional retry configuration with validation
+        String maxRetriesEnv = System.getenv("NEXUS_MAX_RETRIES");
+        String maxRetriesProp = props.getProperty("nexus.http.max.retries");
+        String maxRetriesStr = maxRetriesEnv != null ? maxRetriesEnv : maxRetriesProp;
+
+        int retries = 3; // default
+        if (maxRetriesStr != null) {
+            try {
+                retries = Integer.parseInt(maxRetriesStr);
+                if (retries < 0 || retries > 10) {
+                    System.err.println("Warning: Max retries must be between 0 and 10. Using default: 3");
+                    retries = 3;
+                }
+            } catch (NumberFormatException e) {
+                System.err.println("Warning: Invalid max retries value '" + maxRetriesStr + "'. Using default: 3");
+            }
+        }
+        this.maxRetries = retries;
+
+        String retryDelayEnv = System.getenv("NEXUS_RETRY_DELAY_MS");
+        String retryDelayProp = props.getProperty("nexus.http.retry.delay.ms");
+        String retryDelayStr = retryDelayEnv != null ? retryDelayEnv : retryDelayProp;
+
+        long delay = 1000; // default 1 second
+        if (retryDelayStr != null) {
+            try {
+                delay = Long.parseLong(retryDelayStr);
+                if (delay < 0 || delay > 60000) {
+                    System.err.println("Warning: Retry delay must be between 0 and 60000ms. Using default: 1000ms");
+                    delay = 1000;
+                }
+            } catch (NumberFormatException e) {
+                System.err.println("Warning: Invalid retry delay value '" + retryDelayStr + "'. Using default: 1000ms");
+            }
+        }
+        this.initialRetryDelayMs = delay;
     }
 
     /**
@@ -417,6 +458,24 @@ public class Credentials {
     }
 
     /**
+     * Gets the maximum number of retry attempts for failed HTTP requests.
+     *
+     * @return the maximum number of retries (default: 3)
+     */
+    public int getMaxRetries() {
+        return maxRetries;
+    }
+
+    /**
+     * Gets the initial retry delay in milliseconds for exponential backoff.
+     *
+     * @return the initial retry delay in milliseconds (default: 1000)
+     */
+    public long getInitialRetryDelayMs() {
+        return initialRetryDelayMs;
+    }
+
+    /**
      * Gets the active profile name.
      *
      * @return the profile name, or null if using default configuration
@@ -466,6 +525,14 @@ public class Credentials {
 
         if (httpTimeoutSeconds != 30) {
             props.setProperty("nexus.http.timeout.seconds", String.valueOf(httpTimeoutSeconds));
+        }
+
+        if (maxRetries != 3) {
+            props.setProperty("nexus.http.max.retries", String.valueOf(maxRetries));
+        }
+
+        if (initialRetryDelayMs != 1000) {
+            props.setProperty("nexus.http.retry.delay.ms", String.valueOf(initialRetryDelayMs));
         }
 
         try (java.io.OutputStream output = Files.newOutputStream(configPath)) {
