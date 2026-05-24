@@ -172,8 +172,8 @@ public class NexusService {
             }
             System.out.println("\nDeleted " + deleted + " of " + recordsToDelete.size() + " components");
 
-            // Clear cache after deletion since repository changed
-            client.clearCache(repository);
+            // Clear ALL cache after deletion to prevent stale "All" repository cache
+            client.clearAllCache();
         }
 
         printStatistics(allRecords.size(), recordsToDelete);
