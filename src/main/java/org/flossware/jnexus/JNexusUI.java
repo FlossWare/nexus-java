@@ -46,6 +46,33 @@ public class JNexusUI {
     private static NexusService service;
     private static Credentials credentials;
 
+    /**
+     * Get terminal size using stty command.
+     *
+     * @return int array [rows, cols], defaults to [24, 80] if detection fails
+     */
+    private static int[] getTerminalSize() {
+        try {
+            // Run stty size to get terminal dimensions
+            Process process = new ProcessBuilder("sh", "-c", "stty size </dev/tty").start();
+            java.io.BufferedReader reader = new java.io.BufferedReader(
+                new java.io.InputStreamReader(process.getInputStream())
+            );
+            String line = reader.readLine();
+            process.waitFor();
+
+            if (line != null && !line.isEmpty()) {
+                String[] parts = line.trim().split("\\s+");
+                if (parts.length == 2) {
+                    return new int[]{Integer.parseInt(parts[0]), Integer.parseInt(parts[1])};
+                }
+            }
+        } catch (Exception e) {
+            // Fall through to default
+        }
+        return new int[]{24, 80};  // Default size
+    }
+
     public static void main(String[] args) throws Throwable {
         if (!NcursesBridge.isAvailable()) {
             System.err.println("ERROR: ncurses library is not available!");
@@ -53,6 +80,22 @@ public class JNexusUI {
             System.err.println("  - Ubuntu/Debian: sudo apt-get install libncurses-dev");
             System.err.println("  - Fedora/RHEL: sudo dnf install ncurses-devel");
             System.err.println("  - Arch: sudo pacman -S ncurses");
+            System.exit(1);
+        }
+
+        // Check terminal size (requires 120x40 minimum)
+        int[] termSize = getTerminalSize();
+        if (termSize[0] < 40 || termSize[1] < 120) {
+            System.err.println("ERROR: Terminal too small!");
+            System.err.println("Current size: " + termSize[1] + " columns × " + termSize[0] + " rows");
+            System.err.println("Required size: 120 columns × 40 rows (minimum)");
+            System.err.println();
+            System.err.println("Solutions:");
+            System.err.println("  1. Resize your terminal window to be larger");
+            System.err.println("  2. Run in xterm: xterm -geometry 120x40 -e './jnexus-ui.sh'");
+            System.err.println("  3. Use Swing GUI instead: ./jnexus-swing.sh");
+            System.err.println("  4. Use AWT GUI instead: ./jnexus-awt.sh");
+            System.err.println("  5. Use CLI instead: ./jnexus.sh --help");
             System.exit(1);
         }
 
