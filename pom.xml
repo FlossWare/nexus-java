@@ -124,6 +124,13 @@
                 </configuration>
             </plugin>
 
+            <!-- Resources Plugin -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <version>3.5.0</version>
+            </plugin>
+
             <!-- Build Helper Plugin -->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
