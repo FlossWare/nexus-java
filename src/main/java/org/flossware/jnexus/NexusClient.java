@@ -276,7 +276,7 @@ public class NexusClient {
                 if (attempt < MAX_RETRIES && isRetryable(e)) {
                     long delay = INITIAL_RETRY_DELAY_MS * (1L << (attempt - 1)); // Exponential backoff
                     logger.warn("Request failed (attempt {}/{}): {}. Retrying in {}ms...",
-                        attempt, MAX_RETRIES, e.getMessage(), delay);
+                        attempt, MAX_RETRIES, safeExceptionMessage(e), delay);
                     Thread.sleep(delay);
                 } else {
                     break;
@@ -320,7 +320,7 @@ public class NexusClient {
                 if (attempt < MAX_RETRIES && isRetryable(e)) {
                     long delay = INITIAL_RETRY_DELAY_MS * (1L << (attempt - 1)); // Exponential backoff
                     logger.warn("Request failed (attempt {}/{}): {}. Retrying in {}ms...",
-                        attempt, MAX_RETRIES, e.getMessage(), delay);
+                        attempt, MAX_RETRIES, safeExceptionMessage(e), delay);
                     Thread.sleep(delay);
                 } else {
                     break;
@@ -332,13 +332,32 @@ public class NexusClient {
     }
 
     /**
+     * Safely gets an exception message, using class name as fallback if message is null.
+     *
+     * @param e the exception
+     * @return the exception message or class name if message is null
+     */
+    private String safeExceptionMessage(Exception e) {
+        String message = e.getMessage();
+        return message != null ? message : e.getClass().getSimpleName();
+    }
+
+    /**
      * Determines if an exception is retryable.
      *
      * @param e the exception to check
      * @return true if the exception is retryable, false otherwise
      */
     private boolean isRetryable(IOException e) {
-        String message = e.getMessage().toLowerCase();
+        String message = safeExceptionMessage(e);
+        if (message == null) {
+            // If no message, check exception type
+            return e instanceof java.net.SocketTimeoutException ||
+                   e instanceof java.net.ConnectException ||
+                   e instanceof java.net.UnknownHostException;
+        }
+
+        message = message.toLowerCase();
         // Retry on connection errors, timeouts, and 5xx server errors
         return message.contains("timeout") ||
                message.contains("connection") ||
@@ -516,7 +535,7 @@ public class NexusClient {
                 if (attempt < MAX_RETRIES && isRetryable(e)) {
                     long delay = INITIAL_RETRY_DELAY_MS * (1L << (attempt - 1)); // Exponential backoff
                     logger.warn("Delete failed for {} (attempt {}/{}): {}. Retrying in {}ms...",
-                        componentId, attempt, MAX_RETRIES, e.getMessage(), delay);
+                        componentId, attempt, MAX_RETRIES, safeExceptionMessage(e), delay);
                     Thread.sleep(delay);
                 } else {
                     break;

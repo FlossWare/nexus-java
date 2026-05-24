@@ -37,6 +37,17 @@ public class NexusService {
     }
 
     /**
+     * Safely gets an exception message, using class name as fallback if message is null.
+     *
+     * @param e the exception
+     * @return the exception message or class name if message is null
+     */
+    private String safeExceptionMessage(Exception e) {
+        String message = e.getMessage();
+        return message != null ? message : e.getClass().getSimpleName();
+    }
+
+    /**
      * Validates a regex pattern.
      *
      * @param regex the regex pattern to validate
@@ -49,7 +60,7 @@ public class NexusService {
         try {
             Pattern.compile(regex);
         } catch (PatternSyntaxException e) {
-            throw new IllegalArgumentException("Invalid regex pattern: " + e.getMessage(), e);
+            throw new IllegalArgumentException("Invalid regex pattern: " + safeExceptionMessage(e), e);
         }
     }
 
@@ -156,7 +167,7 @@ public class NexusService {
                             deleted, total, (deleted * 100.0 / total));
                     }
                 } catch (IOException e) {
-                    logger.error("Failed to delete {}: {}", record.path(), e.getMessage());
+                    logger.error("Failed to delete {}: {}", record.path(), safeExceptionMessage(e));
                 }
             }
             System.out.println("\nDeleted " + deleted + " of " + recordsToDelete.size() + " components");
