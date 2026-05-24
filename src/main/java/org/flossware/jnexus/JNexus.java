@@ -17,18 +17,57 @@ import java.util.concurrent.Callable;
 /**
  * Command-line interface for interacting with Sonatype Nexus repositories.
  * <p>
- * This is the main entry point for the Nexus CLI tool. It provides two subcommands:
+ * This is the main entry point for the Nexus CLI tool. It provides three subcommands:
  * </p>
  * <ul>
  *   <li><strong>list</strong> - List components in a repository with optional filtering</li>
  *   <li><strong>delete</strong> - Delete components from a repository with safety features</li>
+ *   <li><strong>stats</strong> - Display repository statistics and analytics</li>
  * </ul>
  * <p>
  * The tool uses Picocli for command-line parsing and supports standard help and version options.
  * </p>
  *
+ * <h2>Usage Examples:</h2>
+ * <pre>
+ * # List all components in a repository
+ * jnexus list maven-releases
+ *
+ * # List with regex filter
+ * jnexus list maven-releases --regex ".*SNAPSHOT.*"
+ *
+ * # List with metadata and advanced filters
+ * jnexus list maven-releases --show-metadata --min-size 1000000 --extension .jar
+ *
+ * # Delete with dry-run (safe preview)
+ * jnexus delete maven-snapshots --regex ".*old.*" --dry-run
+ *
+ * # Delete with confirmation
+ * jnexus delete maven-snapshots --regex ".*old.*"
+ *
+ * # Repository statistics
+ * jnexus stats maven-releases --format json
+ *
+ * # Use different configuration profile
+ * jnexus --profile prod list maven-releases
+ *
+ * # Verbose mode for debugging
+ * jnexus -v list maven-releases
+ * </pre>
+ *
+ * <h2>Configuration:</h2>
+ * <p>
+ * Credentials can be configured via:
+ * </p>
+ * <ol>
+ *   <li>Environment variables: NEXUS_URL, NEXUS_USER, NEXUS_PASSWORD</li>
+ *   <li>Properties file: ~/.flossware/nexus/nexus.properties</li>
+ *   <li>Profile-based properties: ~/.flossware/nexus/nexus-{profile}.properties</li>
+ * </ol>
+ *
  * @author sfloess
  * @since 1.0
+ * @see <a href="https://github.com/FlossWare/jnexus">GitHub Repository</a>
  */
 @Command(
     name = "jnexus",

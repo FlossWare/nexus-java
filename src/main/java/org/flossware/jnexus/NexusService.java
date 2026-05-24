@@ -14,13 +14,66 @@ import java.util.stream.Collectors;
 /**
  * Service layer for Nexus repository operations.
  * <p>
- * This class provides high-level business logic for listing and deleting components
- * from Nexus repositories. It delegates HTTP communication to {@link NexusClient}
- * and handles filtering, output formatting, and statistics.
+ * This class provides high-level business logic for listing, searching, deleting, and analyzing
+ * components from Nexus repositories. It delegates HTTP communication to {@link NexusClient}
+ * and handles filtering, output formatting, statistics, and user interaction.
  * </p>
+ *
+ * <h2>Core Functionality:</h2>
+ * <ul>
+ *   <li><strong>List Operations</strong> - List and filter repository components with caching support</li>
+ *   <li><strong>Search Operations</strong> - Advanced filtering by size, date, extension, regex</li>
+ *   <li><strong>Delete Operations</strong> - Safe deletion with dry-run, progress tracking, and error reporting</li>
+ *   <li><strong>Statistics</strong> - Comprehensive repository analytics and metrics</li>
+ * </ul>
+ *
+ * <h2>Usage Examples:</h2>
+ * <pre>
+ * // Initialize service
+ * Credentials credentials = new Credentials();
+ * NexusClient client = new NexusClient(credentials);
+ * NexusService service = new NexusService(client);
+ *
+ * // List components with filtering
+ * service.listRepository("maven-releases", ".*SNAPSHOT.*");
+ *
+ * // Get components for programmatic use
+ * List&lt;RepoRecord&gt; components = service.getRepositoryRecords("maven-releases", null, false);
+ *
+ * // Advanced search with multiple criteria
+ * SearchCriteria criteria = new SearchCriteria.Builder()
+ *     .repository("maven-releases")
+ *     .minSize(1_000_000L)
+ *     .fileExtension(".jar")
+ *     .createdAfter(Instant.parse("2024-01-01T00:00:00Z"))
+ *     .build();
+ * List&lt;ComponentMetadata&gt; results = service.searchComponents(criteria, false);
+ *
+ * // Safe deletion with dry-run
+ * service.deleteFromRepository("maven-snapshots", ".*old.*", true);  // Preview only
+ * service.deleteFromRepository("maven-snapshots", ".*old.*", false); // Actual deletion
+ *
+ * // Repository statistics
+ * List&lt;ComponentMetadata&gt; components = client.listComponentsWithMetadata("maven-releases", false);
+ * RepositoryStats stats = service.calculateStatistics("maven-releases", components);
+ * System.out.println("Total size: " + stats.getTotalSizeGB() + " GB");
+ * </pre>
+ *
+ * <h2>Safety Features:</h2>
+ * <ul>
+ *   <li>Dry-run mode for safe previews before deletion</li>
+ *   <li>Regex pattern validation before operations</li>
+ *   <li>Error collection and reporting for batch operations</li>
+ *   <li>Progress tracking for long-running deletions</li>
+ *   <li>Cache management to maintain data consistency</li>
+ * </ul>
  *
  * @author sfloess
  * @since 1.0
+ * @see NexusClient
+ * @see Credentials
+ * @see SearchCriteria
+ * @see RepositoryStats
  */
 public class NexusService {
     private static final Logger logger = LoggerFactory.getLogger(NexusService.class);

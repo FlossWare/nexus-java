@@ -18,11 +18,22 @@ import java.util.stream.Collectors;
 /**
  * Manages Nexus repository credentials and configuration.
  * <p>
- * This class reads Nexus credentials from multiple sources in the following priority:
+ * This class reads Nexus credentials from multiple sources in the following priority order:
  * </p>
  * <ol>
- *   <li>Environment variables: NEXUS_URL, NEXUS_USER, NEXUS_PASSWORD</li>
- *   <li>Properties file (profile-based):
+ *   <li><strong>Environment variables</strong> (highest priority):
+ *     <ul>
+ *       <li>NEXUS_URL - Nexus server URL</li>
+ *       <li>NEXUS_USER - Username</li>
+ *       <li>NEXUS_PASSWORD - Password or token</li>
+ *       <li>NEXUS_PROFILE - Configuration profile name</li>
+ *       <li>NEXUS_HTTP_TIMEOUT - HTTP timeout in seconds</li>
+ *       <li>NEXUS_MAX_RETRIES - Maximum retry attempts</li>
+ *       <li>NEXUS_RETRY_DELAY_MS - Initial retry delay</li>
+ *       <li>NEXUS_LOG_LEVEL - Logging level</li>
+ *     </ul>
+ *   </li>
+ *   <li><strong>Properties file</strong> (fallback):
  *     <ul>
  *       <li>If NEXUS_PROFILE is set: ~/.flossware/nexus/nexus-{profile}.properties</li>
  *       <li>Otherwise: ~/.flossware/nexus/nexus.properties (default)</li>
@@ -30,21 +41,113 @@ import java.util.stream.Collectors;
  *   </li>
  * </ol>
  * <p>
- * All three credentials (URL, user, password) must be provided or an
+ * All three required credentials (URL, user, password) must be provided or an
  * {@link IllegalStateException} will be thrown during construction.
  * </p>
+ *
+ * <h2>Configuration Properties:</h2>
  * <p>
- * <strong>Profile Support:</strong> Use NEXUS_PROFILE environment variable to switch
- * between different configurations. For example:
+ * The properties file supports the following settings:
+ * </p>
+ * <pre>
+ * # Required credentials
+ * nexus.url=https://nexus.example.com
+ * nexus.user=your-username
+ * nexus.password=your-token
+ *
+ * # Optional UI defaults
+ * nexus.default.repository=maven-releases
+ * nexus.default.regex=.*SNAPSHOT.*
+ * nexus.default.dryrun=true
+ *
+ * # Optional repository list (for dropdowns/batch ops)
+ * nexus.repositories=maven-releases,maven-snapshots,npm-public
+ *
+ * # Optional HTTP configuration
+ * nexus.http.timeout.seconds=30
+ * nexus.http.max.retries=3
+ * nexus.http.retry.delay.ms=1000
+ *
+ * # Optional logging configuration
+ * nexus.log.level=INFO
+ * </pre>
+ *
+ * <h2>Profile Support:</h2>
+ * <p>
+ * Use NEXUS_PROFILE environment variable to switch between different configurations:
+ * </p>
+ * <pre>
+ * # Development environment
+ * export NEXUS_PROFILE=dev
+ * # Loads ~/.flossware/nexus/nexus-dev.properties
+ *
+ * # Production environment
+ * export NEXUS_PROFILE=prod
+ * # Loads ~/.flossware/nexus/nexus-prod.properties
+ *
+ * # Staging environment
+ * export NEXUS_PROFILE=staging
+ * # Loads ~/.flossware/nexus/nexus-staging.properties
+ * </pre>
+ *
+ * <h2>Usage Examples:</h2>
+ * <pre>
+ * // Load from default configuration (env vars or ~/.flossware/nexus/nexus.properties)
+ * Credentials credentials = new Credentials();
+ *
+ * // Load from specific profile
+ * Credentials prodCreds = new Credentials("prod");
+ *
+ * // Create from explicit values (for interactive dialogs)
+ * Credentials dialogCreds = new Credentials(
+ *     "https://nexus.example.com",
+ *     "username",
+ *     "password",
+ *     "maven-releases,maven-snapshots"
+ * );
+ *
+ * // Save credentials to properties file
+ * credentials.saveToPropertiesFile(null);        // Save to default
+ * credentials.saveToPropertiesFile("prod");      // Save to nexus-prod.properties
+ *
+ * // Discover available profiles
+ * List&lt;String&gt; profiles = Credentials.discoverProfiles();
+ * System.out.println("Available profiles: " + profiles);
+ *
+ * // Validate repository name
+ * Credentials.validateRepository("maven-releases");  // OK
+ * Credentials.validateRepository("../etc/passwd");   // Throws IllegalArgumentException
+ *
+ * // Access configuration
+ * String url = credentials.getUrl();
+ * int timeout = credentials.getHttpTimeoutSeconds();
+ * List&lt;String&gt; repos = credentials.getRepositories();
+ * </pre>
+ *
+ * <h2>Security Considerations:</h2>
+ * <p>
+ * <strong>WARNING:</strong> Desktop applications store credentials in <strong>plaintext</strong>
+ * in the properties file. Follow these security best practices:
  * </p>
  * <ul>
- *   <li>NEXUS_PROFILE=dev → loads nexus-dev.properties</li>
- *   <li>NEXUS_PROFILE=prod → loads nexus-prod.properties</li>
- *   <li>NEXUS_PROFILE=staging → loads nexus-staging.properties</li>
+ *   <li>Set file permissions: {@code chmod 600 ~/.flossware/nexus/nexus.properties}</li>
+ *   <li>Use environment variables for CI/CD instead of files</li>
+ *   <li>Use Nexus user tokens instead of passwords</li>
+ *   <li>Always use HTTPS URLs (HTTP triggers a warning)</li>
+ *   <li>Never commit credentials to version control</li>
+ * </ul>
+ * <p>
+ * Mobile platforms (Android/iOS) use encrypted storage:
+ * </p>
+ * <ul>
+ *   <li><strong>Android:</strong> AES256_GCM via EncryptedSharedPreferences</li>
+ *   <li><strong>iOS/macOS:</strong> AES-256 hardware-backed Keychain</li>
  * </ul>
  *
  * @author sfloess
  * @since 1.0
+ * @see NexusClient
+ * @see NexusService
  */
 public class Credentials {
     private final String url;

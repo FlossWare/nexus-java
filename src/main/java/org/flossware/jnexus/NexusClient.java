@@ -23,17 +23,74 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * HTTP client for interacting with the Nexus Repository Manager REST API.
  * <p>
- * This class provides methods to list and delete components from Nexus repositories.
- * It uses Java's built-in {@link HttpClient} for HTTP communication and handles
- * authentication using HTTP Basic Auth.
+ * This class provides low-level HTTP operations for the Nexus REST API, including
+ * listing, searching, and deleting components. It uses Java 21's built-in {@link HttpClient}
+ * for HTTP communication and handles authentication using HTTP Basic Auth.
  * </p>
+ *
+ * <h2>Key Features:</h2>
+ * <ul>
+ *   <li><strong>Automatic Pagination</strong> - Transparently follows continuation tokens to retrieve all results</li>
+ *   <li><strong>Smart Caching</strong> - 5-minute TTL cache with configurable duration and manual control</li>
+ *   <li><strong>Retry Logic</strong> - Exponential backoff with configurable attempts and delays</li>
+ *   <li><strong>Type Safety</strong> - Exception type checking before message parsing for robust error handling</li>
+ *   <li><strong>Metadata Support</strong> - Full component metadata extraction including dates and checksums</li>
+ * </ul>
+ *
+ * <h2>Usage Examples:</h2>
+ * <pre>
+ * // Basic usage with default settings
+ * Credentials credentials = new Credentials();
+ * NexusClient client = new NexusClient(credentials);
+ *
+ * // List components (uses cache)
+ * List&lt;RepoRecord&gt; components = client.listComponents("maven-releases");
+ *
+ * // Force refresh (bypass cache)
+ * List&lt;RepoRecord&gt; fresh = client.listComponents("maven-releases", true);
+ *
+ * // List with metadata
+ * List&lt;ComponentMetadata&gt; metadata = client.listComponentsWithMetadata("maven-releases");
+ *
+ * // Delete a component
+ * client.deleteComponent("component-id");
+ *
+ * // Cache management
+ * boolean cached = client.isCached("maven-releases");
+ * long age = client.getCacheAge("maven-releases");
+ * client.clearCache("maven-releases");
+ * client.clearAllCache();
+ *
+ * // Custom cache TTL (10 minutes)
+ * NexusClient customClient = new NexusClient(credentials, 600);
+ *
+ * // Disable caching (TTL = 0)
+ * NexusClient nocacheClient = new NexusClient(credentials, 0);
+ * </pre>
+ *
+ * <h2>Configuration:</h2>
  * <p>
- * The client automatically handles pagination when listing components, following
- * continuation tokens provided by the Nexus API.
+ * Client behavior is configured via {@link Credentials}:
+ * </p>
+ * <ul>
+ *   <li><strong>HTTP Timeout</strong> - Connection timeout in seconds (default: 30)</li>
+ *   <li><strong>Max Retries</strong> - Maximum retry attempts for failed requests (default: 3)</li>
+ *   <li><strong>Retry Delay</strong> - Initial retry delay with exponential backoff (default: 1000ms)</li>
+ *   <li><strong>Cache TTL</strong> - Time-to-live for cached results (default: 300s)</li>
+ * </ul>
+ *
+ * <h2>Thread Safety:</h2>
+ * <p>
+ * This class is thread-safe. The cache uses {@link java.util.concurrent.ConcurrentHashMap}
+ * for concurrent access, and the {@link HttpClient} is thread-safe by design.
  * </p>
  *
  * @author sfloess
  * @since 1.0
+ * @see Credentials
+ * @see NexusService
+ * @see RepoRecord
+ * @see ComponentMetadata
  */
 public class NexusClient {
     private static final Logger logger = LoggerFactory.getLogger(NexusClient.class);
