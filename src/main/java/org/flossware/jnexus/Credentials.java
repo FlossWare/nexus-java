@@ -191,11 +191,24 @@ public class Credentials {
             this.repositories = Collections.emptyList();
         }
 
-        // Load optional HTTP configuration
+        // Load optional HTTP configuration with validation
         String timeoutEnv = System.getenv("NEXUS_HTTP_TIMEOUT");
         String timeoutProp = props.getProperty("nexus.http.timeout.seconds");
         String timeoutStr = timeoutEnv != null ? timeoutEnv : timeoutProp;
-        this.httpTimeoutSeconds = timeoutStr != null ? Integer.parseInt(timeoutStr) : 30;
+
+        int timeout = 30; // default
+        if (timeoutStr != null) {
+            try {
+                timeout = Integer.parseInt(timeoutStr);
+                if (timeout <= 0) {
+                    System.err.println("Warning: HTTP timeout must be positive. Using default: 30 seconds");
+                    timeout = 30;
+                }
+            } catch (NumberFormatException e) {
+                System.err.println("Warning: Invalid HTTP timeout value '" + timeoutStr + "'. Using default: 30 seconds");
+            }
+        }
+        this.httpTimeoutSeconds = timeout;
     }
 
     /**
