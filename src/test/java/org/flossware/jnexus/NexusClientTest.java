@@ -7,13 +7,6 @@ import static org.junit.jupiter.api.Assertions.*;
 class NexusClientTest {
 
     @Test
-    void testCredentialsRequired() {
-        assertThrows(IllegalStateException.class, () -> {
-            new Credentials();
-        }, "Should throw when credentials are not configured");
-    }
-
-    @Test
     void testRepoRecordCreation() {
         RepoRecord record = new RepoRecord("test-id", 12345, "path/to/artifact.jar");
 

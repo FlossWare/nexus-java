@@ -141,6 +141,9 @@ public class NexusClient {
      * @throws InterruptedException if the operation is interrupted
      */
     public List<RepoRecord> listComponents(String repository, boolean forceRefresh) throws IOException, InterruptedException {
+        // Validate repository name
+        Credentials.validateRepository(repository);
+
         // Check cache if not forcing refresh and caching is enabled
         if (!forceRefresh && cacheTtlSeconds > 0) {
             CacheEntry entry = cache.get(repository);
@@ -209,6 +212,9 @@ public class NexusClient {
      * @throws InterruptedException if the operation is interrupted
      */
     public List<ComponentMetadata> listComponentsWithMetadata(String repository, boolean forceRefresh) throws IOException, InterruptedException {
+        // Validate repository name
+        Credentials.validateRepository(repository);
+
         // Check cache if not forcing refresh and caching is enabled
         if (!forceRefresh && cacheTtlSeconds > 0) {
             MetadataCacheEntry entry = metadataCache.get(repository);
@@ -552,6 +558,9 @@ public class NexusClient {
      * @param repository the name of the repository to clear from cache
      */
     public void clearCache(String repository) {
+        // Validate repository name
+        Credentials.validateRepository(repository);
+
         cache.remove(repository);
         metadataCache.remove(repository);
         logger.debug("Cache cleared for repository: {}", repository);
@@ -574,6 +583,9 @@ public class NexusClient {
      * @return true if cache contains valid data, false otherwise
      */
     public boolean isCached(String repository) {
+        // Validate repository name
+        Credentials.validateRepository(repository);
+
         if (cacheTtlSeconds == 0) return false;
         CacheEntry entry = cache.get(repository);
         return entry != null && !entry.isExpired(cacheTtlSeconds);
@@ -586,6 +598,9 @@ public class NexusClient {
      * @return cache age in seconds, or -1 if not cached
      */
     public long getCacheAge(String repository) {
+        // Validate repository name
+        Credentials.validateRepository(repository);
+
         CacheEntry entry = cache.get(repository);
         if (entry == null) return -1;
         return Duration.between(entry.timestamp(), Instant.now()).getSeconds();

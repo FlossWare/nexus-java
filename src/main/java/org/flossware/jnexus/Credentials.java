@@ -2,6 +2,9 @@ package org.flossware.jnexus;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -9,6 +12,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -101,6 +105,9 @@ public class Credentials {
             throw new IllegalArgumentException("Password cannot be null or blank");
         }
 
+        // Validate URL format and security
+        validateUrl(url);
+
         this.url = url;
         this.user = user;
         this.password = password;
@@ -171,6 +178,13 @@ public class Credentials {
             );
         }
 
+        // Validate URL format and security
+        try {
+            validateUrl(url);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalStateException("Invalid Nexus URL: " + e.getMessage(), e);
+        }
+
         this.url = url;
         this.user = user;
         this.password = password;
@@ -209,6 +223,90 @@ public class Credentials {
             }
         }
         this.httpTimeoutSeconds = timeout;
+    }
+
+    /**
+     * Validates a Nexus server URL.
+     * <p>
+     * Checks that the URL:
+     * - Is not null or blank
+     * - Is a valid URI/URL format
+     * - Uses HTTP or HTTPS scheme
+     * - Has a valid hostname
+     * - Warns if using HTTP instead of HTTPS (security risk)
+     * </p>
+     *
+     * @param url the URL to validate
+     * @throws IllegalArgumentException if the URL is invalid
+     */
+    private static void validateUrl(String url) {
+        if (url == null || url.isBlank()) {
+            throw new IllegalArgumentException("URL cannot be null or blank");
+        }
+
+        try {
+            URI uri = new URI(url);
+
+            // Validate scheme
+            String scheme = uri.getScheme();
+            if (scheme == null) {
+                throw new IllegalArgumentException("URL must include a scheme (http:// or https://): " + url);
+            }
+            if (!scheme.equalsIgnoreCase("http") && !scheme.equalsIgnoreCase("https")) {
+                throw new IllegalArgumentException("URL scheme must be http or https: " + url);
+            }
+
+            // Validate hostname
+            String host = uri.getHost();
+            if (host == null || host.isBlank()) {
+                throw new IllegalArgumentException("URL must include a hostname: " + url);
+            }
+
+            // Warn about HTTP (not HTTPS)
+            if (scheme.equalsIgnoreCase("http")) {
+                System.err.println("WARNING: Using HTTP instead of HTTPS. Credentials will be sent over an insecure connection.");
+                System.err.println("         Consider using HTTPS for production environments.");
+            }
+
+        } catch (URISyntaxException e) {
+            throw new IllegalArgumentException("Invalid URL format: " + url + " - " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Validates a repository name.
+     * <p>
+     * Repository names must:
+     * - Not be null or blank
+     * - Only contain alphanumeric characters, hyphens, underscores, and dots
+     * - Not contain path traversal sequences (../)
+     * - Not start or end with special characters
+     * </p>
+     *
+     * @param repository the repository name to validate
+     * @throws IllegalArgumentException if the repository name is invalid
+     */
+    public static void validateRepository(String repository) {
+        if (repository == null || repository.isBlank()) {
+            throw new IllegalArgumentException("Repository name cannot be null or blank");
+        }
+
+        // Check for path traversal
+        if (repository.contains("..") || repository.contains("/") || repository.contains("\\")) {
+            throw new IllegalArgumentException("Repository name cannot contain path traversal sequences or slashes: " + repository);
+        }
+
+        // Check for valid characters (alphanumeric, hyphen, underscore, dot)
+        Pattern validPattern = Pattern.compile("^[a-zA-Z0-9._-]+$");
+        if (!validPattern.matcher(repository).matches()) {
+            throw new IllegalArgumentException("Repository name can only contain alphanumeric characters, dots, hyphens, and underscores: " + repository);
+        }
+
+        // Check for leading/trailing special characters
+        if (repository.startsWith(".") || repository.startsWith("-") || repository.startsWith("_") ||
+            repository.endsWith(".") || repository.endsWith("-") || repository.endsWith("_")) {
+            throw new IllegalArgumentException("Repository name cannot start or end with special characters: " + repository);
+        }
     }
 
     /**
