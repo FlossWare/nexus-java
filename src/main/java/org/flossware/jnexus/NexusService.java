@@ -155,6 +155,7 @@ public class NexusService {
             int deleted = 0;
             int total = recordsToDelete.size();
             boolean showProgress = total > 10; // Show progress for >10 components
+            List<String> failures = new ArrayList<>();
 
             for (RepoRecord record : recordsToDelete) {
                 try {
@@ -167,10 +168,20 @@ public class NexusService {
                             deleted, total, (deleted * 100.0 / total));
                     }
                 } catch (IOException e) {
-                    logger.error("Failed to delete {}: {}", record.path(), safeExceptionMessage(e));
+                    String errorMsg = safeExceptionMessage(e);
+                    failures.add(record.path() + " - " + errorMsg);
+                    logger.error("Failed to delete {}: {}", record.path(), errorMsg);
                 }
             }
+
             System.out.println("\nDeleted " + deleted + " of " + recordsToDelete.size() + " components");
+
+            if (!failures.isEmpty()) {
+                System.err.println("\n⚠ WARNING: " + failures.size() + " component(s) failed to delete:");
+                for (String failure : failures) {
+                    System.err.println("  - " + failure);
+                }
+            }
 
             // Clear ALL cache after deletion to prevent stale "All" repository cache
             client.clearAllCache();
