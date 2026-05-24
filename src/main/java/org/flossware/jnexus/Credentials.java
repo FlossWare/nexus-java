@@ -64,6 +64,9 @@ public class Credentials {
     private final int maxRetries;
     private final long initialRetryDelayMs;
 
+    // Optional logging configuration
+    private final String logLevel;
+
     // Profile used for loading configuration
     private final String profile;
 
@@ -133,6 +136,10 @@ public class Credentials {
         this.httpTimeoutSeconds = 30;
         this.maxRetries = 3;
         this.initialRetryDelayMs = 1000;
+        this.logLevel = "INFO";
+
+        // Set system property for logback
+        System.setProperty("nexus.log.level", this.logLevel);
     }
 
     /**
@@ -264,6 +271,27 @@ public class Credentials {
             }
         }
         this.initialRetryDelayMs = delay;
+
+        // Load optional logging configuration
+        String logLevelEnv = System.getenv("NEXUS_LOG_LEVEL");
+        String logLevelProp = props.getProperty("nexus.log.level");
+        String logLevelStr = logLevelEnv != null ? logLevelEnv : logLevelProp;
+
+        String level = "INFO"; // default
+        if (logLevelStr != null) {
+            String upperLevel = logLevelStr.toUpperCase();
+            if (upperLevel.equals("TRACE") || upperLevel.equals("DEBUG") ||
+                upperLevel.equals("INFO") || upperLevel.equals("WARN") ||
+                upperLevel.equals("ERROR") || upperLevel.equals("OFF")) {
+                level = upperLevel;
+            } else {
+                System.err.println("Warning: Invalid log level '" + logLevelStr + "'. Valid values: TRACE, DEBUG, INFO, WARN, ERROR, OFF. Using default: INFO");
+            }
+        }
+        this.logLevel = level;
+
+        // Set system property for logback to pick up
+        System.setProperty("nexus.log.level", this.logLevel);
     }
 
     /**
@@ -476,6 +504,15 @@ public class Credentials {
     }
 
     /**
+     * Gets the configured log level.
+     *
+     * @return the log level (TRACE, DEBUG, INFO, WARN, ERROR, or OFF; default: INFO)
+     */
+    public String getLogLevel() {
+        return logLevel;
+    }
+
+    /**
      * Gets the active profile name.
      *
      * @return the profile name, or null if using default configuration
@@ -533,6 +570,10 @@ public class Credentials {
 
         if (initialRetryDelayMs != 1000) {
             props.setProperty("nexus.http.retry.delay.ms", String.valueOf(initialRetryDelayMs));
+        }
+
+        if (!logLevel.equals("INFO")) {
+            props.setProperty("nexus.log.level", logLevel);
         }
 
         try (java.io.OutputStream output = Files.newOutputStream(configPath)) {

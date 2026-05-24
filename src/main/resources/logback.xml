@@ -7,19 +7,31 @@
         </encoder>
     </appender>
 
-    <!-- Console appender for debug messages (when verbose mode is enabled) -->
-    <appender name="DEBUG" class="ch.qos.logback.core.ConsoleAppender">
+    <!-- Console appender for structured messages (INFO and above) -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
-            <pattern>[DEBUG] %logger{36} - %msg%n</pattern>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
         </encoder>
     </appender>
 
-    <!-- Root logger - default to INFO level -->
-    <root level="INFO">
+    <!-- Console appender for debug messages -->
+    <appender name="DEBUG" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>[%d{HH:mm:ss.SSS}] [DEBUG] %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- Support environment variable and system property for log level -->
+    <!-- Priority: 1. NEXUS_LOG_LEVEL env var, 2. nexus.log.level system property, 3. INFO default -->
+    <variable name="LOG_LEVEL" value="${NEXUS_LOG_LEVEL:-${nexus.log.level:-INFO}}" />
+
+    <!-- Root logger - uses configurable log level -->
+    <root level="${LOG_LEVEL}">
         <appender-ref ref="STDOUT" />
     </root>
 
-    <!-- Fine-tune specific loggers -->
-    <logger name="org.flossware.jnexus.NexusClient" level="INFO" />
-    <logger name="org.flossware.jnexus.NexusService" level="INFO" />
+    <!-- Fine-tune specific loggers (can be overridden by root level) -->
+    <logger name="org.flossware.jnexus" level="${LOG_LEVEL}" additivity="false">
+        <appender-ref ref="STDOUT" />
+    </logger>
 </configuration>

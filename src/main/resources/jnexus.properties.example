@@ -26,3 +26,17 @@ nexus.password=your-password-or-token
 # Optional: HTTP connection timeout in seconds (default: 30)
 # Can also be set via NEXUS_HTTP_TIMEOUT environment variable
 #nexus.http.timeout.seconds=30
+
+# Optional: Maximum number of retry attempts for failed HTTP requests (default: 3, range: 0-10)
+# Can also be set via NEXUS_MAX_RETRIES environment variable
+#nexus.http.max.retries=3
+
+# Optional: Initial retry delay in milliseconds for exponential backoff (default: 1000, range: 0-60000)
+# Delay doubles with each retry: 1s, 2s, 4s, 8s, etc.
+# Can also be set via NEXUS_RETRY_DELAY_MS environment variable
+#nexus.http.retry.delay.ms=1000
+
+# Optional: Log level (default: INFO)
+# Valid values: TRACE, DEBUG, INFO, WARN, ERROR, OFF
+# Can also be set via NEXUS_LOG_LEVEL environment variable
+#nexus.log.level=INFO
