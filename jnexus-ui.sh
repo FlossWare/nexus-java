@@ -2,12 +2,16 @@
 # JNexus UI - Terminal interface for Nexus Repository Manager
 # Requires: ncurses library installed (libncurses-dev on Debian/Ubuntu)
 
-# Check if JAR exists
-JAR="target/jnexus-1.0-jar-with-dependencies.jar"
-if [ ! -f "$JAR" ]; then
+# Find the latest JAR (handles version updates automatically)
+JAR=$(ls -t target/jnexus-*-jar-with-dependencies.jar 2>/dev/null | head -1)
+
+if [ -z "$JAR" ] || [ ! -f "$JAR" ]; then
     echo "Building project..."
     ./mvnw clean package -DskipTests
+    JAR=$(ls -t target/jnexus-*-jar-with-dependencies.jar 2>/dev/null | head -1)
 fi
+
+echo "Using JAR: $JAR"
 
 # Run the UI with preview features and native access enabled
 exec java --enable-preview --enable-native-access=ALL-UNNAMED \
