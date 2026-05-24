@@ -284,10 +284,10 @@ public class NexusClient {
             } catch (IOException e) {
                 lastException = e;
                 if (attempt < maxRetries && isRetryable(e)) {
-                    long delay = initialRetryDelayMs * (1L << (attempt - 1)); // Exponential backoff
+                    long delay = initialRetryDelayMs * (1L << (attempt - 1));
                     logger.warn("Request failed (attempt {}/{}): {}. Retrying in {}ms...",
                         attempt, maxRetries, safeExceptionMessage(e), delay);
-                    Thread.sleep(delay);
+                    sleepWithExponentialBackoff(attempt);
                 } else {
                     break;
                 }
@@ -328,10 +328,10 @@ public class NexusClient {
             } catch (IOException e) {
                 lastException = e;
                 if (attempt < maxRetries && isRetryable(e)) {
-                    long delay = initialRetryDelayMs * (1L << (attempt - 1)); // Exponential backoff
+                    long delay = initialRetryDelayMs * (1L << (attempt - 1));
                     logger.warn("Request failed (attempt {}/{}): {}. Retrying in {}ms...",
                         attempt, maxRetries, safeExceptionMessage(e), delay);
-                    Thread.sleep(delay);
+                    sleepWithExponentialBackoff(attempt);
                 } else {
                     break;
                 }
@@ -350,6 +350,25 @@ public class NexusClient {
     private String safeExceptionMessage(Exception e) {
         String message = e.getMessage();
         return message != null ? message : e.getClass().getSimpleName();
+    }
+
+    /**
+     * Calculates exponential backoff delay and sleeps.
+     * <p>
+     * This is a synchronous blocking operation intended for retry logic.
+     * The delay doubles with each retry attempt: initialDelay, 2×initialDelay, 4×initialDelay, etc.
+     * </p>
+     * <p>
+     * This method respects thread interruption - if interrupted during sleep, InterruptedException
+     * is propagated to the caller immediately.
+     * </p>
+     *
+     * @param attempt the current retry attempt number (1-based)
+     * @throws InterruptedException if the sleep is interrupted
+     */
+    private void sleepWithExponentialBackoff(int attempt) throws InterruptedException {
+        long delay = initialRetryDelayMs * (1L << (attempt - 1)); // Exponential backoff: delay * 2^(attempt-1)
+        Thread.sleep(delay);
     }
 
     /**
