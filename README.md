@@ -646,6 +646,72 @@ The `./ci/rev-version.sh` script will:
 4. Create a git tag (e.g., `v1.1`)
 5. Push changes and tag to remote
 
+## Security
+
+### Important Security Notes
+
+**Desktop Application Credential Storage:**
+
+The desktop application stores credentials in **plaintext** in `~/.flossware/nexus/nexus.properties`. This is a known limitation.
+
+**Required Security Measures:**
+
+1. **Always use HTTPS** (not HTTP) for Nexus URLs
+   ```bash
+   # Good
+   nexus.url=https://nexus.example.com
+   
+   # Bad - credentials sent in cleartext!
+   nexus.url=http://nexus.example.com
+   ```
+
+2. **Protect your credentials file**:
+   ```bash
+   chmod 600 ~/.flossware/nexus/nexus.properties
+   ```
+
+3. **Use Nexus user tokens instead of passwords**:
+   - Nexus UI → User → Profile → User Token
+   - Use the generated token as your password
+
+4. **For automation/CI/CD, use environment variables**:
+   ```bash
+   export NEXUS_URL="https://nexus.example.com"
+   export NEXUS_USER="your-username"
+   export NEXUS_PASSWORD="your-token"
+   ```
+
+5. **Never commit credentials to version control**:
+   ```bash
+   # Add to .gitignore
+   .flossware/
+   nexus.properties
+   ```
+
+**Mobile Applications (Secure Storage):**
+
+- **Android**: Credentials encrypted with AES256_GCM via EncryptedSharedPreferences
+- **iOS/macOS**: Credentials encrypted with AES-256 hardware-backed Keychain
+
+### Security Best Practices
+
+- ✅ Always test deletions with `--dry-run` first
+- ✅ Use dedicated Nexus users with minimum required permissions
+- ✅ Rotate credentials regularly
+- ✅ Review Nexus audit logs periodically
+- ✅ Keep JNexus and Java updated with latest security patches
+- ❌ Never use admin credentials for automated cleanup
+- ❌ Never commit credentials to version control
+- ❌ Never disable HTTPS certificate validation
+
+### Reporting Security Issues
+
+If you discover a security vulnerability, please **DO NOT** open a public issue.
+
+Email: sfloess@redhat.com
+
+See [SECURITY.md](SECURITY.md) for complete security documentation.
+
 ## License
 
 Licensed under the Apache License 2.0. See LICENSE file for details.
