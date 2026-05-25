@@ -9,9 +9,11 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.URI;
+import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
@@ -218,13 +220,14 @@ public class NexusClient {
         // Cache miss or expired - fetch from server
         logger.debug("Cache MISS for repository: {} - fetching from server", repository);
         List<RepoRecord> records = new LinkedList<>();
-        String url = baseUrl + "/service/rest/v1/components?repository=" + repository;
+        String encodedRepository = URLEncoder.encode(repository, StandardCharsets.UTF_8);
+        String url = baseUrl + "/service/rest/v1/components?repository=" + encodedRepository;
         String continuationToken = null;
 
         do {
             String fetchUrl = continuationToken == null
                 ? url
-                : url + "&continuationToken=" + continuationToken;
+                : url + "&continuationToken=" + URLEncoder.encode(continuationToken, StandardCharsets.UTF_8);
 
             ComponentsResponse response = fetchComponents(fetchUrl);
             records.addAll(response.records());
@@ -289,13 +292,14 @@ public class NexusClient {
         // Cache miss or expired - fetch from server
         logger.debug("Metadata cache MISS for repository: {} - fetching from server", repository);
         List<ComponentMetadata> records = new LinkedList<>();
-        String url = baseUrl + "/service/rest/v1/components?repository=" + repository;
+        String encodedRepository = URLEncoder.encode(repository, StandardCharsets.UTF_8);
+        String url = baseUrl + "/service/rest/v1/components?repository=" + encodedRepository;
         String continuationToken = null;
 
         do {
             String fetchUrl = continuationToken == null
                 ? url
-                : url + "&continuationToken=" + continuationToken;
+                : url + "&continuationToken=" + URLEncoder.encode(continuationToken, StandardCharsets.UTF_8);
 
             ComponentsMetadataResponse response = fetchComponentsWithMetadata(fetchUrl);
             records.addAll(response.records());
