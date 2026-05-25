@@ -14,6 +14,8 @@ import java.util.List;
 import java.util.Properties;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Manages Nexus repository credentials and configuration.
@@ -89,6 +91,24 @@ import java.util.stream.Collectors;
  * export NEXUS_PROFILE=staging
  * # Loads ~/.flossware/nexus/nexus-staging.properties
  * </pre>
+ *
+ * <h2>Password Encryption:</h2>
+ * <p>
+ * Starting in version 1.30, passwords are automatically encrypted using AES-256-GCM
+ * when saved to properties files. Key features:
+ * </p>
+ * <ul>
+ *   <li><strong>Automatic encryption</strong>: Passwords are encrypted on save</li>
+ *   <li><strong>Automatic decryption</strong>: Encrypted passwords are transparently decrypted on load</li>
+ *   <li><strong>Backward compatibility</strong>: Existing plaintext passwords still work and are auto-migrated on next save</li>
+ *   <li><strong>Machine-specific keys</strong>: Encryption keys derived from hostname and user home directory</li>
+ *   <li><strong>Non-portable</strong>: Encrypted credentials cannot be copied to other machines</li>
+ * </ul>
+ * <p>
+ * <strong>Security note:</strong> While encrypted passwords are more secure than plaintext,
+ * environment variables (NEXUS_PASSWORD) remain the most secure option for sensitive environments
+ * as they never touch disk.
+ * </p>
  *
  * <h2>Usage Examples:</h2>
  * <pre>
@@ -172,6 +192,9 @@ public class Credentials {
 
     // Profile used for loading configuration
     private final String profile;
+
+    // Logging
+    private static final Logger logger = LoggerFactory.getLogger(Credentials.class);
 
     /**
      * Constructs a new Credentials instance by loading configuration from
@@ -268,7 +291,26 @@ public class Credentials {
             props = loadPropertiesFile();
             url = props.getProperty("nexus.url", url);
             user = props.getProperty("nexus.user", user);
-            password = props.getProperty("nexus.password", password);
+
+            // Load and decrypt password if encrypted
+            String rawPassword = props.getProperty("nexus.password", password);
+            if (rawPassword != null && CredentialEncryption.isEncrypted(rawPassword)) {
+                try {
+                    CredentialEncryption encryption = new CredentialEncryption();
+                    password = encryption.decrypt(rawPassword);
+                    logger.debug("Successfully decrypted password from properties file");
+                } catch (Exception e) {
+                    logger.error("Failed to decrypt password - credentials may be corrupted or from a different machine", e);
+                    throw new IllegalStateException(
+                        "Failed to decrypt password. Credentials may be corrupted or created on a different machine. " +
+                        "Delete ~/.flossware/nexus/nexus.properties and reconfigure.", e);
+                }
+            } else {
+                password = rawPassword;
+                if (password != null) {
+                    logger.warn("Password is stored in plaintext - will be encrypted on next save");
+                }
+            }
         } else {
             // Even if env vars are set, load properties for optional UI defaults
             props = loadPropertiesFile();
@@ -647,7 +689,12 @@ public class Credentials {
         Properties props = new Properties();
         props.setProperty("nexus.url", url);
         props.setProperty("nexus.user", user);
-        props.setProperty("nexus.password", password);
+
+        // Encrypt password before saving
+        CredentialEncryption encryption = new CredentialEncryption();
+        String encryptedPassword = encryption.encrypt(password);
+        props.setProperty("nexus.password", encryptedPassword);
+        logger.info("Password encrypted using AES-256-GCM before saving to properties file");
 
         if (!repositories.isEmpty()) {
             props.setProperty("nexus.repositories", String.join(",", repositories));

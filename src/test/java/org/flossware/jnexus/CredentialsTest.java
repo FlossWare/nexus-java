@@ -687,7 +687,16 @@ class CredentialsTest {
 
         assertEquals("https://nexus.example.com", props.getProperty("nexus.url"));
         assertEquals("testuser", props.getProperty("nexus.user"));
-        assertEquals("testpass", props.getProperty("nexus.password"));
+
+        // Password should be encrypted
+        String encryptedPassword = props.getProperty("nexus.password");
+        assertTrue(CredentialEncryption.isEncrypted(encryptedPassword), "Password should be encrypted");
+
+        // Decrypt and verify
+        CredentialEncryption encryption = new CredentialEncryption();
+        String decryptedPassword = encryption.decrypt(encryptedPassword);
+        assertEquals("testpass", decryptedPassword, "Decrypted password should match original");
+
         assertEquals("maven-releases,npm-public", props.getProperty("nexus.repositories"));
         assertEquals("true", props.getProperty("nexus.default.dryrun"));
     }
@@ -716,7 +725,15 @@ class CredentialsTest {
 
         assertEquals("https://dev.nexus.example.com", props.getProperty("nexus.url"));
         assertEquals("devuser", props.getProperty("nexus.user"));
-        assertEquals("devpass", props.getProperty("nexus.password"));
+
+        // Password should be encrypted
+        String encryptedPassword = props.getProperty("nexus.password");
+        assertTrue(CredentialEncryption.isEncrypted(encryptedPassword), "Password should be encrypted");
+
+        // Decrypt and verify
+        CredentialEncryption encryption = new CredentialEncryption();
+        String decryptedPassword = encryption.decrypt(encryptedPassword);
+        assertEquals("devpass", decryptedPassword, "Decrypted password should match original");
         assertEquals("maven-snapshots", props.getProperty("nexus.repositories"));
     }
 
@@ -797,7 +814,16 @@ class CredentialsTest {
 
         assertEquals("https://new.nexus.example.com", props.getProperty("nexus.url"));
         assertEquals("newuser", props.getProperty("nexus.user"));
-        assertEquals("newpass", props.getProperty("nexus.password"));
+
+        // Password should be encrypted
+        String encryptedPassword = props.getProperty("nexus.password");
+        assertTrue(CredentialEncryption.isEncrypted(encryptedPassword), "Password should be encrypted");
+
+        // Decrypt and verify
+        CredentialEncryption encryption = new CredentialEncryption();
+        String decryptedPassword = encryption.decrypt(encryptedPassword);
+        assertEquals("newpass", decryptedPassword, "Decrypted password should match original");
+
         assertEquals("new-repo", props.getProperty("nexus.repositories"));
     }
 }
