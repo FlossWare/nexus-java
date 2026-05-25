@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Performance: Reuse thread pool for regex validation** - Fixes Issue #53
+  - **Problem**: validateRegex() created a new ExecutorService for every regex validation
+    - Creating thread pool is expensive (~1-10ms overhead per validation)
+    - Each executor created a new thread (resource wasteful)
+    - Called for every list/search/delete operation with regex filter
+    - Poor design: creating/destroying resources unnecessarily
+  - **Solution**: Use static shared ExecutorService with daemon thread
+    - Static REGEX_VALIDATOR executor created once at class load
+    - Single daemon thread named "jnexus-regex-validator"
+    - Reused across all regex validations (no per-call overhead)
+    - Daemon thread doesn't block JVM shutdown
+    - No shutdown needed - executor stays alive for application lifetime
+  - **Impact**: Better performance, reduced resource usage, cleaner design
+  - **Location**: NexusService.java (desktop and jnexus-core modules)
+
 ### Added
 - **iOS: Complete unit test implementation** - Fixes Issue #48
   - **Problem**: All 8 tests in NexusClientURLSessionTests.swift were TODO stubs (0% coverage)

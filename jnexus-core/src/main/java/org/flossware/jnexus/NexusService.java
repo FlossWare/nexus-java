@@ -25,6 +25,20 @@ import java.util.stream.Collectors;
 public class NexusService {
     private static final Logger logger = LoggerFactory.getLogger(NexusService.class);
 
+    /**
+     * Shared executor for regex validation with timeout (ReDoS prevention).
+     * <p>
+     * Using a static executor avoids creating a new thread pool for each validation.
+     * Daemon thread ensures it doesn't block JVM shutdown.
+     * </p>
+     */
+    private static final java.util.concurrent.ExecutorService REGEX_VALIDATOR =
+        java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
+            Thread t = new Thread(r, "jnexus-regex-validator");
+            t.setDaemon(true);
+            return t;
+        });
+
     private final NexusHttpClient client;
 
     /**
@@ -62,8 +76,7 @@ public class NexusService {
         // Test for catastrophic backtracking (ReDoS prevention)
         // Try matching against a long string that could trigger exponential behavior
         String testString = "a".repeat(10000);
-        java.util.concurrent.ExecutorService executor = java.util.concurrent.Executors.newSingleThreadExecutor();
-        java.util.concurrent.Future<Boolean> future = executor.submit(() -> {
+        java.util.concurrent.Future<Boolean> future = REGEX_VALIDATOR.submit(() -> {
             try {
                 pattern.matcher(testString).find();
                 return true;
@@ -77,16 +90,12 @@ public class NexusService {
             future.get(1, java.util.concurrent.TimeUnit.SECONDS);
         } catch (java.util.concurrent.TimeoutException e) {
             future.cancel(true);
-            executor.shutdownNow();
             throw new IllegalArgumentException(
                 "Regex pattern is too complex and may cause performance issues. " +
                 "Avoid nested quantifiers like (a+)+ or (a*)* which can cause exponential backtracking."
             );
         } catch (Exception e) {
-            executor.shutdownNow();
             throw new IllegalArgumentException("Error testing regex pattern: " + e.getMessage(), e);
-        } finally {
-            executor.shutdown();
         }
     }
 
