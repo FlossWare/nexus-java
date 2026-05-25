@@ -8,6 +8,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **i18n/l10n: Internationalization and localization support** - Fixes Issue #45
+  - **Resource bundles** for 4 languages (100+ message keys each):
+    - messages.properties (English - default)
+    - messages_es.properties (Spanish / Español)
+    - messages_fr.properties (French / Français)
+    - messages_de.properties (German / Deutsch)
+  - **Messages utility class** (Messages.java):
+    - Automatic locale detection from JNEXUS_LANG environment variable or system default
+    - ResourceBundle loading with English fallback
+    - Message formatting with MessageFormat for parameters
+    - Locale switching at runtime with setLocale()
+    - Validation of supported locales (throws exception for unsupported)
+    - getAvailableLocales() returns all 4 supported languages
+  - **Comprehensive coverage**:
+    - UI labels, buttons, menus (dialog.title.*, button.*, menu.*)
+    - Status and error messages (status.*, error.*)
+    - Tooltips and help text (tooltip.*, shortcuts.*)
+    - Table columns and statistics (table.column.*, stats.*)
+    - Dialogs and confirmations (dialog.*)
+  - **Testing**: MessagesTest (12 tests) verifies all locales and message loading
+  - **Total**: 304 tests passing (292 existing + 12 new)
+  - **Next steps**: Refactor Java UIs (JNexus, JNexusSwing, JNexusAWT, JNexusUI) to use Messages.get()
+  - **Android/iOS**: Requires separate implementation (strings.xml / Localizable.strings)
+  - **Usage**: Set JNEXUS_LANG=es (or fr, de) environment variable to change language
+
 - **Testing: UI test coverage for all GUI classes** - Fixes Issue #38
   - **JNexusSwingTest** (17 tests): Comprehensive Swing GUI testing in headless mode
     - Component creation (input panel, button panel, results panel, status panel, advanced filters)
