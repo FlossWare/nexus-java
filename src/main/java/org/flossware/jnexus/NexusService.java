@@ -78,14 +78,14 @@ import java.util.stream.Collectors;
 public class NexusService {
     private static final Logger logger = LoggerFactory.getLogger(NexusService.class);
 
-    private final NexusClient client;
+    private final NexusHttpClient client;
 
     /**
      * Constructs a new NexusService with the specified client.
      *
-     * @param client the NexusClient to use for HTTP operations
+     * @param client the NexusHttpClient to use for HTTP operations
      */
-    public NexusService(NexusClient client) {
+    public NexusService(NexusHttpClient client) {
         this.client = client;
     }
 
