@@ -29,7 +29,26 @@ You can expect:
 
 **Desktop Application:**
 
-The desktop application stores credentials in **plaintext** in `~/.flossware/nexus/nexus.properties`. This is a known limitation.
+Starting in **version 1.30**, the desktop application **encrypts passwords** using AES-256-GCM when stored in `~/.flossware/nexus/nexus.properties`.
+
+**Encryption Details:**
+- **Algorithm**: AES-256-GCM (authenticated encryption)
+- **Key Derivation**: PBKDF2-HMAC-SHA256 with 100,000 iterations
+- **Key Material**: Derived from hostname + user home directory (machine-specific)
+- **IV**: Random 12-byte IV per encryption
+- **Authentication**: 128-bit GCM authentication tag
+- **Encoding**: Base64 for storage in properties files
+
+**Automatic Behavior:**
+- Passwords are automatically encrypted when saving credentials
+- Existing plaintext passwords are auto-migrated to encrypted format on next save
+- Encrypted passwords are transparently decrypted when loading
+
+**Important Limitations:**
+- Encrypted credentials are machine-specific (tied to hostname and user home directory)
+- Cannot copy encrypted credentials to other machines
+- Changing hostname or user home directory invalidates encrypted credentials
+- If credentials become corrupted, delete `~/.flossware/nexus/nexus.properties` and reconfigure
 
 **Security recommendations:**
 
@@ -66,13 +85,26 @@ The desktop application stores credentials in **plaintext** in `~/.flossware/nex
    ~/.flossware/nexus/nexus-prod.properties
    ```
 
-**Android/iOS Applications:**
+**All Platforms Credential Encryption:**
 
-The mobile applications use encrypted credential storage:
-- **Android**: AES256_GCM encryption via EncryptedSharedPreferences
-- **iOS**: AES-256 hardware-backed encryption via Keychain Services
+All platforms now provide encrypted credential storage:
 
-These platforms provide secure credential storage by default.
+- **Desktop (Java v1.30+)**: 
+  - AES-256-GCM encryption with PBKDF2 key derivation
+  - Machine-specific encryption key
+  - Automatic migration from plaintext
+  
+- **Android**: 
+  - AES256_GCM encryption via EncryptedSharedPreferences
+  - Android Keystore for key management
+  - Hardware-backed encryption when available
+  
+- **iOS/macOS**: 
+  - AES-256 hardware-backed encryption via Keychain Services
+  - Secure Enclave integration
+  - System-level credential protection
+
+**Best Practice**: Environment variables remain the most secure option for CI/CD and production environments as they never touch disk.
 
 ### Network Security
 
