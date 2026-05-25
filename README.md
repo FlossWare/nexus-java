@@ -652,14 +652,17 @@ The `./ci/rev-version.sh` script will:
 
 **Desktop Application Credential Storage:**
 
-Starting in **version 1.30**, the desktop application **encrypts passwords** using AES-256-GCM when stored in `~/.flossware/nexus/nexus.properties`.
+Starting in **version 1.30**, the desktop application **encrypts passwords** using [JEncrypt](https://github.com/FlossWare/jencrypt) - a general-purpose AES-256-GCM encryption library - when stored in `~/.flossware/nexus/nexus.properties`.
 
 **Encryption Features:**
-- Passwords automatically encrypted on save
+- Passwords automatically encrypted on save using JEncrypt library
 - Existing plaintext passwords auto-migrated to encrypted format on next save
-- Machine-specific encryption key (credentials tied to hostname and user home directory)
+- Machine-specific encryption key (PBKDF2-HMAC-SHA256 with 100,000 iterations)
+- Credentials tied to hostname and user home directory
 - Cannot copy encrypted credentials to other machines
 - Backward compatible with older JNexus versions (will see encrypted value as-is)
+- Random 12-byte IV per encryption ensures different ciphertexts for same plaintext
+- 128-bit GCM authentication tag prevents tampering
 
 **Note:** While encrypted storage is more secure than plaintext, **environment variables remain the most secure option** for production/CI/CD as they never touch disk.
 

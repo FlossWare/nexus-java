@@ -1,5 +1,6 @@
 package org.flossware.jnexus;
 
+import org.flossware.crypto.AESEncryption;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -690,10 +691,10 @@ class CredentialsTest {
 
         // Password should be encrypted
         String encryptedPassword = props.getProperty("nexus.password");
-        assertTrue(CredentialEncryption.isEncrypted(encryptedPassword), "Password should be encrypted");
+        assertTrue(AESEncryption.isEncrypted(encryptedPassword), "Password should be encrypted");
 
         // Decrypt and verify
-        CredentialEncryption encryption = new CredentialEncryption();
+        AESEncryption encryption = new AESEncryption();
         String decryptedPassword = encryption.decrypt(encryptedPassword);
         assertEquals("testpass", decryptedPassword, "Decrypted password should match original");
 
@@ -728,10 +729,10 @@ class CredentialsTest {
 
         // Password should be encrypted
         String encryptedPassword = props.getProperty("nexus.password");
-        assertTrue(CredentialEncryption.isEncrypted(encryptedPassword), "Password should be encrypted");
+        assertTrue(AESEncryption.isEncrypted(encryptedPassword), "Password should be encrypted");
 
         // Decrypt and verify
-        CredentialEncryption encryption = new CredentialEncryption();
+        AESEncryption encryption = new AESEncryption();
         String decryptedPassword = encryption.decrypt(encryptedPassword);
         assertEquals("devpass", decryptedPassword, "Decrypted password should match original");
         assertEquals("maven-snapshots", props.getProperty("nexus.repositories"));
@@ -817,10 +818,10 @@ class CredentialsTest {
 
         // Password should be encrypted
         String encryptedPassword = props.getProperty("nexus.password");
-        assertTrue(CredentialEncryption.isEncrypted(encryptedPassword), "Password should be encrypted");
+        assertTrue(AESEncryption.isEncrypted(encryptedPassword), "Password should be encrypted");
 
         // Decrypt and verify
-        CredentialEncryption encryption = new CredentialEncryption();
+        AESEncryption encryption = new AESEncryption();
         String decryptedPassword = encryption.decrypt(encryptedPassword);
         assertEquals("newpass", decryptedPassword, "Decrypted password should match original");
 

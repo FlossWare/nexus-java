@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.30] - 2026-05-24
+
+### Changed
+- **Refactored encryption to use jencrypt library**
+  - Replaced local `CredentialEncryption` class with [JEncrypt](https://github.com/FlossWare/jencrypt) library
+  - JEncrypt provides general-purpose AES-256-GCM encryption
+  - Same encryption algorithm and security properties as before
+  - Added jencrypt 1.0 as Maven dependency
+  - Removed duplicate encryption code (now shared library)
+  
+### Removed
+- Local `CredentialEncryption.java` class (replaced by jencrypt library)
+- Local `CredentialEncryptionTest.java` (tests now in jencrypt library)
+
+### Dependencies
+- Added: `org.flossware:jencrypt:1.0` - General-purpose AES-256-GCM encryption library
+
 ## iOS/macOS v1.0 - 2026-05-22
 
 ### Added

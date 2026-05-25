@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Properties;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import org.flossware.crypto.AESEncryption;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -294,9 +295,9 @@ public class Credentials {
 
             // Load and decrypt password if encrypted
             String rawPassword = props.getProperty("nexus.password", password);
-            if (rawPassword != null && CredentialEncryption.isEncrypted(rawPassword)) {
+            if (rawPassword != null && AESEncryption.isEncrypted(rawPassword)) {
                 try {
-                    CredentialEncryption encryption = new CredentialEncryption();
+                    AESEncryption encryption = new AESEncryption();
                     password = encryption.decrypt(rawPassword);
                     logger.debug("Successfully decrypted password from properties file");
                 } catch (Exception e) {
@@ -691,7 +692,7 @@ public class Credentials {
         props.setProperty("nexus.user", user);
 
         // Encrypt password before saving
-        CredentialEncryption encryption = new CredentialEncryption();
+        AESEncryption encryption = new AESEncryption();
         String encryptedPassword = encryption.encrypt(password);
         props.setProperty("nexus.password", encryptedPassword);
         logger.info("Password encrypted using AES-256-GCM before saving to properties file");
