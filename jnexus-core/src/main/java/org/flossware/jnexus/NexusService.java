@@ -37,19 +37,56 @@ public class NexusService {
     }
 
     /**
-     * Validates a regex pattern.
+     * Validates a regex pattern for both syntax and safety (ReDoS prevention).
+     * <p>
+     * Tests the pattern against a long string with a timeout to detect catastrophic backtracking.
+     * Patterns that take too long to match are rejected to prevent Regular Expression Denial of Service (ReDoS) attacks.
+     * </p>
      *
      * @param regex the regex pattern to validate
-     * @throws IllegalArgumentException if the pattern is invalid
+     * @throws IllegalArgumentException if the pattern is invalid or potentially unsafe
      */
     private void validateRegex(String regex) {
         if (regex == null || regex.isEmpty()) {
             return; // null or empty regex is valid (means no filtering)
         }
+
+        // Validate syntax
+        Pattern pattern;
         try {
-            Pattern.compile(regex);
+            pattern = Pattern.compile(regex);
         } catch (PatternSyntaxException e) {
             throw new IllegalArgumentException("Invalid regex pattern: " + e.getMessage(), e);
+        }
+
+        // Test for catastrophic backtracking (ReDoS prevention)
+        // Try matching against a long string that could trigger exponential behavior
+        String testString = "a".repeat(10000);
+        java.util.concurrent.ExecutorService executor = java.util.concurrent.Executors.newSingleThreadExecutor();
+        java.util.concurrent.Future<Boolean> future = executor.submit(() -> {
+            try {
+                pattern.matcher(testString).find();
+                return true;
+            } catch (Exception e) {
+                return false;
+            }
+        });
+
+        try {
+            // Wait up to 1 second for the regex to execute
+            future.get(1, java.util.concurrent.TimeUnit.SECONDS);
+        } catch (java.util.concurrent.TimeoutException e) {
+            future.cancel(true);
+            executor.shutdownNow();
+            throw new IllegalArgumentException(
+                "Regex pattern is too complex and may cause performance issues. " +
+                "Avoid nested quantifiers like (a+)+ or (a*)* which can cause exponential backtracking."
+            );
+        } catch (Exception e) {
+            executor.shutdownNow();
+            throw new IllegalArgumentException("Error testing regex pattern: " + e.getMessage(), e);
+        } finally {
+            executor.shutdown();
         }
     }
 

@@ -146,7 +146,6 @@
                     <target>21</target>
                     <compilerArgs>
                         <arg>-parameters</arg>
-                        <arg>--enable-preview</arg>
                     </compilerArgs>
                 </configuration>
             </plugin>
@@ -165,9 +164,6 @@
                 <version>3.12.0</version>
                 <configuration>
                     <source>21</source>
-                    <additionalOptions>
-                        <additionalOption>--enable-preview</additionalOption>
-                    </additionalOptions>
                     <show>public</show>
                     <quiet>true</quiet>
                 </configuration>
@@ -235,7 +231,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.2.5</version>
                 <configuration>
-                    <argLine>@{argLine} --enable-preview --enable-native-access=ALL-UNNAMED</argLine>
+                    <argLine>@{argLine} --enable-native-access=ALL-UNNAMED</argLine>
                 </configuration>
             </plugin>
 

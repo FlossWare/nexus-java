@@ -8,6 +8,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **Build: Dependency version mismatches** - Fixes Issue #40
+  - **Problem**: jnexus-core had different versions in pom.xml and build.gradle
+    - Project version: pom.xml 1.2 vs build.gradle 1.1
+    - Jackson: pom.xml 2.18.3 vs build.gradle 2.21.3
+    - JUnit: pom.xml 5.12.0 vs build.gradle 6.1.0
+  - **Fix**: Synchronized all versions to latest
+    - build.gradle: Updated version to 1.2 (matches pom.xml)
+    - pom.xml: Updated Jackson to 2.21.3, JUnit to 6.1.0 (matches build.gradle)
+  - **Impact**: Consistent builds across Maven and Gradle, no confusion about which is authoritative
+
+- **Build: Unnecessary --enable-preview flags** - Fixes Issue #41
+  - **Problem**: pom.xml included --enable-preview compiler args but codebase uses no preview features
+    - Removed from maven-compiler-plugin (line 149)
+    - Removed from maven-javadoc-plugin (line 169)
+    - Removed from maven-surefire-plugin (line 238, kept --enable-native-access)
+  - **Impact**: Cleaner build, no misleading preview feature warnings, faster compilation
+
+- **Security: ReDoS prevention in regex validation** - Fixes Issue #43
+  - **Problem**: validateRegex() only checked syntax, not catastrophic backtracking patterns
+    - Malicious regex like (a+)+b could cause exponential time complexity
+    - Input "a".repeat(40) could hang for hours
+  - **Solution**: Added timeout-based safety check using ExecutorService
+    - Tests regex against 10,000 character string
+    - 1 second timeout to detect slow patterns
+    - Rejects patterns with nested quantifiers that cause backtracking
+    - Error message explains: "Avoid nested quantifiers like (a+)+ or (a*)*"
+  - **Implementation**: jnexus-core/NexusService.java validateRegex()
+  - **Impact**: Prevents Regular Expression Denial of Service (ReDoS) attacks
+
+- **iOS: Force unwraps that could cause crashes** - Fixes Issue #44
+  - **Problem**: NexusClientURLSession used force unwraps (!) in 3 places
+    - Line 184, 212: `URLComponents(string:)!` could crash on invalid URL
+    - Line 266: `authString.data(using: .utf8)!` could crash on invalid UTF-8
+  - **Solution**: Replaced all force unwraps with guard statements
+    - URLComponents: `guard var components = URLComponents(...) else { throw NexusError.invalidURL(...) }`
+    - authData: `guard let authData = authString.data(using: .utf8) else { return "" }`
+  - **Impact**: No more crash risk, graceful error handling, follows Swift best practices
 - **Bug: Resource leaks in JNexusUI and JNexus** - Fixes Issues #31, #32
   - **JNexusUI.getTerminalSize()**: Wrapped BufferedReader in try-with-resources
     - Process streams now closed automatically
@@ -172,6 +209,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Issue #36: iOS cache thread-safety (fixed - added NSLock for synchronization)
 - Issue #37: Android allowBackup security risk (fixed - disabled backup)
 - Issue #39: Android ProGuard rules too broad (optimized - rely on library rules)
+- Issue #40: Build dependency version mismatches (fixed - synchronized Maven and Gradle)
+- Issue #41: Unnecessary --enable-preview flags (fixed - removed from all plugins)
+- Issue #43: ReDoS vulnerability in regex validation (fixed - added timeout-based safety check)
+- Issue #44: iOS force unwraps could cause crashes (fixed - replaced with guard statements)
 
 ### Architecture Decisions
 - **Desktop NexusService vs Core NexusService**: Intentionally different

@@ -181,7 +181,10 @@ class NexusClientURLSession: NexusHttpClient {
             throw NexusError.invalidCredentials
         }
 
-        var components = URLComponents(string: "\(url)/service/rest/v1/components")!
+        guard var components = URLComponents(string: "\(url)/service/rest/v1/components") else {
+            throw NexusError.invalidURL("\(url)/service/rest/v1/components")
+        }
+
         components.queryItems = [URLQueryItem(name: "repository", value: repository)]
         if let token = continuationToken {
             components.queryItems?.append(URLQueryItem(name: "continuationToken", value: token))
@@ -209,7 +212,10 @@ class NexusClientURLSession: NexusHttpClient {
             throw NexusError.invalidCredentials
         }
 
-        var components = URLComponents(string: "\(url)/service/rest/v1/components")!
+        guard var components = URLComponents(string: "\(url)/service/rest/v1/components") else {
+            throw NexusError.invalidURL("\(url)/service/rest/v1/components")
+        }
+
         components.queryItems = [URLQueryItem(name: "repository", value: repository)]
         if let token = continuationToken {
             components.queryItems?.append(URLQueryItem(name: "continuationToken", value: token))
@@ -257,7 +263,10 @@ class NexusClientURLSession: NexusHttpClient {
             return ""
         }
         let authString = "\(user):\(password)"
-        let authData = authString.data(using: .utf8)!
+        guard let authData = authString.data(using: .utf8) else {
+            // UTF-8 encoding should never fail for valid credentials, but handle defensively
+            return ""
+        }
         let base64Auth = authData.base64EncodedString()
         return "Basic \(base64Auth)"
     }
