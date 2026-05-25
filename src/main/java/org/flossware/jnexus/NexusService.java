@@ -185,6 +185,25 @@ public class NexusService {
      */
     public void deleteFromRepository(String repository, String regexFilter, boolean dryRun)
             throws IOException, InterruptedException {
+        deleteFromRepository(repository, regexFilter, dryRun, null);
+    }
+
+    /**
+     * Deletes components from a repository with progress tracking.
+     * <p>
+     * Same as {@link #deleteFromRepository(String, String, boolean)} but accepts
+     * an optional {@link ProgressCallback} to track deletion progress.
+     * </p>
+     *
+     * @param repository  the name of the repository to delete from
+     * @param regexFilter optional regex pattern to filter component paths (null for all components)
+     * @param dryRun      if true, shows what would be deleted without actually deleting
+     * @param callback    optional callback for progress notifications (null for no callbacks)
+     * @throws IOException          if an HTTP error occurs
+     * @throws InterruptedException if the operation is interrupted
+     */
+    public void deleteFromRepository(String repository, String regexFilter, boolean dryRun, ProgressCallback callback)
+            throws IOException, InterruptedException {
         validateRegex(regexFilter);
 
         // Always refresh for delete operations to get current state
@@ -217,14 +236,41 @@ public class NexusService {
                     deleted++;
                     logger.info("Deleted: {}", record.path());
 
+                    // Callback: component deleted
+                    if (callback != null) {
+                        try {
+                            callback.onComponentDeleted(record.id(), record.path());
+                        } catch (Exception e) {
+                            logger.warn("Progress callback error: {}", safeExceptionMessage(e));
+                        }
+                    }
+
                     if (showProgress && deleted % 5 == 0) {
                         System.out.printf("Progress: %d of %d components deleted (%.1f%%)%n",
                             deleted, total, (deleted * 100.0 / total));
+
+                        // Callback: delete progress
+                        if (callback != null) {
+                            try {
+                                callback.onDeleteProgress(deleted, total, deleted * 100.0 / total);
+                            } catch (Exception e) {
+                                logger.warn("Progress callback error: {}", safeExceptionMessage(e));
+                            }
+                        }
                     }
                 } catch (IOException e) {
                     String errorMsg = safeExceptionMessage(e);
                     failures.add(record.path() + " - " + errorMsg);
                     logger.error("Failed to delete {}: {}", record.path(), errorMsg);
+
+                    // Callback: delete failed
+                    if (callback != null) {
+                        try {
+                            callback.onComponentDeleteFailed(record.id(), record.path(), errorMsg);
+                        } catch (Exception ex) {
+                            logger.warn("Progress callback error: {}", safeExceptionMessage(ex));
+                        }
+                    }
                 }
             }
 
@@ -234,6 +280,15 @@ public class NexusService {
                 System.err.println("\n⚠ WARNING: " + failures.size() + " component(s) failed to delete:");
                 for (String failure : failures) {
                     System.err.println("  - " + failure);
+                }
+            }
+
+            // Callback: delete complete
+            if (callback != null) {
+                try {
+                    callback.onDeleteComplete(deleted, failures.size());
+                } catch (Exception e) {
+                    logger.warn("Progress callback error: {}", safeExceptionMessage(e));
                 }
             }
 
@@ -545,6 +600,30 @@ public class NexusService {
      * @return a RepositoryStats record containing all calculated statistics
      */
     public RepositoryStats calculateStatistics(String repository, List<ComponentMetadata> components) {
+        return calculateStatistics(repository, components, null);
+    }
+
+    /**
+     * Calculates comprehensive statistics with progress tracking.
+     * <p>
+     * Same as {@link #calculateStatistics(String, List)} but accepts an optional
+     * {@link ProgressCallback} to track calculation progress.
+     * </p>
+     *
+     * @param repository the name of the repository being analyzed
+     * @param components the list of components to analyze
+     * @param callback optional callback for progress notifications (null for no callbacks)
+     * @return a RepositoryStats record containing all calculated statistics
+     */
+    public RepositoryStats calculateStatistics(String repository, List<ComponentMetadata> components, ProgressCallback callback) {
+        // Callback: statistics start
+        if (callback != null) {
+            try {
+                callback.onStatisticsStart(repository, components.size());
+            } catch (Exception e) {
+                logger.warn("Progress callback error: {}", safeExceptionMessage(e));
+            }
+        }
         if (components.isEmpty()) {
             return new RepositoryStats(
                 repository,
@@ -587,7 +666,7 @@ public class NexusService {
             .limit(20)
             .toList();
 
-        return new RepositoryStats(
+        RepositoryStats stats = new RepositoryStats(
             repository,
             totalComponents,
             totalSize,
@@ -598,6 +677,17 @@ public class NexusService {
             ageDistribution,
             largestComponents
         );
+
+        // Callback: statistics complete
+        if (callback != null) {
+            try {
+                callback.onStatisticsComplete(repository, stats);
+            } catch (Exception e) {
+                logger.warn("Progress callback error: {}", safeExceptionMessage(e));
+            }
+        }
+
+        return stats;
     }
 
     /**
