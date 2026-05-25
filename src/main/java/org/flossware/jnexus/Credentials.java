@@ -8,10 +8,13 @@ import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
+import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.flossware.crypto.AESEncryption;
@@ -728,6 +731,16 @@ public class Credentials {
 
         try (java.io.OutputStream output = Files.newOutputStream(configPath)) {
             props.store(output, "Nexus Configuration - Saved by JNexus");
+        }
+
+        // Set file permissions to 600 (rw-------, user read/write only) for security
+        try {
+            Set<PosixFilePermission> perms = PosixFilePermissions.fromString("rw-------");
+            Files.setPosixFilePermissions(configPath, perms);
+            logger.info("Set file permissions to 600 (user read/write only): {}", configPath);
+        } catch (UnsupportedOperationException e) {
+            // Windows doesn't support POSIX permissions
+            logger.warn("Cannot set POSIX permissions on this platform (Windows?). Please restrict file access manually: {}", configPath);
         }
     }
 

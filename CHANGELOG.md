@@ -45,32 +45,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Impact**: Better error detection, improved static analysis, follows Java best practices
   - **Locations**: NexusClient.java lines 603 (blobCreated), 612 (lastModified)
 
-### Added
-- **i18n/l10n: Internationalization and localization support** - Fixes Issue #45
-  - **Resource bundles** for 4 languages (100+ message keys each):
-    - messages.properties (English - default)
-    - messages_es.properties (Spanish / Español)
-    - messages_fr.properties (French / Français)
-    - messages_de.properties (German / Deutsch)
-  - **Messages utility class** (Messages.java):
-    - Automatic locale detection from JNEXUS_LANG environment variable or system default
-    - ResourceBundle loading with English fallback
-    - Message formatting with MessageFormat for parameters
-    - Locale switching at runtime with setLocale()
-    - Validation of supported locales (throws exception for unsupported)
-    - getAvailableLocales() returns all 4 supported languages
-  - **Comprehensive coverage**:
-    - UI labels, buttons, menus (dialog.title.*, button.*, menu.*)
-    - Status and error messages (status.*, error.*)
-    - Tooltips and help text (tooltip.*, shortcuts.*)
-    - Table columns and statistics (table.column.*, stats.*)
-    - Dialogs and confirmations (dialog.*)
-  - **Testing**: MessagesTest (12 tests) verifies all locales and message loading
-  - **Total**: 304 tests passing (292 existing + 12 new)
-  - **Next steps**: Refactor Java UIs (JNexus, JNexusSwing, JNexusAWT, JNexusUI) to use Messages.get()
-  - **Android/iOS**: Requires separate implementation (strings.xml / Localizable.strings)
-  - **Usage**: Set JNEXUS_LANG=es (or fr, de) environment variable to change language
+### Security
+- **Credentials: Secure file permissions on saved configuration** - Fixes Issue #50
+  - **Problem**: Credentials.saveToPropertiesFile() created files with default permissions (644)
+    - Properties files readable by all users on system (world-readable)
+    - Exposes encrypted passwords, Nexus URLs, usernames to other users
+    - Security risk on shared systems or multi-user environments
+  - **Solution**: Set POSIX permissions to 600 (rw-------, user read/write only)
+    - Uses `PosixFilePermissions.fromString("rw-------")` and `Files.setPosixFilePermissions()`
+    - Restricts file access to file owner only
+    - Logs success message: "Set file permissions to 600 (user read/write only)"
+    - Handles Windows gracefully: catches `UnsupportedOperationException`, logs warning
+  - **Impact**: Credentials files now secure on Unix/Linux/macOS, manual restriction needed on Windows
+  - **Location**: Credentials.java saveToPropertiesFile() method
 
+### Removed
+- **Dead Code: Unused i18n infrastructure** - Fixes Issue #51
+  - **Problem**: Messages.java and resource bundles (messages*.properties) were dead code
+    - No UI code used Messages.get() - feature was started but never integrated
+    - 6 files with 400+ lines of unreachable code
+    - Misleading for contributors (suggests i18n is implemented)
+  - **Solution**: Removed all i18n infrastructure
+    - Deleted Messages.java (100 lines)
+    - Deleted messages.properties, messages_es.properties, messages_fr.properties, messages_de.properties (100+ keys each)
+    - Deleted MessagesTest.java (152 lines, 12 tests)
+  - **Impact**: Cleaner codebase, 292 tests (down from 304), removed misleading code
+  - **Future**: If i18n is needed, re-implement with actual UI integration
+
+### Added
 - **Testing: UI test coverage for all GUI classes** - Fixes Issue #38
   - **JNexusSwingTest** (17 tests): Comprehensive Swing GUI testing in headless mode
     - Component creation (input panel, button panel, results panel, status panel, advanced filters)
