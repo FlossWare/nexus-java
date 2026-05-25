@@ -457,19 +457,25 @@ public class NexusClient {
             return true;
         }
 
-        // 2. Check HTTP status code from exception message (for 5xx server errors)
+        // 2. Check HTTP status code from exception message
         String message = e.getMessage();
         if (message != null) {
             String lowerMessage = message.toLowerCase();
-            // Check for HTTP 5xx status codes (server errors that are typically transient)
-            if (lowerMessage.matches(".*http\\s+5\\d{2}.*")) {
+            // Check for HTTP 5xx status codes (server errors - typically transient)
+            // Check for HTTP 408 (Request Timeout)
+            // Check for HTTP 429 (Too Many Requests - rate limiting)
+            // Check for HTTP 503 (Service Unavailable)
+            // Check for HTTP 504 (Gateway Timeout)
+            if (lowerMessage.matches(".*http\\s+(408|429|5\\d{2}).*")) {
                 return true;
             }
             // Also check for explicit timeout/connection keywords as fallback
             if (lowerMessage.contains("timeout") ||
                 lowerMessage.contains("timed out") ||
                 lowerMessage.contains("connection reset") ||
-                lowerMessage.contains("connection refused")) {
+                lowerMessage.contains("connection refused") ||
+                lowerMessage.contains("too many requests") ||
+                lowerMessage.contains("rate limit")) {
                 return true;
             }
         }
