@@ -90,9 +90,13 @@ Starting in **version 1.30**, the desktop application **encrypts passwords** usi
 All platforms now provide encrypted credential storage:
 
 - **Desktop (Java v1.30+)**: 
-  - AES-256-GCM encryption with PBKDF2 key derivation
-  - Machine-specific encryption key
+  - Uses [JEncrypt library](https://github.com/FlossWare/jencrypt) for encryption
+  - AES-256-GCM encryption with PBKDF2-HMAC-SHA256 key derivation (100,000 iterations)
+  - Machine-specific encryption key (derived from hostname + user home directory)
+  - Random 12-byte IV per encryption
+  - 128-bit GCM authentication tag prevents tampering
   - Automatic migration from plaintext
+  - Thread-safe concurrent encryption/decryption
   
 - **Android**: 
   - AES256_GCM encryption via EncryptedSharedPreferences
@@ -237,13 +241,14 @@ docker service create --secret nexus_password jnexus
 
 ### Known Limitations
 
-1. **Desktop Plaintext Storage**: Credentials stored in `~/.flossware/nexus/nexus.properties` are **not encrypted**
-   - Mitigation: Use file permissions (chmod 600)
-   - Mitigation: Use environment variables for automation
-   - Mitigation: Use mobile apps (Android/iOS) for encrypted storage
+1. **Machine-Specific Encryption**: Desktop credentials are encrypted with machine-specific keys
+   - Encrypted credentials cannot be copied to other machines
+   - Changing hostname or user home directory invalidates credentials
+   - Mitigation: Use environment variables for multi-machine deployments
+   - Mitigation: Maintain separate credential files per machine
 
 2. **HTTP Basic Auth**: Credentials sent in HTTP headers (Base64-encoded)
-   - Mitigation: Always use HTTPS
+   - Mitigation: Always use HTTPS to encrypt network traffic
    - Mitigation: Use short-lived tokens instead of passwords
 
 3. **No 2FA Support**: JNexus does not support two-factor authentication
