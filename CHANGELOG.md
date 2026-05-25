@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Code Quality: Specific exception handling for date parsing** - Fixes Issue #47
+  - **Problem**: NexusClient.java caught broad `Exception` instead of specific `DateTimeParseException`
+    - Lines 603, 612: Date parsing used `catch (Exception e)`
+    - Could hide programming errors (NullPointerException, IllegalArgumentException)
+    - Makes static analysis difficult
+    - Violates Java best practices
+  - **Solution**: Changed to specific exception type
+    - `catch (java.time.format.DateTimeParseException e)` at both locations
+    - Added exception message to log output for better debugging
+    - Now only catches expected parsing failures, not programming errors
+  - **Impact**: Better error detection, improved static analysis, follows Java best practices
+  - **Locations**: NexusClient.java lines 603 (blobCreated), 612 (lastModified)
+
 ### Added
 - **i18n/l10n: Internationalization and localization support** - Fixes Issue #45
   - **Resource bundles** for 4 languages (100+ message keys each):

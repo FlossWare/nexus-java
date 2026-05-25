@@ -600,8 +600,9 @@ public class NexusClient implements NexusHttpClient, AutoCloseable {
                 if (asset.has("blobCreated") && !asset.isNull("blobCreated")) {
                     try {
                         createdDate = Instant.parse(asset.getString("blobCreated"));
-                    } catch (Exception e) {
-                        logger.warn("Failed to parse blobCreated date: {}", asset.getString("blobCreated"));
+                    } catch (java.time.format.DateTimeParseException e) {
+                        logger.warn("Failed to parse blobCreated date: {} - {}",
+                            asset.getString("blobCreated"), e.getMessage());
                     }
                 }
 
@@ -609,8 +610,9 @@ public class NexusClient implements NexusHttpClient, AutoCloseable {
                 if (asset.has("lastModified") && !asset.isNull("lastModified")) {
                     try {
                         lastModified = Instant.parse(asset.getString("lastModified"));
-                    } catch (Exception e) {
-                        logger.warn("Failed to parse lastModified date: {}", asset.getString("lastModified"));
+                    } catch (java.time.format.DateTimeParseException e) {
+                        logger.warn("Failed to parse lastModified date: {} - {}",
+                            asset.getString("lastModified"), e.getMessage());
                     }
                 }
 
