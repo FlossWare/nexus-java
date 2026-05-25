@@ -94,7 +94,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * @see RepoRecord
  * @see ComponentMetadata
  */
-public class NexusClient {
+public class NexusClient implements NexusHttpClient {
     private static final Logger logger = LoggerFactory.getLogger(NexusClient.class);
 
     private final String baseUrl;
@@ -203,6 +203,7 @@ public class NexusClient {
      * @throws IOException          if an I/O error occurs during the HTTP request
      * @throws InterruptedException if the operation is interrupted
      */
+    @Override
     public List<RepoRecord> listComponents(String repository, boolean forceRefresh) throws IOException, InterruptedException {
         // Validate repository name
         Credentials.validateRepository(repository);
@@ -275,6 +276,7 @@ public class NexusClient {
      * @throws IOException          if an I/O error occurs during the HTTP request
      * @throws InterruptedException if the operation is interrupted
      */
+    @Override
     public List<ComponentMetadata> listComponentsWithMetadata(String repository, boolean forceRefresh) throws IOException, InterruptedException {
         // Validate repository name
         Credentials.validateRepository(repository);
@@ -631,6 +633,7 @@ public class NexusClient {
      * @throws IOException          if an HTTP error occurs (status code not 200 or 204)
      * @throws InterruptedException if the operation is interrupted
      */
+    @Override
     public void deleteComponent(String componentId) throws IOException, InterruptedException {
         String url = baseUrl + "/service/rest/v1/components/" + componentId;
 
@@ -671,6 +674,7 @@ public class NexusClient {
      *
      * @param repository the name of the repository to clear from cache
      */
+    @Override
     public void clearCache(String repository) {
         // Validate repository name
         Credentials.validateRepository(repository);
@@ -683,6 +687,7 @@ public class NexusClient {
     /**
      * Clears all cached repository data.
      */
+    @Override
     public void clearAllCache() {
         int size = cache.size() + metadataCache.size();
         cache.clear();
@@ -696,6 +701,7 @@ public class NexusClient {
      * @param repository the name of the repository to check
      * @return true if cache contains valid data, false otherwise
      */
+    @Override
     public boolean isCached(String repository) {
         // Validate repository name
         Credentials.validateRepository(repository);
@@ -711,6 +717,7 @@ public class NexusClient {
      * @param repository the name of the repository to check
      * @return cache age in seconds, or -1 if not cached
      */
+    @Override
     public long getCacheAge(String repository) {
         // Validate repository name
         Credentials.validateRepository(repository);

@@ -43,8 +43,9 @@ public interface NexusHttpClient {
      *
      * @param componentId the component ID to delete
      * @throws IOException if HTTP communication fails
+     * @throws InterruptedException if the operation is interrupted
      */
-    void deleteComponent(String componentId) throws IOException;
+    void deleteComponent(String componentId) throws IOException, InterruptedException;
 
     /**
      * Clears cache for a specific repository.
