@@ -73,7 +73,7 @@ import java.util.concurrent.Callable;
     name = "jnexus",
     description = "CLI tool for interacting with Sonatype Nexus repositories",
     mixinStandardHelpOptions = true,
-    version = "jnexus 1.0",
+    version = "jnexus 2.0.0",
     subcommands = {
         JNexus.ListCommand.class,
         JNexus.DeleteCommand.class,

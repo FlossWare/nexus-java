@@ -6,7 +6,7 @@
 
     <groupId>org.flossware</groupId>
     <artifactId>jnexus</artifactId>
-    <version>1.32</version>
+    <version>2.0.0</version>
 
     <name>JNexus</name>
     <description>Command line Java app to interact with Sonatype Nexus</description>
@@ -48,7 +48,7 @@
         <dependency>
             <groupId>org.flossware</groupId>
             <artifactId>jnexus-core</artifactId>
-            <version>1.2</version>
+            <version>2.0.0</version>
         </dependency>
 
         <!-- Encryption Library -->
@@ -146,6 +146,8 @@
                     <target>21</target>
                     <compilerArgs>
                         <arg>-parameters</arg>
+                        <!-- Required for jcurses 1.27 which uses preview features -->
+                        <arg>--enable-preview</arg>
                     </compilerArgs>
                 </configuration>
             </plugin>
@@ -164,6 +166,10 @@
                 <version>3.12.0</version>
                 <configuration>
                     <source>21</source>
+                    <!-- Required for jcurses 1.27 which uses preview features -->
+                    <additionalOptions>
+                        <additionalOption>--enable-preview</additionalOption>
+                    </additionalOptions>
                     <show>public</show>
                     <quiet>true</quiet>
                 </configuration>
@@ -201,9 +207,9 @@
                                 <evaluateBeanshell>
                                     <condition>
                                         String v = "${project.version}";
-                                        v.matches("^\\d+\\.\\d+$")
+                                        v.matches("^\\d+\\.\\d+\\.\\d+$")
                                     </condition>
-                                    <message>VERSION ERROR: Version must be X.Y format and NOT a SNAPSHOT.</message>
+                                    <message>VERSION ERROR: Version must be X.Y.Z format (semantic versioning) and NOT a SNAPSHOT.</message>
                                 </evaluateBeanshell>
                             </rules>
                             <fail>true</fail>
@@ -231,7 +237,8 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.2.5</version>
                 <configuration>
-                    <argLine>@{argLine} --enable-native-access=ALL-UNNAMED</argLine>
+                    <!-- enable-preview required for jcurses 1.27, enable-native-access required for native libraries -->
+                    <argLine>@{argLine} --enable-preview --enable-native-access=ALL-UNNAMED</argLine>
                 </configuration>
             </plugin>
 

@@ -9,6 +9,7 @@ import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableRowSorter;
 import java.awt.*;
+import java.awt.event.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.WindowAdapter;
@@ -303,6 +304,9 @@ public class JNexusSwing {
         frame.setSize(900, 700);
         frame.setLocationRelativeTo(null); // Center on screen
 
+        // Create menu bar
+        frame.setJMenuBar(createMenuBar());
+
         // Create main panel with padding
         JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
         mainPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
@@ -320,6 +324,10 @@ public class JNexusSwing {
         mainPanel.add(statusPanel, BorderLayout.SOUTH);
 
         frame.add(mainPanel);
+
+        // Setup keyboard shortcuts
+        setupKeyboardShortcuts();
+
         frame.setVisible(true);
     }
 
@@ -384,6 +392,8 @@ public class JNexusSwing {
         gbc.gridwidth = 2;
         gbc.anchor = GridBagConstraints.WEST;
         toggleFiltersButton = new JButton("▶ Advanced Filters");
+        toggleFiltersButton.setMnemonic(KeyEvent.VK_F); // Alt+F
+        toggleFiltersButton.setToolTipText("Toggle advanced filters panel - Alt+F");
         toggleFiltersButton.setBorderPainted(false);
         toggleFiltersButton.setContentAreaFilled(false);
         toggleFiltersButton.setFocusPainted(false);
@@ -532,27 +542,33 @@ public class JNexusSwing {
         JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT));
 
         listButton = new JButton("List");
-        listButton.setToolTipText("List components (uses cache)");
+        listButton.setMnemonic(KeyEvent.VK_L); // Alt+L
+        listButton.setToolTipText("List components (uses cache) - Alt+L or Ctrl+L");
         listButton.addActionListener(e -> executeList(false));
         panel.add(listButton);
 
         refreshButton = new JButton("Refresh");
-        refreshButton.setToolTipText("Refresh components (bypasses cache)");
+        refreshButton.setMnemonic(KeyEvent.VK_R); // Alt+R
+        refreshButton.setToolTipText("Refresh components (bypasses cache) - Alt+R or Ctrl+R or F5");
         refreshButton.addActionListener(e -> executeList(true));
         panel.add(refreshButton);
 
         deleteButton = new JButton("Delete All");
-        deleteButton.setToolTipText("Delete all components matching filter");
+        deleteButton.setMnemonic(KeyEvent.VK_D); // Alt+D
+        deleteButton.setToolTipText("Delete all components matching filter - Alt+D");
         deleteButton.addActionListener(e -> executeDelete());
         panel.add(deleteButton);
 
         deleteSelectedButton = new JButton("Delete Selected");
-        deleteSelectedButton.setToolTipText("Delete selected rows from table");
+        deleteSelectedButton.setMnemonic(KeyEvent.VK_E); // Alt+E (avoiding conflict with D)
+        deleteSelectedButton.setToolTipText("Delete selected rows from table - Alt+E");
         deleteSelectedButton.addActionListener(e -> executeDeleteSelected());
         deleteSelectedButton.setVisible(false); // Hidden until rows are selected
         panel.add(deleteSelectedButton);
 
         clearButton = new JButton("Clear Results");
+        clearButton.setMnemonic(KeyEvent.VK_C); // Alt+C
+        clearButton.setToolTipText("Clear all results from table - Alt+C");
         clearButton.addActionListener(e -> {
             tableModel.setRowCount(0);
             currentComponents.clear();
@@ -561,11 +577,14 @@ public class JNexusSwing {
         panel.add(clearButton);
 
         statsButton = new JButton("Statistics");
-        statsButton.setToolTipText("Show repository statistics for current results");
+        statsButton.setMnemonic(KeyEvent.VK_S); // Alt+S
+        statsButton.setToolTipText("Show repository statistics for current results - Alt+S or Ctrl+T");
         statsButton.addActionListener(e -> showStatisticsDialog());
         panel.add(statsButton);
 
         JButton quitButton = new JButton("Quit");
+        quitButton.setMnemonic(KeyEvent.VK_Q); // Alt+Q
+        quitButton.setToolTipText("Exit application - Alt+Q or Ctrl+Q");
         quitButton.addActionListener(e -> System.exit(0));
         panel.add(quitButton);
 
@@ -674,6 +693,231 @@ public class JNexusSwing {
         panel.add(statusLabel, BorderLayout.WEST);
 
         return panel;
+    }
+
+    private JMenuBar createMenuBar() {
+        JMenuBar menuBar = new JMenuBar();
+
+        // File menu
+        JMenu fileMenu = new JMenu("File");
+        fileMenu.setMnemonic(KeyEvent.VK_F);
+        menuBar.add(fileMenu);
+
+        JMenuItem clearItem = new JMenuItem("Clear Results");
+        clearItem.setMnemonic(KeyEvent.VK_C);
+        clearItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0));
+        clearItem.addActionListener(e -> {
+            tableModel.setRowCount(0);
+            currentComponents.clear();
+            setStatus("Results cleared", false);
+        });
+        fileMenu.add(clearItem);
+
+        fileMenu.addSeparator();
+
+        JMenuItem quitItem = new JMenuItem("Quit");
+        quitItem.setMnemonic(KeyEvent.VK_Q);
+        quitItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_Q, InputEvent.CTRL_DOWN_MASK));
+        quitItem.addActionListener(e -> System.exit(0));
+        fileMenu.add(quitItem);
+
+        // Actions menu
+        JMenu actionsMenu = new JMenu("Actions");
+        actionsMenu.setMnemonic(KeyEvent.VK_A);
+        menuBar.add(actionsMenu);
+
+        JMenuItem listItem = new JMenuItem("List Components");
+        listItem.setMnemonic(KeyEvent.VK_L);
+        listItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_L, InputEvent.CTRL_DOWN_MASK));
+        listItem.addActionListener(e -> executeList(false));
+        actionsMenu.add(listItem);
+
+        JMenuItem refreshItem = new JMenuItem("Refresh Components");
+        refreshItem.setMnemonic(KeyEvent.VK_R);
+        refreshItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_R, InputEvent.CTRL_DOWN_MASK));
+        refreshItem.addActionListener(e -> executeList(true));
+        actionsMenu.add(refreshItem);
+
+        JMenuItem refreshF5Item = new JMenuItem("Refresh (F5)");
+        refreshF5Item.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_F5, 0));
+        refreshF5Item.addActionListener(e -> executeList(true));
+        actionsMenu.add(refreshF5Item);
+
+        actionsMenu.addSeparator();
+
+        JMenuItem deleteAllItem = new JMenuItem("Delete All");
+        deleteAllItem.setMnemonic(KeyEvent.VK_D);
+        deleteAllItem.addActionListener(e -> executeDelete());
+        actionsMenu.add(deleteAllItem);
+
+        JMenuItem deleteSelectedItem = new JMenuItem("Delete Selected");
+        deleteSelectedItem.setMnemonic(KeyEvent.VK_E);
+        deleteSelectedItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, InputEvent.CTRL_DOWN_MASK));
+        deleteSelectedItem.addActionListener(e -> executeDeleteSelected());
+        actionsMenu.add(deleteSelectedItem);
+
+        actionsMenu.addSeparator();
+
+        JMenuItem statsItem = new JMenuItem("Show Statistics");
+        statsItem.setMnemonic(KeyEvent.VK_S);
+        statsItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_T, InputEvent.CTRL_DOWN_MASK));
+        statsItem.addActionListener(e -> showStatisticsDialog());
+        actionsMenu.add(statsItem);
+
+        // Help menu
+        JMenu helpMenu = new JMenu("Help");
+        helpMenu.setMnemonic(KeyEvent.VK_H);
+        menuBar.add(helpMenu);
+
+        JMenuItem keyboardShortcutsItem = new JMenuItem("Keyboard Shortcuts");
+        keyboardShortcutsItem.setMnemonic(KeyEvent.VK_K);
+        keyboardShortcutsItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0));
+        keyboardShortcutsItem.addActionListener(e -> showKeyboardShortcuts());
+        helpMenu.add(keyboardShortcutsItem);
+
+        helpMenu.addSeparator();
+
+        JMenuItem aboutItem = new JMenuItem("About");
+        aboutItem.setMnemonic(KeyEvent.VK_A);
+        aboutItem.addActionListener(e -> showAboutDialog());
+        helpMenu.add(aboutItem);
+
+        return menuBar;
+    }
+
+    private void setupKeyboardShortcuts() {
+        // Get the root pane to set up global key bindings
+        JRootPane rootPane = frame.getRootPane();
+        InputMap inputMap = rootPane.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
+        ActionMap actionMap = rootPane.getActionMap();
+
+        // Ctrl+L for List
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_L, InputEvent.CTRL_DOWN_MASK), "list");
+        actionMap.put("list", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                executeList(false);
+            }
+        });
+
+        // Ctrl+R for Refresh
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_R, InputEvent.CTRL_DOWN_MASK), "refresh");
+        actionMap.put("refresh", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                executeList(true);
+            }
+        });
+
+        // F5 for Refresh
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_F5, 0), "refresh-f5");
+        actionMap.put("refresh-f5", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                executeList(true);
+            }
+        });
+
+        // Ctrl+T for Statistics
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_T, InputEvent.CTRL_DOWN_MASK), "stats");
+        actionMap.put("stats", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                showStatisticsDialog();
+            }
+        });
+
+        // Ctrl+Q for Quit
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_Q, InputEvent.CTRL_DOWN_MASK), "quit");
+        actionMap.put("quit", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                System.exit(0);
+            }
+        });
+
+        // Ctrl+Delete for Delete Selected
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, InputEvent.CTRL_DOWN_MASK), "delete-selected");
+        actionMap.put("delete-selected", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if (resultsTable.getSelectedRowCount() > 0) {
+                    executeDeleteSelected();
+                }
+            }
+        });
+
+        // F1 for Help
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0), "help");
+        actionMap.put("help", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                showKeyboardShortcuts();
+            }
+        });
+    }
+
+    private void showKeyboardShortcuts() {
+        StringBuilder shortcuts = new StringBuilder();
+        shortcuts.append("KEYBOARD SHORTCUTS\n\n");
+        shortcuts.append("Global Shortcuts:\n");
+        shortcuts.append("  Ctrl+L         - List Components\n");
+        shortcuts.append("  Ctrl+R / F5    - Refresh Components\n");
+        shortcuts.append("  Ctrl+T         - Show Statistics\n");
+        shortcuts.append("  Ctrl+Q         - Quit\n");
+        shortcuts.append("  Ctrl+Delete    - Delete Selected\n");
+        shortcuts.append("  F1             - Show this help\n\n");
+        shortcuts.append("Button Mnemonics (Alt+key):\n");
+        shortcuts.append("  Alt+F          - Toggle Advanced Filters\n");
+        shortcuts.append("  Alt+L          - List\n");
+        shortcuts.append("  Alt+R          - Refresh\n");
+        shortcuts.append("  Alt+D          - Delete All\n");
+        shortcuts.append("  Alt+E          - Delete Selected\n");
+        shortcuts.append("  Alt+C          - Clear Results\n");
+        shortcuts.append("  Alt+S          - Statistics\n");
+        shortcuts.append("  Alt+Q          - Quit\n\n");
+        shortcuts.append("Table Navigation:\n");
+        shortcuts.append("  Arrow Keys     - Navigate cells\n");
+        shortcuts.append("  Ctrl+Click     - Multi-select\n");
+        shortcuts.append("  Shift+Click    - Range select\n");
+        shortcuts.append("  Double-Click   - View component details\n");
+
+        JTextArea textArea = new JTextArea(shortcuts.toString());
+        textArea.setEditable(false);
+        textArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
+        JScrollPane scrollPane = new JScrollPane(textArea);
+        scrollPane.setPreferredSize(new Dimension(500, 400));
+
+        JOptionPane.showMessageDialog(frame,
+            scrollPane,
+            "Keyboard Shortcuts",
+            JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    private void showAboutDialog() {
+        StringBuilder about = new StringBuilder();
+        about.append("Nexus Repository Manager - Swing UI\n\n");
+        about.append("Version: 2.0.0\n");
+        about.append("Author: FlossWare\n\n");
+        about.append("A modern graphical interface for managing Sonatype Nexus repositories.\n\n");
+        about.append("Features:\n");
+        about.append("  • List and search components\n");
+        about.append("  • Advanced filtering (size, date, extension)\n");
+        about.append("  • Component deletion with dry-run support\n");
+        about.append("  • Repository statistics and analytics\n");
+        about.append("  • Keyboard shortcuts and accessibility\n\n");
+        about.append("Configuration: ").append(credentials.getProfile() == null
+            ? "~/.flossware/nexus/nexus.properties"
+            : "~/.flossware/nexus/nexus-" + credentials.getProfile() + ".properties");
+
+        JTextArea textArea = new JTextArea(about.toString());
+        textArea.setEditable(false);
+        textArea.setFont(new Font("SansSerif", Font.PLAIN, 12));
+
+        JOptionPane.showMessageDialog(frame,
+            textArea,
+            "About",
+            JOptionPane.INFORMATION_MESSAGE);
     }
 
     private void executeList(boolean forceRefresh) {

@@ -7,6 +7,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Swing GUI: Accessibility features** - Fixes Issue #42
+  - **Button mnemonics** (Alt+key shortcuts):
+    - Alt+F: Toggle Advanced Filters
+    - Alt+L: List Components
+    - Alt+R: Refresh Components
+    - Alt+D: Delete All
+    - Alt+E: Delete Selected
+    - Alt+C: Clear Results
+    - Alt+S: Show Statistics
+    - Alt+Q: Quit
+  - **Keyboard shortcuts** (global accelerators):
+    - Ctrl+L: List Components
+    - Ctrl+R: Refresh Components
+    - F5: Refresh Components
+    - Ctrl+T: Show Statistics
+    - Ctrl+Q: Quit
+    - Ctrl+Delete: Delete Selected Components
+    - F1: Show Keyboard Shortcuts Help
+  - **Menu bar** with File, Actions, and Help menus:
+    - File menu: Clear Results, Quit
+    - Actions menu: List, Refresh, Delete All, Delete Selected, Statistics
+    - Help menu: Keyboard Shortcuts (F1), About
+  - **Help dialogs**:
+    - F1 shows comprehensive keyboard shortcuts reference
+    - About dialog shows version 2.0.0, features, and configuration path
+  - **Implementation**: All shortcuts use InputMap/ActionMap pattern for proper key binding
+  - **Impact**: Improved accessibility for keyboard-only users, faster navigation, standard desktop app experience
+
+### Changed
+- **Versioning: Unified semantic versioning across all modules** - Fixes Issue #46
+  - **Problem**: Inconsistent version numbering caused confusion
+    - Desktop: 1.32 (auto-increment minor)
+    - Core: 1.2 (pom.xml) vs 1.1 (build.gradle)
+    - Android: 1.2
+    - iOS/macOS: 1.0
+  - **Solution**: Adopted unified semantic versioning (X.Y.Z) across all modules
+    - All modules now use version 2.0.0 (major bump for encryption feature added in 1.32)
+    - Desktop pom.xml: 1.32 → 2.0.0
+    - Core pom.xml + build.gradle: 1.2/1.1 → 2.0.0
+    - Android build.gradle: versionName 1.2 → 2.0.0, versionCode 2 → 3
+    - iOS Info.plist: CFBundleShortVersionString 1.0 → 2.0.0, CFBundleVersion 1 → 3
+    - macOS Info.plist: Same as iOS
+    - CLI @Command version: 1.0 → 2.0.0
+  - **Maven enforcer**: Updated version format validation from X.Y to X.Y.Z (semver)
+  - **Impact**: Clear version compatibility, feature parity visible, follows semver standard
+  - **Note**: --enable-preview flag kept with documentation (required for jcurses 1.27 dependency)
+
 ### Fixed
 - **Build: Dependency version mismatches** - Fixes Issue #40
   - **Problem**: jnexus-core had different versions in pom.xml and build.gradle

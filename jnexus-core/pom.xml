@@ -7,7 +7,7 @@
 
     <groupId>org.flossware</groupId>
     <artifactId>jnexus-core</artifactId>
-    <version>1.2</version>
+    <version>2.0.0</version>
     <packaging>jar</packaging>
 
     <name>JNexus Core</name>
