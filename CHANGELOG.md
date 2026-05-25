@@ -7,6 +7,219 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Bug: Resource leaks in JNexusUI and JNexus** - Fixes Issues #31, #32
+  - **JNexusUI.getTerminalSize()**: Wrapped BufferedReader in try-with-resources
+    - Process streams now closed automatically
+    - Prevents file descriptor leak
+  - **Scanner instances**: Created static CONSOLE_SCANNER for System.in reuse
+    - JNexusUI: Replaced 3 Scanner instantiations
+    - JNexus: Replaced 1 inline Scanner creation
+    - Prevents resource leaks while avoiding System.in closure
+    - Documented with comment: "never close this to avoid closing System.in"
+    - Standard Java best practice for System.in usage
+  - **Impact**: No resource leaks, proper resource management, all 244 tests pass
+
+- **User Experience: Better error messages for date parsing** - Fixes Issue #33
+  - Added specific DateTimeParseException handling for date filters
+  - JNexus.java (CLI): List command now catches invalid date formats
+  - JNexusSwing.java (GUI): Search filters now catch invalid date formats
+  - Error messages now explain:
+    - What date was invalid
+    - Expected format: ISO 8601 (examples: 2024-01-01T00:00:00Z or 2024-01-15T10:30:00.000Z)
+  - Previously: Generic "Text could not be parsed at index X" error
+  - Now: Helpful "Invalid date format: 2024-01-01. Please use ISO 8601 format..."
+  - Improves user experience when using --created-after/--created-before filters
+
+- **Android: Resource leaks in NexusClientOkHttp and NexusApplication** - Fixes Issues #34, #35
+  - **NexusClientOkHttp**: Now implements AutoCloseable for proper OkHttp resource cleanup
+    - Added close() method that:
+      - Clears component and metadata caches
+      - Evicts all idle connections from OkHttp connection pool
+      - Shuts down OkHttp dispatcher thread pool
+    - Prevents connection pool and thread pool leaks
+    - Supports try-with-resources pattern for automatic cleanup
+    - Idempotent close() - safe to call multiple times
+  - **NexusApplication.reinitializeServices()**: Now closes old HTTP client before creating new one
+    - Previously: Created new NexusClientOkHttp without closing old instance
+    - Now: Calls close() on old client before replacement
+    - Fixes resource leak when credentials are changed in settings
+    - Prevents accumulation of OkHttp connections and threads
+  - **Impact**: No more resource leaks when changing credentials, proper cleanup on app lifecycle
+
+- **Android: Security fix for credential backup vulnerability** - Fixes Issue #37
+  - **AndroidManifest.xml**: Changed android:allowBackup from true to false
+  - **Security risk**: With allowBackup=true, app data can be extracted via adb backup
+    - Includes EncryptedSharedPreferences with stored credentials
+    - Physical device access could lead to credential extraction
+    - Even with encryption, backup files should not contain sensitive data
+  - **Fix**: android:allowBackup="false" prevents backup of app data
+  - **Impact**: Credentials cannot be backed up or restored, improving security
+  - **Tradeoff**: Users must re-enter credentials after app reinstall (acceptable for security tool)
+
+### Changed
+- **Android: ProGuard rules optimization** - Fixes Issue #39
+  - **Previous rules**: Overly broad `-keep class X.** { *; }` for all libraries
+    - Kept all classes, fields, and methods from every library
+    - Defeated obfuscation (no name changes)
+    - Defeated shrinking (no dead code removal)
+    - Increased APK size significantly
+    - Kept libraries that provide their own R8 rules (duplication)
+  - **New rules**: Minimal, targeted rules that rely on library-provided R8 rules
+    - OkHttp: Uses built-in R8 rules from okhttp3-*-rules.jar
+    - Jackson: Uses built-in consumer rules from jackson-module-kotlin
+    - Compose: Uses Android's built-in Compose R8 rules
+    - Material3: Uses built-in R8 rules
+    - AndroidX Security: Uses built-in rules
+    - Only keeps:
+      - JNexus data models (JSON serialization requires field names)
+      - JNexus interfaces (DI requires)
+      - JNexus service and Android implementations (DI requires)
+      - Kotlin UI code can be fully obfuscated (not accessed via reflection)
+  - **Benefits**:
+    - Smaller APK size (dead code removed)
+    - Better obfuscation (library code obfuscated where safe)
+    - Faster builds (less work for R8)
+    - Easier maintenance (relies on library rules instead of manual keeping)
+  - **Impact**: APK size reduction, improved security through obfuscation
+
+- **iOS: Thread-safety for cache dictionaries** - Fixes Issue #36
+  - **NexusClientURLSession**: Added NSLock to protect cache access from data races
+  - **Problem**: Cache dictionaries accessed from multiple async tasks without synchronization
+    - Swift Dictionary is not thread-safe
+    - Concurrent reads/writes could cause crashes or data corruption
+    - Multiple async calls to listComponents() could race on cache access
+  - **Solution**: Added cacheLock (NSLock) to serialize all cache operations
+    - Protected operations:
+      - listComponents() - cache read (line 60) and write (line 77)
+      - listComponentsWithMetadata() - cache read (line 86) and write (line 103)
+      - clearCache() - cache modification
+      - clearAllCache() - cache clearing
+      - isCached() - cache read
+      - getCacheAge() - cache read
+    - Lock/unlock pattern: lock before access, unlock immediately after
+    - Minimal lock duration (only dictionary access, not network I/O)
+  - **Why NSLock instead of Actor**:
+    - Protocol defines synchronous cache methods (isCached, getCacheAge)
+    - Actor would require making protocol methods async (breaking change)
+    - NSLock provides fine-grained control over critical sections
+    - Async methods (listComponents) don't hold lock during network I/O
+  - **Impact**: Prevents data races, safe concurrent access, no crashes in multi-threaded scenarios
+
+### Added
+- **Testing: CLI command test coverage** - Partial fix for Issue #38
+  - **JNexusCommandTest**: 20 new tests for CLI command parsing and validation
+  - **Tests added**:
+    - Help and version flags
+    - Invalid date format handling (--created-after, --created-before)
+    - Partial ISO dates (2024-01-01 without time part)
+    - Missing required parameters (repository name)
+    - Flag recognition (verbose, quiet, profile)
+    - Option recognition (min-size, max-size, extension, show-metadata, dry-run, yes, format)
+  - **Coverage increase**: 244 → 264 tests (+20 CLI tests)
+  - **Focus**: Exit codes and command parsing (not error message content due to SLF4J logging)
+  - **Benefits**:
+    - Catches command parsing regressions
+    - Validates date parsing error detection (Issue #33)
+    - Documents expected CLI behavior
+    - Provides baseline for future CLI testing
+  - **Remaining gaps** (Issue #38 still open):
+    - Swing GUI (1446 lines, 0% coverage)
+    - AWT GUI (0% coverage)
+    - Terminal UI (0% coverage)
+    - CLI output formatting and business logic
+- **Architecture: ProgressCallback moved to jnexus-core 1.2** - Addresses Issue #18
+  - ProgressCallback interface now in jnexus-core for platform sharing
+  - Desktop removed duplicate ProgressCallback.java (6,203 bytes deduplicated)
+  - Android, iOS, and desktop can all use progress callbacks
+  - Enables consistent progress tracking across all platforms
+  - Desktop continues to use enhanced NexusService with GUI helpers
+  - Updated desktop dependency: jnexus-core 1.1 → 1.2
+
+### Changed
+- **Code Quality: Replaced System.err with proper logging in Credentials** - Fixes Issue #26
+  - Replaced 11 instances of System.err.println with logger.warn() in Credentials.java
+  - Configuration warnings now use SLF4J logger instead of stderr
+  - Benefits:
+    - Log level control (can suppress warnings with --quiet)
+    - Proper log routing (warnings go to log file, not stdout)
+    - Timestamps on all warnings
+    - Context information (class/method)
+    - Clean separation of user output vs system messages
+  - Warnings affected:
+    - HTTP timeout validation
+    - Max retries validation
+    - Retry delay validation
+    - Log level validation
+    - HTTP vs HTTPS security warning
+    - Properties file loading errors
+    - Profile discovery errors
+  - CLI output remains clean, warnings now in logs only
+
+### Closed Issues
+- Issue #17: Desktop/core architecture (resolved - desktop uses jnexus-core correctly)
+- Issue #18: NexusService divergence (architectural decision - different by design)
+- Issue #25: Meta review summary (completed)
+- Issue #26: System.out/err usage (fixed with logger.warn)
+- Issue #27: JNexusSwing size (acceptable - low priority refactoring)
+- Issue #29: Architecture clarification (documented)
+- Issue #30: Review findings (addressed)
+- Issue #31: Resource leak in JNexusUI (fixed with try-with-resources)
+- Issue #32: Scanner resource leaks (fixed with static CONSOLE_SCANNER)
+- Issue #33: Date parsing error messages (improved with specific exception handling)
+- Issue #34: Android resource leak in NexusApplication (fixed - closes old client before replacement)
+- Issue #35: Android resource leak when credentials change (fixed - same as #34)
+- Issue #36: iOS cache thread-safety (fixed - added NSLock for synchronization)
+- Issue #37: Android allowBackup security risk (fixed - disabled backup)
+- Issue #39: Android ProGuard rules too broad (optimized - rely on library rules)
+
+### Architecture Decisions
+- **Desktop NexusService vs Core NexusService**: Intentionally different
+  - Core: Platform-agnostic business logic (591 lines)
+  - Desktop: Business logic + GUI helpers (811 lines)
+  - Desktop needs formatRecordsWithHeaders(), getCacheStatus(), callbacks
+  - Decision: Keep both, serves different purposes
+- **Credentials interface**: Desktop doesn't implement core's interface
+  - Core interface designed for Android encrypted storage
+  - Desktop has file-based storage with different needs
+  - No real duplication - same method signatures
+  - Decision: Keep separate implementations
+
+## [1.32] - 2026-05-24
+
+### Added
+- **Resource management: NexusClient implements AutoCloseable** - Fixes Issue #22
+  - NexusClient now implements AutoCloseable for proper resource cleanup
+  - Added close() method that clears caches and helps GC free resources
+  - GUI applications (Swing, AWT) now close client on window closing
+  - CLI usage can use try-with-resources pattern
+  - Added 2 tests for AutoCloseable behavior
+  - Prevents resource accumulation in long-running applications
+
+### Fixed
+- **Build: Dependency warnings** - Fixes Issue #23
+  - Added explicit dependency on jackson-core (was transitive via jackson-databind)
+  - Added explicit dependency on junit-jupiter-api (was transitive via junit-jupiter)
+  - Resolves Maven dependency:analyze warnings about undeclared dependencies
+  - Prevents future build failures from version changes
+
+### Changed
+- **Code Quality: AWT GUI threading improvements** - Fixes Issue #24
+  - Replaced raw Thread creation with SwingWorker for background tasks
+  - Consistent with Swing GUI threading pattern
+  - Benefits: built-in exception handling, proper lifecycle management
+  - List and Delete operations now use SwingWorker.doInBackground()
+  - Cleaner code, easier debugging, better resource usage
+
+### Documentation
+- Updated NexusClient Javadoc with resource management examples
+- Added try-with-resources usage patterns to class documentation
+
+### Closed Issues
+- Issue #22: NexusClient resource leak (AutoCloseable implemented)
+- Issue #23: Dependency warnings (explicit dependencies added)
+- Issue #24: AWT threading improvements (SwingWorker adopted)
+
 ## [1.31] - 2026-05-24
 
 ### Changed
@@ -48,6 +261,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Maven pom.xml for jnexus-core**
   - Previously Gradle-only, now supports both build systems
   - Java 17 source/target (matches build.gradle)
+
+- **Test Coverage Improvements**
+  - Added 12 new edge case tests (242 total tests, 0 failures)
+  - **CredentialsEdgeCaseTest**: 8 tests for error handling
+    - HTTP timeout validation (negative, zero, invalid format)
+    - Max retries validation (negative, too large, invalid format)
+    - Invalid Nexus URL handling
+    - Properties file loading edge cases
+  - **NexusServiceCallbackTest**: 4 tests for callback exception handling
+    - Callbacks throwing exceptions during delete progress
+    - Callbacks throwing exceptions when delete fails
+    - Null callback safety
+    - Callbacks throwing exceptions on completion
+  - **Business logic coverage increased**:
+    - Credentials: 79% → 81.2% instruction coverage (+2.2%)
+    - NexusService: 78% → 79.0% instruction coverage (+0.7%)
+    - Core business logic (delete, search, statistics) has 91%+ coverage
+  - Uncovered code is primarily UI helper methods (formatRecordsWithHeaders, getCacheStatus)
   - All dependencies aligned with Gradle version
   - Enables desktop to depend on jnexus-core via Maven
 

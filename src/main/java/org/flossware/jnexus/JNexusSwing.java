@@ -289,6 +289,17 @@ public class JNexusSwing {
     private void createAndShowGUI() {
         frame = new JFrame("Nexus Repository Manager - Swing UI");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+
+        // Close client resources when window closes
+        frame.addWindowListener(new java.awt.event.WindowAdapter() {
+            @Override
+            public void windowClosing(java.awt.event.WindowEvent e) {
+                if (client != null) {
+                    client.close();
+                }
+            }
+        });
+
         frame.setSize(900, 700);
         frame.setLocationRelativeTo(null); // Center on screen
 
@@ -730,6 +741,9 @@ public class JNexusSwing {
 
                     SearchCriteria criteria = builder.build();
                     return service.searchComponents(criteria, forceRefresh);
+                } catch (java.time.format.DateTimeParseException e) {
+                    logger.error("Invalid date format: {}. Please use ISO 8601 format (examples: 2024-01-01T00:00:00Z or 2024-01-15T10:30:00.000Z)", e.getParsedString());
+                    return null;
                 } catch (Exception e) {
                     logger.error("List operation failed", e);
                     return null;

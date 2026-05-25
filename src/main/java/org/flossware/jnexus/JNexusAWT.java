@@ -3,6 +3,8 @@ package org.flossware.jnexus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.swing.SwingWorker;
+
 import java.awt.*;
 import java.awt.event.*;
 import java.io.ByteArrayOutputStream;
@@ -384,6 +386,9 @@ public class JNexusAWT {
         frame.addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
+                if (client != null) {
+                    client.close();
+                }
                 System.exit(0);
             }
         });
@@ -600,36 +605,42 @@ public class JNexusAWT {
 
         // Run in background thread to keep UI responsive
         String finalRegex = regex;
-        new Thread(() -> {
-            try {
+        SwingWorker<String, Void> worker = new SwingWorker<>() {
+            private int recordCount;
+            private String cacheStatus;
+
+            @Override
+            protected String doInBackground() throws Exception {
                 // Get records and format them
                 List<RepoRecord> records = service.getRepositoryRecords(repository, finalRegex, forceRefresh);
                 String output = service.formatRecordsWithHeaders(records);
 
-                // Update UI on event dispatch thread
-                EventQueue.invokeLater(() -> {
+                // Store for done() method
+                recordCount = records.size();
+                cacheStatus = service.getCacheStatus(repository);
+
+                return output;
+            }
+
+            @Override
+            protected void done() {
+                try {
+                    String output = get();
                     resultsArea.setText(output);
                     resultsArea.setCaretPosition(0);
-
-                    String newCacheStatus = service.getCacheStatus(repository);
-                    setStatus("List completed - " + records.size() + " components - " + newCacheStatus);
-
-                    // Restore normal cursor
-                    frame.setCursor(Cursor.getDefaultCursor());
-                    setButtonsEnabled(true);
-                });
-            } catch (Exception e) {
-                logger.error("List operation failed", e);
-                EventQueue.invokeLater(() -> {
+                    setStatus("List completed - " + recordCount + " components - " + cacheStatus);
+                } catch (Exception e) {
+                    logger.error("List operation failed", e);
                     resultsArea.setText("ERROR: " + e.getMessage());
                     setStatus("List failed: " + e.getMessage());
-
+                } finally {
                     // Restore normal cursor
                     frame.setCursor(Cursor.getDefaultCursor());
                     setButtonsEnabled(true);
-                });
+                }
             }
-        }).start();
+        };
+        worker.execute();
     }
 
     private void executeDelete() {
@@ -673,8 +684,9 @@ public class JNexusAWT {
 
         // Run in background thread
         String finalRegex = regex;
-        new Thread(() -> {
-            try {
+        SwingWorker<String, Void> worker = new SwingWorker<>() {
+            @Override
+            protected String doInBackground() throws Exception {
                 // Capture service output
                 ByteArrayOutputStream baos = new ByteArrayOutputStream();
                 PrintStream ps = new PrintStream(baos);
@@ -692,10 +704,13 @@ public class JNexusAWT {
                     System.setErr(oldErr);
                 }
 
-                String output = baos.toString();
+                return baos.toString();
+            }
 
-                // Update UI on event dispatch thread
-                EventQueue.invokeLater(() -> {
+            @Override
+            protected void done() {
+                try {
+                    String output = get();
                     resultsArea.setText(output);
                     resultsArea.setCaretPosition(0);
 
@@ -704,23 +719,18 @@ public class JNexusAWT {
                     } else {
                         setStatus("Delete operation completed " + mode);
                     }
-
-                    // Restore normal cursor
-                    frame.setCursor(Cursor.getDefaultCursor());
-                    setButtonsEnabled(true);
-                });
-            } catch (Exception e) {
-                logger.error("Delete operation failed", e);
-                EventQueue.invokeLater(() -> {
+                } catch (Exception e) {
+                    logger.error("Delete operation failed", e);
                     resultsArea.setText("ERROR: " + e.getMessage());
                     setStatus("Delete failed: " + e.getMessage());
-
+                } finally {
                     // Restore normal cursor
                     frame.setCursor(Cursor.getDefaultCursor());
                     setButtonsEnabled(true);
-                });
+                }
             }
-        }).start();
+        };
+        worker.execute();
     }
 
     private void setStatus(String message) {

@@ -10,11 +10,15 @@ import Foundation
 
 /// URLSession implementation of NexusHttpClient
 /// Provides caching, retry logic, and pagination for Nexus API
+///
+/// Thread-safety: Cache dictionaries are protected by NSLock to prevent data races
+/// when multiple async tasks access the same repository concurrently.
 class NexusClientURLSession: NexusHttpClient {
     private let session: URLSession
     private let credentials: Credentials
     private var cache: [String: CacheEntry] = [:]
     private var metadataCache: [String: MetadataCacheEntry] = [:]
+    private let cacheLock = NSLock()  // Protects cache and metadataCache access
     private let cacheTTL: TimeInterval = 300  // 5 minutes
     private let maxRetries = 3
     private let initialRetryDelay: TimeInterval = 1.0
@@ -53,9 +57,15 @@ class NexusClientURLSession: NexusHttpClient {
     // MARK: - NexusHttpClient Implementation
 
     func listComponents(repository: String, forceRefresh: Bool) async throws -> [RepoRecord] {
-        // Check cache
-        if !forceRefresh, let entry = cache[repository], !entry.isExpired(ttl: cacheTTL) {
-            return entry.records
+        // Check cache (thread-safe read)
+        if !forceRefresh {
+            cacheLock.lock()
+            let entry = cache[repository]
+            cacheLock.unlock()
+
+            if let entry = entry, !entry.isExpired(ttl: cacheTTL) {
+                return entry.records
+            }
         }
 
         // Fetch with pagination
@@ -68,16 +78,24 @@ class NexusClientURLSession: NexusHttpClient {
             continuationToken = token
         } while continuationToken != nil
 
-        // Update cache
+        // Update cache (thread-safe write)
+        cacheLock.lock()
         cache[repository] = CacheEntry(records: allRecords, timestamp: Date())
+        cacheLock.unlock()
 
         return allRecords
     }
 
     func listComponentsWithMetadata(repository: String, forceRefresh: Bool) async throws -> [ComponentMetadata] {
-        // Check cache
-        if !forceRefresh, let entry = metadataCache[repository], !entry.isExpired(ttl: cacheTTL) {
-            return entry.records
+        // Check cache (thread-safe read)
+        if !forceRefresh {
+            cacheLock.lock()
+            let entry = metadataCache[repository]
+            cacheLock.unlock()
+
+            if let entry = entry, !entry.isExpired(ttl: cacheTTL) {
+                return entry.records
+            }
         }
 
         // Fetch with pagination
@@ -90,8 +108,10 @@ class NexusClientURLSession: NexusHttpClient {
             continuationToken = token
         } while continuationToken != nil
 
-        // Update cache
+        // Update cache (thread-safe write)
+        cacheLock.lock()
         metadataCache[repository] = MetadataCacheEntry(records: allRecords, timestamp: Date())
+        cacheLock.unlock()
 
         return allRecords
     }
@@ -119,24 +139,36 @@ class NexusClientURLSession: NexusHttpClient {
     }
 
     func clearCache(repository: String) {
+        cacheLock.lock()
         cache.removeValue(forKey: repository)
         metadataCache.removeValue(forKey: repository)
+        cacheLock.unlock()
     }
 
     func clearAllCache() {
+        cacheLock.lock()
         cache.removeAll()
         metadataCache.removeAll()
+        cacheLock.unlock()
     }
 
     func isCached(repository: String) -> Bool {
-        if let entry = cache[repository] {
+        cacheLock.lock()
+        let entry = cache[repository]
+        cacheLock.unlock()
+
+        if let entry = entry {
             return !entry.isExpired(ttl: cacheTTL)
         }
         return false
     }
 
     func getCacheAge(repository: String) -> TimeInterval? {
-        if let entry = cache[repository] {
+        cacheLock.lock()
+        let entry = cache[repository]
+        cacheLock.unlock()
+
+        if let entry = entry {
             return Date().timeIntervalSince(entry.timestamp)
         }
         return nil

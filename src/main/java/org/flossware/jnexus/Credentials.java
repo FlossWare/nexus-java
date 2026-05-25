@@ -372,11 +372,11 @@ public class Credentials {
             try {
                 timeout = Integer.parseInt(timeoutStr);
                 if (timeout <= 0) {
-                    System.err.println("Warning: HTTP timeout must be positive. Using default: 30 seconds");
+                    logger.warn("HTTP timeout must be positive. Using default: 30 seconds");
                     timeout = 30;
                 }
             } catch (NumberFormatException e) {
-                System.err.println("Warning: Invalid HTTP timeout value '" + timeoutStr + "'. Using default: 30 seconds");
+                logger.warn("Invalid HTTP timeout value '{}'. Using default: 30 seconds", timeoutStr);
             }
         }
         this.httpTimeoutSeconds = timeout;
@@ -391,11 +391,11 @@ public class Credentials {
             try {
                 retries = Integer.parseInt(maxRetriesStr);
                 if (retries < 0 || retries > 10) {
-                    System.err.println("Warning: Max retries must be between 0 and 10. Using default: 3");
+                    logger.warn("Max retries must be between 0 and 10. Using default: 3");
                     retries = 3;
                 }
             } catch (NumberFormatException e) {
-                System.err.println("Warning: Invalid max retries value '" + maxRetriesStr + "'. Using default: 3");
+                logger.warn("Invalid max retries value '{}'. Using default: 3", maxRetriesStr);
             }
         }
         this.maxRetries = retries;
@@ -409,11 +409,11 @@ public class Credentials {
             try {
                 delay = Long.parseLong(retryDelayStr);
                 if (delay < 0 || delay > 60000) {
-                    System.err.println("Warning: Retry delay must be between 0 and 60000ms. Using default: 1000ms");
+                    logger.warn("Retry delay must be between 0 and 60000ms. Using default: 1000ms");
                     delay = 1000;
                 }
             } catch (NumberFormatException e) {
-                System.err.println("Warning: Invalid retry delay value '" + retryDelayStr + "'. Using default: 1000ms");
+                logger.warn("Invalid retry delay value '{}'. Using default: 1000ms", retryDelayStr);
             }
         }
         this.initialRetryDelayMs = delay;
@@ -431,7 +431,7 @@ public class Credentials {
                 upperLevel.equals("ERROR") || upperLevel.equals("OFF")) {
                 level = upperLevel;
             } else {
-                System.err.println("Warning: Invalid log level '" + logLevelStr + "'. Valid values: TRACE, DEBUG, INFO, WARN, ERROR, OFF. Using default: INFO");
+                logger.warn("Invalid log level '{}'. Valid values: TRACE, DEBUG, INFO, WARN, ERROR, OFF. Using default: INFO", logLevelStr);
             }
         }
         this.logLevel = level;
@@ -479,8 +479,7 @@ public class Credentials {
 
             // Warn about HTTP (not HTTPS)
             if (scheme.equalsIgnoreCase("http")) {
-                System.err.println("WARNING: Using HTTP instead of HTTPS. Credentials will be sent over an insecure connection.");
-                System.err.println("         Consider using HTTPS for production environments.");
+                logger.warn("Using HTTP instead of HTTPS. Credentials will be sent over an insecure connection. Consider using HTTPS for production environments.");
             }
 
         } catch (URISyntaxException e) {
@@ -545,10 +544,10 @@ public class Credentials {
             try (InputStream input = Files.newInputStream(configPath)) {
                 props.load(input);
             } catch (IOException e) {
-                System.err.println("Warning: Could not load properties file from " + configPath + ": " + e.getMessage());
+                logger.warn("Could not load properties file from {}: {}", configPath, e.getMessage());
             }
         } else if (this.profile != null) {
-            System.err.println("Warning: Profile '" + this.profile + "' specified but file not found: " + configPath);
+            logger.warn("Profile '{}' specified but file not found: {}", this.profile, configPath);
         }
 
         return props;
@@ -768,7 +767,7 @@ public class Credentials {
                     }
                 });
         } catch (IOException e) {
-            System.err.println("Warning: Could not scan profiles directory: " + e.getMessage());
+            logger.warn("Could not scan profiles directory: {}", e.getMessage());
         }
 
         // Sort profiles alphabetically, but keep "default" first if it exists

@@ -24,6 +24,9 @@ public class JNexusUI {
     private static boolean running = true;
     private static char[][] buffer;
 
+    // Shared Scanner for System.in - never close this to avoid closing System.in
+    private static final java.util.Scanner CONSOLE_SCANNER = new java.util.Scanner(System.in);
+
     // Ncurses key codes
     private static final int KEY_UP = 259;
     private static final int KEY_DOWN = 258;
@@ -55,16 +58,18 @@ public class JNexusUI {
         try {
             // Run stty size to get terminal dimensions
             Process process = new ProcessBuilder("sh", "-c", "stty size </dev/tty").start();
-            java.io.BufferedReader reader = new java.io.BufferedReader(
-                new java.io.InputStreamReader(process.getInputStream())
-            );
-            String line = reader.readLine();
-            process.waitFor();
 
-            if (line != null && !line.isEmpty()) {
-                String[] parts = line.trim().split("\\s+");
-                if (parts.length == 2) {
-                    return new int[]{Integer.parseInt(parts[0]), Integer.parseInt(parts[1])};
+            try (java.io.BufferedReader reader = new java.io.BufferedReader(
+                    new java.io.InputStreamReader(process.getInputStream()))) {
+
+                String line = reader.readLine();
+                process.waitFor();
+
+                if (line != null && !line.isEmpty()) {
+                    String[] parts = line.trim().split("\\s+");
+                    if (parts.length == 2) {
+                        return new int[]{Integer.parseInt(parts[0]), Integer.parseInt(parts[1])};
+                    }
                 }
             }
         } catch (Exception e) {
@@ -113,8 +118,7 @@ public class JNexusUI {
 
             // Ask if user wants to save credentials
             System.out.print("Would you like to save these credentials to ~/.flossware/nexus/nexus.properties? (yes/no): ");
-            java.util.Scanner scanner = new java.util.Scanner(System.in);
-            String saveResponse = scanner.nextLine().trim().toLowerCase();
+            String saveResponse = CONSOLE_SCANNER.nextLine().trim().toLowerCase();
 
             if (saveResponse.equals("yes") || saveResponse.equals("y")) {
                 try {
@@ -194,8 +198,7 @@ public class JNexusUI {
         System.out.print("Select profile (enter number): ");
 
         try {
-            java.util.Scanner scanner = new java.util.Scanner(System.in);
-            int choice = scanner.nextInt();
+            int choice = CONSOLE_SCANNER.nextInt();
 
             if (choice == 0) {
                 return null;
@@ -221,11 +224,9 @@ public class JNexusUI {
         System.out.println("========================================\n");
         System.out.println("Please enter your Nexus credentials:\n");
 
-        java.util.Scanner scanner = new java.util.Scanner(System.in);
-
         // Collect URL
         System.out.print("Nexus URL (e.g., https://your-nexus-server.com): ");
-        String url = scanner.nextLine().trim();
+        String url = CONSOLE_SCANNER.nextLine().trim();
         if (url.isEmpty()) {
             System.err.println("ERROR: URL cannot be empty.");
             return null;
@@ -233,7 +234,7 @@ public class JNexusUI {
 
         // Collect username
         System.out.print("Username: ");
-        String user = scanner.nextLine().trim();
+        String user = CONSOLE_SCANNER.nextLine().trim();
         if (user.isEmpty()) {
             System.err.println("ERROR: Username cannot be empty.");
             return null;
@@ -248,7 +249,7 @@ public class JNexusUI {
             password = new String(passwordChars);
         } else {
             // Fallback to regular input
-            password = scanner.nextLine();
+            password = CONSOLE_SCANNER.nextLine();
         }
         password = password.trim();
         if (password.isEmpty()) {
@@ -258,7 +259,7 @@ public class JNexusUI {
 
         // Collect repositories (optional)
         System.out.print("Repositories (optional, comma-separated): ");
-        String repos = scanner.nextLine().trim();
+        String repos = CONSOLE_SCANNER.nextLine().trim();
 
         System.out.println("\n========================================\n");
 

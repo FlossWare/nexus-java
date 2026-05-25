@@ -39,35 +39,54 @@ import java.util.concurrent.ConcurrentHashMap;
  *   <li><strong>Metadata Support</strong> - Full component metadata extraction including dates and checksums</li>
  * </ul>
  *
+ * <h2>Resource Management:</h2>
+ * <p>
+ * This class implements {@link AutoCloseable} for proper resource management.
+ * Use try-with-resources for automatic cleanup:
+ * </p>
+ * <pre>
+ * Credentials credentials = new Credentials();
+ * try (NexusClient client = new NexusClient(credentials)) {
+ *     List&lt;RepoRecord&gt; components = client.listComponents("maven-releases");
+ *     // ... use client ...
+ * } // client.close() called automatically
+ * </pre>
+ * <p>
+ * For long-running GUI applications, close the client when the window closes to free resources.
+ * </p>
+ *
  * <h2>Usage Examples:</h2>
  * <pre>
- * // Basic usage with default settings
- * Credentials credentials = new Credentials();
- * NexusClient client = new NexusClient(credentials);
+ * // Basic usage with try-with-resources
+ * try (NexusClient client = new NexusClient(credentials)) {
+ *     // List components (uses cache)
+ *     List&lt;RepoRecord&gt; components = client.listComponents("maven-releases");
  *
- * // List components (uses cache)
- * List&lt;RepoRecord&gt; components = client.listComponents("maven-releases");
+ *     // Force refresh (bypass cache)
+ *     List&lt;RepoRecord&gt; fresh = client.listComponents("maven-releases", true);
  *
- * // Force refresh (bypass cache)
- * List&lt;RepoRecord&gt; fresh = client.listComponents("maven-releases", true);
+ *     // List with metadata
+ *     List&lt;ComponentMetadata&gt; metadata = client.listComponentsWithMetadata("maven-releases");
  *
- * // List with metadata
- * List&lt;ComponentMetadata&gt; metadata = client.listComponentsWithMetadata("maven-releases");
+ *     // Delete a component
+ *     client.deleteComponent("component-id");
  *
- * // Delete a component
- * client.deleteComponent("component-id");
- *
- * // Cache management
- * boolean cached = client.isCached("maven-releases");
- * long age = client.getCacheAge("maven-releases");
- * client.clearCache("maven-releases");
- * client.clearAllCache();
+ *     // Cache management
+ *     boolean cached = client.isCached("maven-releases");
+ *     long age = client.getCacheAge("maven-releases");
+ *     client.clearCache("maven-releases");
+ *     client.clearAllCache();
+ * }
  *
  * // Custom cache TTL (10 minutes)
- * NexusClient customClient = new NexusClient(credentials, 600);
+ * try (NexusClient customClient = new NexusClient(credentials, 600)) {
+ *     // ... use client ...
+ * }
  *
  * // Disable caching (TTL = 0)
- * NexusClient nocacheClient = new NexusClient(credentials, 0);
+ * try (NexusClient nocacheClient = new NexusClient(credentials, 0)) {
+ *     // ... use client ...
+ * }
  * </pre>
  *
  * <h2>Configuration:</h2>
@@ -94,7 +113,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * @see RepoRecord
  * @see ComponentMetadata
  */
-public class NexusClient implements NexusHttpClient {
+public class NexusClient implements NexusHttpClient, AutoCloseable {
     private static final Logger logger = LoggerFactory.getLogger(NexusClient.class);
 
     private final String baseUrl;
@@ -725,6 +744,34 @@ public class NexusClient implements NexusHttpClient {
         CacheEntry entry = cache.get(repository);
         if (entry == null) return -1;
         return Duration.between(entry.timestamp(), Instant.now()).getSeconds();
+    }
+
+    /**
+     * Closes this client and releases any resources held by it.
+     * <p>
+     * This method clears all caches and helps the garbage collector free resources more quickly.
+     * While the underlying {@link HttpClient} doesn't have an explicit close() method in Java 21,
+     * clearing our references helps with resource cleanup in long-running applications.
+     * </p>
+     * <p>
+     * This client should be used with try-with-resources for proper lifecycle management:
+     * </p>
+     * <pre>
+     * try (NexusClient client = new NexusClient(credentials)) {
+     *     NexusService service = new NexusService(client);
+     *     service.listRepository("maven-releases", null);
+     * }
+     * </pre>
+     * <p>
+     * <strong>Note:</strong> After calling close(), this client should not be used for further operations.
+     * </p>
+     */
+    @Override
+    public void close() {
+        // Clear caches to free memory
+        cache.clear();
+        metadataCache.clear();
+        logger.debug("NexusClient closed - caches cleared and resources will be freed by GC");
     }
 
     /**

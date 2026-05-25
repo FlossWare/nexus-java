@@ -26,11 +26,21 @@ import java.util.concurrent.TimeUnit;
  * Provides the same functionality as NexusClient with identical caching,
  * retry logic, and pagination handling.
  * </p>
+ * <p>
+ * Implements AutoCloseable to properly release OkHttp resources (connection pools, thread pools).
+ * Use try-with-resources or call close() when done:
+ * </p>
+ * <pre>
+ * try (NexusClientOkHttp client = new NexusClientOkHttp(credentials)) {
+ *     List&lt;RepoRecord&gt; components = client.listComponents("maven-releases");
+ *     // ... use components
+ * }
+ * </pre>
  *
  * @author sfloess
  * @since 1.1
  */
-public class NexusClientOkHttp implements NexusHttpClient {
+public class NexusClientOkHttp implements NexusHttpClient, AutoCloseable {
     private static final Logger logger = LoggerFactory.getLogger(NexusClientOkHttp.class);
 
     private final String baseUrl;
@@ -578,4 +588,32 @@ public class NexusClientOkHttp implements NexusHttpClient {
     private record ComponentsResponse(List<RepoRecord> records, String continuationToken) {}
 
     private record ComponentsMetadataResponse(List<ComponentMetadata> records, String continuationToken) {}
+
+    /**
+     * Closes this client and releases all resources.
+     * <p>
+     * This method:
+     * </p>
+     * <ul>
+     *   <li>Clears all caches to free memory</li>
+     *   <li>Evicts all idle connections from OkHttp's connection pool</li>
+     *   <li>Shuts down OkHttp's dispatcher thread pool</li>
+     * </ul>
+     * <p>
+     * This method is idempotent - calling it multiple times is safe.
+     * After calling close(), this client should not be used for further requests.
+     * </p>
+     */
+    @Override
+    public void close() {
+        // Clear caches to free memory
+        cache.clear();
+        metadataCache.clear();
+
+        // Shutdown OkHttp resources
+        httpClient.connectionPool().evictAll();
+        httpClient.dispatcher().executorService().shutdown();
+
+        logger.debug("NexusClientOkHttp closed - caches cleared and OkHttp resources released");
+    }
 }

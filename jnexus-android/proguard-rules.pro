@@ -1,37 +1,43 @@
 # JNexus Android ProGuard Rules
+#
+# Philosophy: Rely on library-provided R8 rules (via AAR files) where possible.
+# Only add custom rules for:
+#   1. Data models serialized/deserialized via Jackson
+#   2. Classes accessed via reflection
+#   3. Security-sensitive code that must not be obfuscated
+#
+# Libraries with built-in R8 rules (no custom rules needed):
+#   - OkHttp (okhttp3-*-rules.jar in AAR)
+#   - Jackson (jackson-module-kotlin has consumer rules)
+#   - Jetpack Compose (built-in R8 rules)
+#   - Material3 (built-in R8 rules)
+#   - AndroidX Security Crypto (built-in rules)
+#   - Kotlin stdlib (built-in rules)
 
-# Keep Error Prone annotations (used by Google Crypto Tink library)
+# Suppress warnings for optional dependencies not used by JNexus
 -dontwarn com.google.errorprone.annotations.**
--keep class com.google.errorprone.annotations.** { *; }
+-dontwarn org.conscrypt.**
+-dontwarn org.bouncycastle.**
 
-# Keep Tink crypto library classes
--keep class com.google.crypto.tink.** { *; }
--dontwarn com.google.crypto.tink.**
+# Keep JNexus data models - used for JSON serialization/deserialization
+# Records are serialized via Jackson, field names must be preserved
+-keep class org.flossware.jnexus.RepoRecord { *; }
+-keep class org.flossware.jnexus.ComponentMetadata { *; }
+-keep class org.flossware.jnexus.SearchCriteria { *; }
+-keep class org.flossware.jnexus.RepositoryStats { *; }
 
-# Keep Jackson JSON classes
--keep class com.fasterxml.jackson.** { *; }
--dontwarn com.fasterxml.jackson.**
+# Keep JNexus interfaces - implemented by Android-specific classes
+-keep interface org.flossware.jnexus.NexusHttpClient { *; }
+-keep interface org.flossware.jnexus.Credentials { *; }
+-keep interface org.flossware.jnexus.ProgressCallback { *; }
 
-# Keep org.json classes
--keep class org.json.** { *; }
+# Keep JNexus service layer - accessed via dependency injection
+-keep class org.flossware.jnexus.NexusService { *; }
 
-# Keep OkHttp classes
--keep class okhttp3.** { *; }
--dontwarn okhttp3.**
+# Keep Android implementations - cannot be obfuscated due to DI
+-keep class org.flossware.jnexus.android.NexusApplication { *; }
+-keep class org.flossware.jnexus.android.NexusClientOkHttp { *; }
+-keep class org.flossware.jnexus.android.CredentialsAndroid { *; }
 
-# Keep jnexus-core data models (records)
--keep class org.flossware.jnexus.** { *; }
-
-# Keep Jetpack Compose classes
--keep class androidx.compose.** { *; }
--dontwarn androidx.compose.**
-
-# Keep Material3 classes
--keep class androidx.compose.material3.** { *; }
-
-# Keep Kotlin metadata
--keep class kotlin.Metadata { *; }
-
-# Keep Android EncryptedSharedPreferences
--keep class androidx.security.crypto.** { *; }
--dontwarn androidx.security.crypto.**
+# Allow obfuscation of Kotlin UI code (Compose screens)
+# These are not accessed via reflection and can be safely obfuscated

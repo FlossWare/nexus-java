@@ -147,4 +147,39 @@ class NexusClientTest {
         assertNull(metadata.lastModified());
         assertNull(metadata.checksum());
     }
+
+    @Test
+    void testNexusClientAutoCloseable() throws Exception {
+        // Create a minimal credentials instance for testing
+        Credentials credentials = new Credentials(
+            "https://nexus.example.com",
+            "testuser",
+            "testpass",
+            null // No profile
+        );
+
+        // Test try-with-resources pattern
+        try (NexusClient client = new NexusClient(credentials)) {
+            assertNotNull(client);
+            // Client is usable within try block
+        }
+        // close() should be called automatically, no exceptions thrown
+    }
+
+    @Test
+    void testNexusClientCloseCanBeCalledMultipleTimes() throws Exception {
+        Credentials credentials = new Credentials(
+            "https://nexus.example.com",
+            "testuser",
+            "testpass",
+            null
+        );
+
+        NexusClient client = new NexusClient(credentials);
+
+        // Close should be idempotent (safe to call multiple times)
+        assertDoesNotThrow(() -> client.close());
+        assertDoesNotThrow(() -> client.close());
+        assertDoesNotThrow(() -> client.close());
+    }
 }

@@ -6,7 +6,7 @@
 
     <groupId>org.flossware</groupId>
     <artifactId>jnexus</artifactId>
-    <version>1.29</version>
+    <version>1.32</version>
 
     <name>JNexus</name>
     <description>Command line Java app to interact with Sonatype Nexus</description>
@@ -48,7 +48,7 @@
         <dependency>
             <groupId>org.flossware</groupId>
             <artifactId>jnexus-core</artifactId>
-            <version>1.1</version>
+            <version>1.2</version>
         </dependency>
 
         <!-- Encryption Library -->
@@ -75,6 +75,12 @@
         <!-- JSON Processing -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
             <version>${jackson.version}</version>
         </dependency>
@@ -99,6 +105,13 @@
         </dependency>
 
         <!-- Testing -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter</artifactId>
@@ -222,8 +235,30 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.2.5</version>
                 <configuration>
-                    <argLine>--enable-preview --enable-native-access=ALL-UNNAMED</argLine>
+                    <argLine>@{argLine} --enable-preview --enable-native-access=ALL-UNNAMED</argLine>
                 </configuration>
+            </plugin>
+
+            <!-- JaCoCo Plugin for Code Coverage -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>0.8.12</version>
+                <executions>
+                    <execution>
+                        <id>prepare-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
 
             <!-- JAR Plugin -->

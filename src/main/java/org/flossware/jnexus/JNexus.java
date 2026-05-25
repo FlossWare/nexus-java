@@ -82,6 +82,9 @@ import java.util.concurrent.Callable;
 )
 public class JNexus implements Callable<Integer> {
 
+    // Shared Scanner for System.in - never close this to avoid closing System.in
+    private static final java.util.Scanner CONSOLE_SCANNER = new java.util.Scanner(System.in);
+
     @Option(
         names = {"-v", "--verbose"},
         description = "Enable verbose output (debug level logging)"
@@ -229,6 +232,10 @@ public class JNexus implements Callable<Integer> {
                 }
 
                 return 0;
+            } catch (java.time.format.DateTimeParseException e) {
+                logger.error("Invalid date format: {}", e.getParsedString());
+                logger.error("Please use ISO 8601 format (examples: 2024-01-01T00:00:00Z or 2024-01-15T10:30:00.000Z)");
+                return 1;
             } catch (IllegalArgumentException e) {
                 logger.error("Error: {}", e.getMessage());
                 return 1;
@@ -380,7 +387,7 @@ public class JNexus implements Callable<Integer> {
                     System.out.print("Are you sure? (yes/no): ");
                     String confirmation = System.console() != null
                         ? System.console().readLine()
-                        : new java.util.Scanner(System.in).nextLine();
+                        : CONSOLE_SCANNER.nextLine();
 
                     if (!"yes".equalsIgnoreCase(confirmation)) {
                         System.out.println("Cancelled.");

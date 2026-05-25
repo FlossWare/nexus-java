@@ -83,9 +83,15 @@ public class NexusApplication extends Application {
      * Reinitializes the HTTP client and service with updated credentials.
      * <p>
      * Call this method after saving new credentials in the settings screen.
+     * Properly closes the old HTTP client before creating a new one to avoid resource leaks.
      * </p>
      */
     public void reinitializeServices() {
+        // Close old client to release OkHttp resources (connection pools, threads)
+        if (httpClient != null) {
+            httpClient.close();
+        }
+
         if (credentials.hasCredentials()) {
             httpClient = new NexusClientOkHttp(credentials);
             service = new NexusService(httpClient);
