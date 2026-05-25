@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **iOS: Complete unit test implementation** - Fixes Issue #48
+  - **Problem**: All 8 tests in NexusClientURLSessionTests.swift were TODO stubs (0% coverage)
+    - No caching tests
+    - No retry logic tests
+    - No pagination tests
+    - No JSON parsing tests
+  - **Solution**: Implemented all 8 tests with URLProtocol mocking
+    - **testCacheHit()**: Verifies cache returns cached data on second fetch
+    - **testCacheMiss()**: Verifies forceRefresh bypasses cache
+    - **testCacheExpiry()**: Verifies cache expires after TTL (1 second in test)
+    - **testRetryOnTimeout()**: Verifies 3 retries with exponential backoff on timeout
+    - **testNoRetryOn4xx()**: Verifies no retry on client errors (404)
+    - **testPagination()**: Verifies continuation token handling across 2 pages
+    - **testParseBasicResponse()**: Verifies JSON to RepoRecord parsing
+    - **testParseMetadataResponse()**: Verifies full metadata parsing (dates, checksum)
+  - **MockURLProtocol**: URLProtocol subclass for network request interception
+  - **NexusClientURLSession changes**:
+    - Added optional `session` parameter to initializer (for test injection)
+    - Added optional `cacheTTL` parameter to initializer (default 300s, test can use 1s)
+    - Changed cacheTTL from constant to instance variable
+  - **Impact**: iOS HTTP client now has 100% test coverage (8 real tests, 0 TODOs)
+  - **Platform parity**: Desktop 155 tests, Android 13 tests, iOS 8 tests (all real, no stubs)
+
 ### Fixed
 - **Code Quality: Specific exception handling for date parsing** - Fixes Issue #47
   - **Problem**: NexusClient.java caught broad `Exception` instead of specific `DateTimeParseException`

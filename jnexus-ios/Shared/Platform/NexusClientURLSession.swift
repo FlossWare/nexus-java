@@ -19,19 +19,26 @@ class NexusClientURLSession: NexusHttpClient {
     private var cache: [String: CacheEntry] = [:]
     private var metadataCache: [String: MetadataCacheEntry] = [:]
     private let cacheLock = NSLock()  // Protects cache and metadataCache access
-    private let cacheTTL: TimeInterval = 300  // 5 minutes
+    private let cacheTTL: TimeInterval
     private let maxRetries = 3
     private let initialRetryDelay: TimeInterval = 1.0
 
     // MARK: - Initialization
 
-    init(credentials: Credentials) {
+    init(credentials: Credentials, session: URLSession? = nil, cacheTTL: TimeInterval = 300) {
         self.credentials = credentials
+        self.cacheTTL = cacheTTL
 
-        let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = TimeInterval(credentials.httpTimeoutSeconds)
-        config.timeoutIntervalForResource = TimeInterval(credentials.httpTimeoutSeconds)
-        self.session = URLSession(configuration: config)
+        if let session = session {
+            // Use provided session (for testing)
+            self.session = session
+        } else {
+            // Create default session
+            let config = URLSessionConfiguration.default
+            config.timeoutIntervalForRequest = TimeInterval(credentials.httpTimeoutSeconds)
+            config.timeoutIntervalForResource = TimeInterval(credentials.httpTimeoutSeconds)
+            self.session = URLSession(configuration: config)
+        }
     }
 
     // MARK: - Cache Entries
