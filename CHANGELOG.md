@@ -7,6 +7,71 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.31] - 2026-05-24
+
+### Changed
+- **Desktop now uses jnexus-core library (Partial Implementation - Stages 1 & 2)**
+  - Addresses Issue #17 (Code duplication) and Issue #18 (NexusService divergence)
+  - **Stage 1**: Desktop depends on jnexus-core for data models
+    - Added jnexus-core 1.1 as Maven dependency
+    - Deleted duplicate data model files (445 lines removed):
+      - RepoRecord.java (18 lines)
+      - ComponentMetadata.java (45 lines)
+      - SearchCriteria.java (269 lines)
+      - RepositoryStats.java (113 lines)
+    - Same package means no import changes needed
+  - **Stage 2**: NexusClient implements NexusHttpClient interface
+    - Desktop NexusClient formally implements interface from jnexus-core
+    - Added @Override annotations to all interface methods
+    - Updated NexusHttpClient interface to match implementation
+    - Enables type safety and polymorphism
+  - **Impact**: Desktop and Android now share data models and interfaces
+  - **Remaining work (Stage 3)**:
+    - Create CredentialsFile implementing Credentials interface
+    - Delete desktop Credentials class (783 lines)
+    - Reconcile NexusService divergence (811 vs 591 lines)
+    - Delete desktop NexusService, use core version
+
+### Added
+- **Architecture Decision Records (ADRs)**
+  - Comprehensive documentation of all major architectural decisions
+  - Six ADRs created in `docs/adr/` directory:
+    - ADR-0001: Use Picocli Over Spring Boot
+    - ADR-0002: Multi-Module Architecture (documents #17 technical debt)
+    - ADR-0003: Four UI Approaches (CLI, Swing, AWT, Terminal)
+    - ADR-0004: Java Version Strategy (Java 21 desktop, Java 17 core)
+    - ADR-0005: Extract Encryption to JEncrypt Library
+    - ADR-0006: Interface-Based HTTP Client (documents #17/#18)
+  - Each ADR includes context, decision, consequences, alternatives, and impact
+  - See `docs/adr/README.md` for index and guidelines
+
+- **Maven pom.xml for jnexus-core**
+  - Previously Gradle-only, now supports both build systems
+  - Java 17 source/target (matches build.gradle)
+  - All dependencies aligned with Gradle version
+  - Enables desktop to depend on jnexus-core via Maven
+
+### Fixed
+- **NexusHttpClient interface updated**
+  - deleteComponent() now declares InterruptedException (was missing)
+  - Matches desktop NexusClient implementation
+  - Fixes compilation error when implementing interface
+
+### Closed Issues
+- Issue #15: Logging configuration (already implemented)
+- Issue #16: Javadoc coverage (already comprehensive)
+- Issue #21: Add Architecture Decision Records (ADRs created)
+
+### In Progress
+- Issue #17: Desktop code duplication (Stages 1 & 2 complete, Stage 3 remaining)
+- Issue #18: NexusService divergence (will resolve with Stage 3)
+
+### Technical Details
+- All 230 tests passing
+- Build system: Mixed (desktop Maven, jnexus-core Maven + Gradle)
+- Total duplicate code removed: 445 lines (data models)
+- Total duplicate code remaining: ~1594 lines (Credentials + NexusService)
+
 ## [1.30] - 2026-05-24
 
 ### Changed
