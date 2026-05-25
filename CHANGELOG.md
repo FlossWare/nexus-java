@@ -8,6 +8,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Testing: UI test coverage for all GUI classes** - Fixes Issue #38
+  - **JNexusSwingTest** (17 tests): Comprehensive Swing GUI testing in headless mode
+    - Component creation (input panel, button panel, results panel, status panel, advanced filters)
+    - Button mnemonics verification (Alt+F/L/R/D/E/C/S/Q)
+    - Menu bar structure (File, Actions, Help menus with proper mnemonics)
+    - Table structure (7 columns with proper sorting)
+    - Tests run in headless mode (no display required)
+  - **JNexusAWTTest** (6 tests): AWT GUI initialization testing
+    - Constructor and service initialization
+    - Tests limited by AWT's requirement for graphics environment
+    - Documents headless limitations (AWT components require real display)
+  - **JNexusUITest** (5 tests): Terminal UI helper method testing
+    - getTerminalSize() method testing (default 24x80)
+    - Static method testing (JNexusUI uses static design)
+    - Documents terminal environment requirements (jcurses needs real terminal)
+  - **Total**: 28 new UI tests added (292 total tests, all passing)
+  - **Coverage**: CLI already had JNexusCommandTest (20 tests), now all 4 UIs have test coverage
+  - **Impact**: Better code quality, regression prevention, automated verification of UI components
+
 - **Swing GUI: Accessibility features** - Fixes Issue #42
   - **Button mnemonics** (Alt+key shortcuts):
     - Alt+F: Toggle Advanced Filters
