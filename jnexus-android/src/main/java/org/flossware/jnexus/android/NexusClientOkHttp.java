@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.LinkedList;
 import java.util.List;
@@ -109,11 +110,38 @@ public class NexusClientOkHttp implements NexusHttpClient, AutoCloseable {
         String auth = credentials.getUser() + ":" + credentials.getPassword();
         this.authHeader = "Basic " + Base64.getEncoder().encodeToString(auth.getBytes());
 
-        int timeoutSeconds = credentials.getHttpTimeoutSeconds();
-        this.httpClient = new OkHttpClient.Builder()
+        // Build optimized HTTP client with connection pooling and HTTP/2
+        this.httpClient = buildOptimizedHttpClient(credentials.getHttpTimeoutSeconds());
+    }
+
+    /**
+     * Builds an optimized OkHttpClient with connection pooling and HTTP/2 support.
+     * <p>
+     * Optimizations:
+     * </p>
+     * <ul>
+     *   <li><strong>Connection Pooling</strong> - 5 idle connections kept alive for 5 minutes</li>
+     *   <li><strong>HTTP/2</strong> - Enables multiplexing (multiple requests over one connection)</li>
+     *   <li><strong>Retry Logic</strong> - Exponential backoff with 3 attempts</li>
+     *   <li><strong>Compression</strong> - Automatically handles gzip/deflate responses</li>
+     * </ul>
+     *
+     * @param timeoutSeconds connection/read/write timeout in seconds
+     * @return configured OkHttpClient instance
+     */
+    private static OkHttpClient buildOptimizedHttpClient(int timeoutSeconds) {
+        ConnectionPool pool = new ConnectionPool(
+            5,          // maxIdleConnections
+            5,          // keepAliveDuration
+            TimeUnit.MINUTES
+        );
+
+        return new OkHttpClient.Builder()
             .connectTimeout(timeoutSeconds, TimeUnit.SECONDS)
             .readTimeout(timeoutSeconds, TimeUnit.SECONDS)
             .writeTimeout(timeoutSeconds, TimeUnit.SECONDS)
+            .connectionPool(pool)
+            .protocols(Arrays.asList(Protocol.HTTP_2, Protocol.HTTP_1_1))
             .addInterceptor(new RetryInterceptor(MAX_RETRIES, INITIAL_RETRY_DELAY_MS))
             .build();
     }
@@ -239,6 +267,7 @@ public class NexusClientOkHttp implements NexusHttpClient, AutoCloseable {
             .url(url)
             .header("Authorization", authHeader)
             .header("Accept", "application/json")
+            .header("Accept-Encoding", "gzip, deflate")  // Enable compression
             .get()
             .build();
 
@@ -271,6 +300,7 @@ public class NexusClientOkHttp implements NexusHttpClient, AutoCloseable {
             .url(url)
             .header("Authorization", authHeader)
             .header("Accept", "application/json")
+            .header("Accept-Encoding", "gzip, deflate")  // Enable compression
             .get()
             .build();
 

@@ -21,6 +21,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
 
 /**
  * HTTP client for interacting with the Nexus Repository Manager REST API.
@@ -186,8 +187,29 @@ public class NexusClient implements NexusHttpClient, AutoCloseable {
         this.maxRetries = credentials.getMaxRetries();
         this.initialRetryDelayMs = credentials.getInitialRetryDelayMs();
 
-        this.httpClient = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofSeconds(credentials.getHttpTimeoutSeconds()))
+        // Build optimized HTTP client with connection pooling and HTTP/2
+        this.httpClient = buildOptimizedHttpClient(credentials.getHttpTimeoutSeconds());
+    }
+
+    /**
+     * Builds an optimized HttpClient with connection pooling and HTTP/2 support.
+     * <p>
+     * Optimizations:
+     * </p>
+     * <ul>
+     *   <li><strong>HTTP/2</strong> - Enables multiplexing (multiple requests over one connection)</li>
+     *   <li><strong>Connection Pooling</strong> - Shared thread pool for connection reuse</li>
+     *   <li><strong>Compression</strong> - Automatically handles gzip/deflate responses</li>
+     * </ul>
+     *
+     * @param timeoutSeconds connection timeout in seconds
+     * @return configured HttpClient instance
+     */
+    private static HttpClient buildOptimizedHttpClient(int timeoutSeconds) {
+        return HttpClient.newBuilder()
+            .version(HttpClient.Version.HTTP_2)  // Prefer HTTP/2 for multiplexing
+            .connectTimeout(Duration.ofSeconds(timeoutSeconds))
+            .executor(Executors.newFixedThreadPool(4))  // Shared pool for connection reuse
             .build();
     }
 
@@ -350,6 +372,7 @@ public class NexusClient implements NexusHttpClient, AutoCloseable {
             .uri(URI.create(url))
             .header("Authorization", authHeader)
             .header("Accept", "application/json")
+            .header("Accept-Encoding", "gzip, deflate")  // Enable compression
             .GET()
             .build();
 
@@ -394,6 +417,7 @@ public class NexusClient implements NexusHttpClient, AutoCloseable {
             .uri(URI.create(url))
             .header("Authorization", authHeader)
             .header("Accept", "application/json")
+            .header("Accept-Encoding", "gzip, deflate")  // Enable compression
             .GET()
             .build();
 

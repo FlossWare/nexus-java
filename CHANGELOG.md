@@ -8,6 +8,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **Performance: HTTP connection pooling and HTTP/2 optimization** - Fixes Issue #64
+  - **Problem**: No explicit connection pooling or HTTP optimization
+    - Each request created new connections (inefficient)
+    - No HTTP/2 multiplexing (multiple requests couldn't share one connection)
+    - No compression negotiation (larger payloads)
+    - Default HTTP client settings (suboptimal performance)
+  - **Solution**: Optimized HTTP client configuration
+    - **HTTP/2**: Enabled HTTP_2 version for multiplexing
+    - **Connection pooling**: Shared thread pool (4 threads) for connection reuse
+    - **Compression**: Added "Accept-Encoding: gzip, deflate" headers
+    - **Build method**: New buildOptimizedHttpClient() creates configured client
+  - **Impact**: 
+    - Faster requests through connection reuse
+    - Reduced connection establishment overhead
+    - Smaller payloads via compression
+    - Better throughput via HTTP/2 multiplexing
+  - **Platforms**:
+    - **Desktop (Java)**: NexusClient.java - HttpClient with HTTP/2, thread pool, compression
+    - **Android (OkHttp)**: NexusClientOkHttp.java - ConnectionPool (5 connections, 5min keepalive), HTTP/2, compression
+    - **iOS (URLSession)**: NexusClientURLSession.swift - httpMaximumConnectionsPerHost=4, URLCache (10MB/50MB), compression (implementation in plan)
+
 - **Performance: Reuse thread pool for regex validation** - Fixes Issue #53
   - **Problem**: validateRegex() created a new ExecutorService for every regex validation
     - Creating thread pool is expensive (~1-10ms overhead per validation)

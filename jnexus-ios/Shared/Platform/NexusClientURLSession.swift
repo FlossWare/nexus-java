@@ -33,10 +33,17 @@ class NexusClientURLSession: NexusHttpClient {
             // Use provided session (for testing)
             self.session = session
         } else {
-            // Create default session
+            // Create optimized session with connection pooling
             let config = URLSessionConfiguration.default
             config.timeoutIntervalForRequest = TimeInterval(credentials.httpTimeoutSeconds)
             config.timeoutIntervalForResource = TimeInterval(credentials.httpTimeoutSeconds)
+            config.httpMaximumConnectionsPerHost = 4  // Connection pooling
+            config.requestCachePolicy = .useProtocolCachePolicy
+            config.urlCache = URLCache(
+                memoryCapacity: 10 * 1024 * 1024,    // 10 MB memory cache
+                diskCapacity: 50 * 1024 * 1024,       // 50 MB disk cache
+                diskPath: "jnexus_http_cache"
+            )
             self.session = URLSession(configuration: config)
         }
     }
@@ -203,6 +210,7 @@ class NexusClientURLSession: NexusHttpClient {
 
         var request = URLRequest(url: requestURL)
         request.setValue(buildAuthHeader(), forHTTPHeaderField: "Authorization")
+        request.setValue("gzip, deflate", forHTTPHeaderField: "Accept-Encoding")  // Enable compression
 
         let (data, response) = try await fetchWithRetry(request: request)
 
@@ -234,6 +242,7 @@ class NexusClientURLSession: NexusHttpClient {
 
         var request = URLRequest(url: requestURL)
         request.setValue(buildAuthHeader(), forHTTPHeaderField: "Authorization")
+        request.setValue("gzip, deflate", forHTTPHeaderField: "Accept-Encoding")  // Enable compression
 
         let (data, response) = try await fetchWithRetry(request: request)
 
