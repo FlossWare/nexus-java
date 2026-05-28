@@ -1,16 +1,16 @@
 # JNexus
 
-[![Latest Release](https://img.shields.io/github/v/release/FlossWare/jnexus)](https://github.com/FlossWare/jnexus/releases/latest)
-[![Android APK](https://img.shields.io/badge/Android%20APK-Download-green)](https://github.com/FlossWare/jnexus/releases/latest/download/jnexus-android-1.2.apk)
-[![Desktop JAR](https://img.shields.io/badge/Desktop%20JAR-Download-blue)](https://github.com/FlossWare/jnexus/packages)
+[![Latest Release](https://img.shields.io/github/v/release/FlossWare/nexus-java)](https://github.com/FlossWare/nexus-java/releases/latest)
+[![Android APK](https://img.shields.io/badge/Android%20APK-Download-green)](https://github.com/FlossWare/nexus-java/releases/latest/download/nexus-java-android-1.2.apk)
+[![Desktop JAR](https://img.shields.io/badge/Desktop%20JAR-Download-blue)](https://github.com/FlossWare/nexus-java/packages)
 
 A cross-platform tool for managing Sonatype Nexus repositories - available as CLI, GUI (Swing/AWT/Terminal), Android mobile app, and iOS/iPadOS/macOS native apps.
 
 ## Quick Download
 
-- **📱 Android App**: [Download APK](https://github.com/FlossWare/jnexus/releases/latest) (Android 8.0+)
-- **🍎 iOS/iPadOS App**: [Download IPA](https://github.com/FlossWare/jnexus/releases/tag/ios-v1.0) (iOS 16.0+)
-- **🖥️ macOS App**: [Download DMG](https://github.com/FlossWare/jnexus/releases/tag/macos-v1.0) (macOS 13.0+)
+- **📱 Android App**: [Download APK](https://github.com/FlossWare/nexus-java/releases/latest) (Android 8.0+)
+- **🍎 iOS/iPadOS App**: [Download IPA](https://github.com/FlossWare/nexus-java/releases/tag/ios-v1.0) (iOS 16.0+)
+- **🖥️ macOS App**: [Download DMG](https://github.com/FlossWare/nexus-java/releases/tag/macos-v1.0) (macOS 13.0+)
 - **💻 Desktop (CLI/GUI)**: Available via [packagecloud.io](https://packagecloud.io/flossware/java) or build from source
 
 ## Features
@@ -52,14 +52,14 @@ A cross-platform tool for managing Sonatype Nexus repositories - available as CL
   - Secure Keychain credential storage (AES256 hardware-backed)
   - iPad-optimized layouts (split view, landscape support)
   - SwiftUI with Material Design patterns
-  - See [iOS README](jnexus-ios/README.md) for installation
+  - See [iOS README](nexus-java-ios/README.md) for installation
 - **Android Mobile App** - Native Android app with Jetpack Compose UI (v1.2):
   - List, search, and delete components on Android devices
   - Advanced filters (size, date, extension, regex)
   - Repository statistics with charts
   - Secure credential storage with AES256 encryption
   - Material Design 3 UI
-  - See [Android README](jnexus-android/README.md) for installation
+  - See [Android README](nexus-java-android/README.md) for installation
 
 **Desktop Apps:**
 - **macOS Native App** - Native Swift app with SwiftUI (NEW in v1.0):
@@ -67,7 +67,7 @@ A cross-platform tool for managing Sonatype Nexus repositories - available as CL
   - Menu bar integration
   - Multi-window support
   - Secure Keychain credential storage
-  - See [iOS README](jnexus-ios/README.md) for installation
+  - See [iOS README](nexus-java-ios/README.md) for installation
 - **Swing GUI** - Modern graphical interface:
   - Advanced filters panel (collapsible)
   - Table with 7 metadata columns
@@ -111,26 +111,26 @@ A cross-platform tool for managing Sonatype Nexus repositories - available as CL
 ./mvnw clean package
 ```
 
-This creates an executable JAR at `target/jnexus-1.0-jar-with-dependencies.jar`.
+This creates an executable JAR at `target/nexus-java-1.0-jar-with-dependencies.jar`.
 
 ### Android - Build from source
 
 ```bash
 # Build the debug APK
-./gradlew :jnexus-android:assembleDebug
+./gradlew :nexus-java-android:assembleDebug
 
 # Or build the release APK (requires signing configuration)
-./gradlew :jnexus-android:assembleRelease
+./gradlew :nexus-java-android:assembleRelease
 ```
 
-The APK will be at `jnexus-android/build/outputs/apk/debug/jnexus-android-debug.apk`.
+The APK will be at `nexus-java-android/build/outputs/apk/debug/nexus-java-android-debug.apk`.
 
 Install on your Android device:
 ```bash
-adb install jnexus-android/build/outputs/apk/debug/jnexus-android-debug.apk
+adb install nexus-java-android/build/outputs/apk/debug/nexus-java-android-debug.apk
 ```
 
-See the [Android README](jnexus-android/README.md) for detailed setup instructions.
+See the [Android README](nexus-java-android/README.md) for detailed setup instructions.
 
 ## Configuration
 
@@ -153,7 +153,7 @@ export NEXUS_PASSWORD=your-password-or-token
 
 2. Copy the example properties file:
    ```bash
-   cp src/main/resources/jnexus.properties.example ~/.flossware/nexus/nexus.properties
+   cp src/main/resources/nexus-java.properties.example ~/.flossware/nexus/nexus.properties
    ```
 
 3. Edit `~/.flossware/nexus/nexus.properties` with your credentials:
@@ -192,12 +192,12 @@ For managing multiple environments (dev, staging, prod), you can create profile-
 3. Use profiles via environment variable:
    ```bash
    export NEXUS_PROFILE=dev
-   ./jnexus.sh list my-repository
+   ./nexus-java.sh list my-repository
    ```
 
 4. Or via CLI flag:
    ```bash
-   ./jnexus.sh --profile prod list my-repository
+   ./nexus-java.sh --profile prod list my-repository
    ```
 
 **Profile naming convention:**
@@ -271,20 +271,20 @@ The Android app provides full Nexus repository management on mobile devices:
   - Encrypted credential storage (AES256_GCM)
 
 **Architecture:**
-- Uses same business logic as desktop versions (jnexus-core shared library)
+- Uses same business logic as desktop versions (nexus-java-core shared library)
 - OkHttp for HTTP communication
 - Jetpack Compose for modern, declarative UI
 - Material Design 3 for consistent Android experience
 - EncryptedSharedPreferences for secure credential storage
 
-See the [Android README](jnexus-android/README.md) for detailed documentation.
+See the [Android README](nexus-java-android/README.md) for detailed documentation.
 
 ### Swing GUI (Desktop)
 
 The Swing interface provides a modern, native-looking graphical interface:
 
 ```bash
-./jnexus-swing.sh
+./nexus-java-swing.sh
 ```
 
 **Features:**
@@ -354,7 +354,7 @@ Features demonstrated:
 The AWT interface provides a classic graphical interface using only AWT components:
 
 ```bash
-./jnexus-awt.sh
+./nexus-java-awt.sh
 ```
 
 **Features:**
@@ -412,7 +412,7 @@ The AWT interface provides a classic graphical interface using only AWT componen
 The terminal UI provides a full-screen ncurses interface for terminal users:
 
 ```bash
-./jnexus-ui.sh
+./nexus-java-ui.sh
 ```
 
 **Requirements:**
@@ -478,13 +478,13 @@ The terminal UI provides a full-screen ncurses interface for terminal users:
 For scripting and automation, use the traditional CLI:
 
 ```bash
-./jnexus.sh <command> [options]
+./nexus-java.sh <command> [options]
 ```
 
 Or execute the JAR directly:
 
 ```bash
-java -jar target/jnexus-1.0-jar-with-dependencies.jar <command> [options]
+java -jar target/nexus-java-1.0-jar-with-dependencies.jar <command> [options]
 ```
 
 ### Commands
@@ -493,12 +493,12 @@ java -jar target/jnexus-1.0-jar-with-dependencies.jar <command> [options]
 
 List all components in a repository:
 ```bash
-./jnexus.sh list my-repository
+./nexus-java.sh list my-repository
 ```
 
 List components matching a regex pattern:
 ```bash
-./jnexus.sh list my-repository ".*SNAPSHOT.*"
+./nexus-java.sh list my-repository ".*SNAPSHOT.*"
 ```
 
 #### Delete components
@@ -507,22 +507,22 @@ List components matching a regex pattern:
 
 Preview what would be deleted (dry-run):
 ```bash
-./jnexus.sh delete --dry-run my-repository
+./nexus-java.sh delete --dry-run my-repository
 ```
 
 Delete all components in a repository (with confirmation):
 ```bash
-./jnexus.sh delete my-repository
+./nexus-java.sh delete my-repository
 ```
 
 Delete components matching a regex pattern:
 ```bash
-./jnexus.sh delete my-repository ".*-1\.0\.0-SNAPSHOT.*"
+./nexus-java.sh delete my-repository ".*-1\.0\.0-SNAPSHOT.*"
 ```
 
 Skip confirmation prompt:
 ```bash
-./jnexus.sh delete --yes my-repository ".*SNAPSHOT.*"
+./nexus-java.sh delete --yes my-repository ".*SNAPSHOT.*"
 ```
 
 ### Global Options
@@ -531,20 +531,20 @@ The following options can be used with any command:
 
 **Verbose mode** - Enable debug logging:
 ```bash
-./jnexus.sh --verbose list my-repository
-./jnexus.sh -v delete my-repository
+./nexus-java.sh --verbose list my-repository
+./nexus-java.sh -v delete my-repository
 ```
 
 **Quiet mode** - Only show warnings and errors:
 ```bash
-./jnexus.sh --quiet list my-repository
-./jnexus.sh -q delete my-repository
+./nexus-java.sh --quiet list my-repository
+./nexus-java.sh -q delete my-repository
 ```
 
 **Profile mode** - Use a specific configuration profile:
 ```bash
-./jnexus.sh --profile dev list my-repository
-./jnexus.sh -p prod delete my-repository
+./nexus-java.sh --profile dev list my-repository
+./nexus-java.sh -p prod delete my-repository
 ```
 
 ### Options
@@ -561,16 +561,16 @@ The following options can be used with any command:
 
 ```bash
 # List all snapshots in the releases repository
-./jnexus.sh list releases ".*SNAPSHOT.*"
+./nexus-java.sh list releases ".*SNAPSHOT.*"
 
 # Dry-run: see what would be deleted
-./jnexus.sh delete --dry-run snapshots ".*-2023.*"
+./nexus-java.sh delete --dry-run snapshots ".*-2023.*"
 
 # Delete old snapshot versions (with confirmation)
-./jnexus.sh delete snapshots ".*-1\.0\..*-SNAPSHOT.*"
+./nexus-java.sh delete snapshots ".*-1\.0\..*-SNAPSHOT.*"
 
 # Delete all components in a repository (skip confirmation)
-./jnexus.sh delete --yes old-repository
+./nexus-java.sh delete --yes old-repository
 ```
 
 ## Development
@@ -590,14 +590,14 @@ The following options can be used with any command:
 ### Project Structure
 
 ```
-src/main/java/org/flossware/jnexus/
+src/main/java/org/flossware/nexus-java/
 ├── JNexus.java          # Main CLI entry point with Picocli commands
 ├── NexusClient.java    # HTTP client for Nexus API
 ├── NexusService.java   # Business logic for list/delete operations
 ├── Credentials.java    # Configuration management
 └── RepoRecord.java     # Data model for repository components
 
-src/test/java/org/flossware/jnexus/
+src/test/java/org/flossware/nexus-java/
 ├── NexusServiceTest.java  # Unit tests for business logic
 └── NexusClientTest.java   # Tests for client and data models
 ```

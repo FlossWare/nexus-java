@@ -1,0 +1,372 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>org.flossware</groupId>
+    <artifactId>jnexus</artifactId>
+    <version>2.0.0</version>
+
+    <name>JNexus</name>
+    <description>Command line Java app to interact with Sonatype Nexus</description>
+
+    <properties>
+        <maven.compiler.source>21</maven.compiler.source>
+        <maven.compiler.target>21</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <picocli.version>4.7.7</picocli.version>
+        <jackson.version>2.21.3</jackson.version>
+        <junit.version>6.1.0</junit.version>
+        <message>Automated Version Bump ${project.version} [ci skip]</message>
+    </properties>
+
+    <scm>
+        <connection>scm:git:https://github.com/FlossWare/jnexus.git</connection>
+        <developerConnection>scm:git:https://github.com/FlossWare/jnexus.git</developerConnection>
+        <url>https://github.com/FlossWare/jnexus</url>
+    </scm>
+
+    <distributionManagement>
+        <repository>
+            <id>packagecloud-flossware</id>
+            <name>packagecloud-flossware</name>
+            <url>https://packagecloud.io/flossware/java/maven2/</url>
+        </repository>
+    </distributionManagement>
+
+    <repositories>
+        <repository>
+            <id>packagecloud-flossware</id>
+            <name>packagecloud-flossware</name>
+            <url>https://packagecloud.io/flossware/java/maven2/</url>
+        </repository>
+    </repositories>
+
+    <dependencies>
+        <!-- Shared Core Library -->
+        <dependency>
+            <groupId>org.flossware</groupId>
+            <artifactId>jnexus-core</artifactId>
+            <version>2.0.0</version>
+        </dependency>
+
+        <!-- Encryption Library -->
+        <dependency>
+            <groupId>org.flossware</groupId>
+            <artifactId>jencrypt</artifactId>
+            <version>1.0</version>
+        </dependency>
+
+        <!-- CLI Framework -->
+        <dependency>
+            <groupId>info.picocli</groupId>
+            <artifactId>picocli</artifactId>
+            <version>${picocli.version}</version>
+        </dependency>
+
+        <!-- Terminal UI Library -->
+        <dependency>
+            <groupId>org.flossware</groupId>
+            <artifactId>jcurses</artifactId>
+            <version>1.27</version>
+        </dependency>
+
+        <!-- JSON Processing -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.json</groupId>
+            <artifactId>json</artifactId>
+            <version>20260522</version>
+        </dependency>
+
+        <!-- Logging -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>2.0.18</version>
+        </dependency>
+
+        <dependency>
+            <groupId>ch.qos.logback</groupId>
+            <artifactId>logback-classic</artifactId>
+            <version>1.5.32</version>
+        </dependency>
+
+        <!-- Testing -->
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-api</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${junit.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <version>5.23.0</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-junit-jupiter</artifactId>
+            <version>5.23.0</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- Compiler Plugin -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+                <configuration>
+                    <source>21</source>
+                    <target>21</target>
+                    <compilerArgs>
+                        <arg>-parameters</arg>
+                        <!-- Required for jcurses 1.27 which uses preview features -->
+                        <arg>--enable-preview</arg>
+                    </compilerArgs>
+                </configuration>
+            </plugin>
+
+            <!-- Resources Plugin -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <version>3.5.0</version>
+            </plugin>
+
+            <!-- Javadoc Plugin -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>3.12.0</version>
+                <configuration>
+                    <source>21</source>
+                    <!-- Required for jcurses 1.27 which uses preview features -->
+                    <additionalOptions>
+                        <additionalOption>--enable-preview</additionalOption>
+                    </additionalOptions>
+                    <show>public</show>
+                    <quiet>true</quiet>
+                </configuration>
+            </plugin>
+
+            <!-- Build Helper Plugin -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <version>3.5.0</version>
+            </plugin>
+
+            <!-- Versions Plugin -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>versions-maven-plugin</artifactId>
+                <version>2.16.0</version>
+            </plugin>
+
+            <!-- Enforcer Plugin - Validate X.Y Version Format -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <version>3.3.0</version>
+                <executions>
+                    <execution>
+                        <id>enforce-release-rules</id>
+                        <goals>
+                            <goal>enforce</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <requireReleaseDeps/>
+                                <requireReleaseVersion/>
+                                <evaluateBeanshell>
+                                    <condition>
+                                        String v = "${project.version}";
+                                        v.matches("^\\d+\\.\\d+\\.\\d+$")
+                                    </condition>
+                                    <message>VERSION ERROR: Version must be X.Y.Z format (semantic versioning) and NOT a SNAPSHOT.</message>
+                                </evaluateBeanshell>
+                            </rules>
+                            <fail>true</fail>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- SCM Plugin -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-scm-plugin</artifactId>
+                <version>2.0.1</version>
+                <configuration>
+                    <providerImplementations>
+                        <git>git</git>
+                    </providerImplementations>
+                    <tag>${project.version}</tag>
+                </configuration>
+            </plugin>
+
+            <!-- Surefire Plugin for Tests -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.2.5</version>
+                <configuration>
+                    <!-- enable-preview required for jcurses 1.27, enable-native-access required for native libraries -->
+                    <argLine>@{argLine} --enable-preview --enable-native-access=ALL-UNNAMED</argLine>
+                </configuration>
+            </plugin>
+
+            <!-- JaCoCo Plugin for Code Coverage - Pragmatic 100% -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>0.8.12</version>
+                <configuration>
+                    <!-- Pragmatic Coverage: Exclude CLI entry points and pure data classes (no testable logic) -->
+                    <excludes>
+                        <!-- CLI entry points - delegate to Picocli framework (includes inner classes) -->
+                        <exclude>**/JNexus.class</exclude>
+                        <exclude>**/JNexus$*.class</exclude>
+                        <!-- GUI entry points - main methods that delegate to Swing/AWT/jcurses (includes inner classes) -->
+                        <exclude>**/JNexusSwing.class</exclude>
+                        <exclude>**/JNexusSwing$*.class</exclude>
+                        <exclude>**/JNexusAWT.class</exclude>
+                        <exclude>**/JNexusAWT$*.class</exclude>
+                        <exclude>**/JNexusUI.class</exclude>
+                        <exclude>**/JNexusUI$*.class</exclude>
+                        <!-- Pure data structures - Jackson deserialization records (no logic, just getters) -->
+                        <exclude>**/NexusClient$ComponentsMetadataResponse.class</exclude>
+                        <exclude>**/NexusClient$MetadataCacheEntry.class</exclude>
+                        <!-- Jackson TypeReference anonymous classes (framework internals, no testable logic) -->
+                        <exclude>**/NexusClient$1.class</exclude>
+                        <exclude>**/NexusClient$2.class</exclude>
+                        <!-- Utility class constructors (if any) -->
+                        <exclude>**/*Util.class</exclude>
+                        <exclude>**/*Utils.class</exclude>
+                    </excludes>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>prepare-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>check</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                        <configuration>
+                            <rules>
+                                <rule>
+                                    <element>BUNDLE</element>
+                                    <limits>
+                                        <!-- 100% instruction coverage (excluding CLI entry points) -->
+                                        <limit>
+                                            <counter>INSTRUCTION</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>1.00</minimum>
+                                        </limit>
+                                        <!-- 100% branch coverage -->
+                                        <limit>
+                                            <counter>BRANCH</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>1.00</minimum>
+                                        </limit>
+                                        <!-- 100% line coverage -->
+                                        <limit>
+                                            <counter>LINE</counter>
+                                            <value>COVEREDRATIO</value>
+                                            <minimum>1.00</minimum>
+                                        </limit>
+                                        <!-- No missed classes -->
+                                        <limit>
+                                            <counter>CLASS</counter>
+                                            <value>MISSEDCOUNT</value>
+                                            <maximum>0</maximum>
+                                        </limit>
+                                    </limits>
+                                </rule>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- JAR Plugin -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>3.4.1</version>
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <mainClass>org.flossware.jnexus.JNexus</mainClass>
+                        </manifest>
+                    </archive>
+                </configuration>
+            </plugin>
+
+            <!-- Assembly Plugin for Fat JAR -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <version>3.7.1</version>
+                <configuration>
+                    <descriptorRefs>
+                        <descriptorRef>jar-with-dependencies</descriptorRef>
+                    </descriptorRefs>
+                    <archive>
+                        <manifest>
+                            <mainClass>org.flossware.jnexus.JNexus</mainClass>
+                        </manifest>
+                    </archive>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>make-assembly</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>
