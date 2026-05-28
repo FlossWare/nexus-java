@@ -1,7 +1,7 @@
 package org.flossware.nexus;
 
-import org.flossware.jcurses.api.*;
-import org.flossware.jcurses.ffi.NcursesBridge;
+import org.flossware.curses.api.*;
+import org.flossware.curses.ffi.NcursesBridge;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;

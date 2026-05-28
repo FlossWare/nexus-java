@@ -44,7 +44,7 @@
     <!-- Encryption Library -->
     <dependency>
       <groupId>org.flossware</groupId>
-      <artifactId>jencrypt</artifactId>
+      <artifactId>encrypt-java</artifactId>
       <version>1.0</version>
     </dependency>
     <!-- CLI Framework -->
