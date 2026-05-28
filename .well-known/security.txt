@@ -1,0 +1,7 @@
+Contact: mailto:sfloess@redhat.com
+Contact: https://github.com/FlossWare/jnexus/security/advisories/new
+Expires: 2027-05-28T23:59:59.000Z
+Preferred-Languages: en
+Canonical: https://raw.githubusercontent.com/FlossWare/jnexus/main/.well-known/security.txt
+Policy: https://github.com/FlossWare/jnexus/blob/main/SECURITY.md
+Acknowledgments: https://github.com/FlossWare/jnexus/blob/main/SECURITY.md#hall-of-fame

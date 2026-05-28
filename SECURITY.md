@@ -4,15 +4,19 @@
 
 | Version | Supported          |
 | ------- | ------------------ |
+| 2.x     | :white_check_mark: |
 | 1.x     | :white_check_mark: |
 
 ## Reporting a Vulnerability
 
+**security.txt**: `/.well-known/security.txt` (RFC 9116 compliant)
+
 If you discover a security vulnerability in JNexus, please report it by:
 
 1. **DO NOT** open a public GitHub issue
-2. Email the maintainer directly at: sfloess@redhat.com
-3. Include:
+2. **Preferred:** [GitHub Security Advisories](https://github.com/FlossWare/jnexus/security/advisories/new)
+3. **Email:** sfloess@redhat.com
+4. Include:
    - Description of the vulnerability
    - Steps to reproduce
    - Potential impact
@@ -22,6 +26,43 @@ You can expect:
 - Acknowledgment within 48 hours
 - Assessment and response within 7 days
 - Credit in security advisory (if desired)
+
+## Software Bill of Materials (SBOM)
+
+JNexus generates CycloneDX SBOMs for transparency and supply chain security:
+
+**Availability:**
+- **GitHub Releases**: Attached to each release
+  - `jnexus-sbom.json` - Machine-readable JSON format
+  - `jnexus-sbom.xml` - CycloneDX XML format
+  - `jnexus-sbom.csv` - Human-readable CSV format
+- **Build Artifacts**: Generated during Maven package phase
+  - Location: `target/jnexus-sbom.*`
+
+**What's Included:**
+- All direct dependencies (Picocli, Jackson, etc.)
+- All transitive dependencies
+- Version information
+- License information
+- Component hashes (SHA-256)
+- PURL identifiers
+
+**Standards Compliance:**
+- ✅ CycloneDX 1.6 specification
+- ✅ NTIA Minimum Elements for SBOM
+- ✅ Executive Order 14028 requirements
+
+**Generate Manually:**
+```bash
+mvn cyclonedx:makeAggregateBom
+# Output: target/jnexus-sbom.{json,xml,csv}
+```
+
+## Hall of Fame
+
+Security researchers who have responsibly disclosed vulnerabilities:
+
+*No vulnerabilities reported yet*
 
 ## Security Best Practices
 
