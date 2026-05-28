@@ -3,7 +3,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>org.flossware</groupId>
   <artifactId>nexus-java</artifactId>
-  <version>2.0</version>
+  <version>1.0</version>
   <name>FlossWare Nexus</name>
   <description>Command line Java app to interact with Sonatype Nexus</description>
   <properties>
