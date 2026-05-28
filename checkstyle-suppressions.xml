@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<!DOCTYPE suppressions PUBLIC
+    "-//Checkstyle//DTD SuppressionFilter 1.2//EN"
+    "https://checkstyle.org/dtds/suppressions_1_2.dtd">
+
+<suppressions>
+    <!-- UI classes can be larger and more complex -->
+    <suppress checks="JavaNCSS" files="JNexusSwing\.java"/>
+    <suppress checks="MethodLength" files="JNexusSwing\.java"/>
+    <suppress checks="CyclomaticComplexity" files="JNexusSwing\.java"/>
+    <suppress checks="NPathComplexity" files="JNexusSwing\.java"/>
+
+    <suppress checks="JavaNCSS" files="JNexusAWT\.java"/>
+    <suppress checks="MethodLength" files="JNexusAWT\.java"/>
+    <suppress checks="CyclomaticComplexity" files="JNexusAWT\.java"/>
+
+    <suppress checks="JavaNCSS" files="JNexusUI\.java"/>
+    <suppress checks="MethodLength" files="JNexusUI\.java"/>
+
+    <!-- Credentials class has complex constructor - planned for refactoring -->
+    <suppress checks="MethodLength" files="Credentials\.java" lines="50-250"/>
+    <suppress checks="CyclomaticComplexity" files="Credentials\.java" lines="50-250"/>
+    <suppress checks="NPathComplexity" files="Credentials\.java" lines="50-250"/>
+
+    <!-- Test classes can have many parameters for test cases -->
+    <suppress checks="ParameterNumber" files=".*Test\.java"/>
+    <suppress checks="MagicNumber" files=".*Test\.java"/>
+
+    <!-- Allow magic numbers in constant definitions -->
+    <suppress checks="MagicNumber" files=".*" lines="1-100"/>
+</suppressions>
