@@ -652,7 +652,7 @@ The `./ci/rev-version.sh` script will:
 
 **Desktop Application Credential Storage:**
 
-Starting in **version 1.30**, the desktop application **encrypts passwords** using [JEncrypt](https://github.com/FlossWare/jencrypt) - a general-purpose AES-256-GCM encryption library - when stored in `~/.flossware/nexus/nexus.properties`.
+Starting in **version 1.30**, the desktop application **encrypts passwords** using [JEncrypt](https://github.com/FlossWare/encrypt-java) - a general-purpose AES-256-GCM encryption library - when stored in `~/.flossware/nexus/nexus.properties`.
 
 **Encryption Features:**
 - Passwords automatically encrypted on save using JEncrypt library
