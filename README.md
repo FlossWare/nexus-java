@@ -725,6 +725,29 @@ Email: sfloess@redhat.com
 
 See [SECURITY.md](SECURITY.md) for complete security documentation.
 
+## Documentation
+
+### For Developers
+
+- **[CLAUDE.md](CLAUDE.md)**: Main codebase documentation for AI assistants
+- **[CLAUDE_DESKTOP.md](CLAUDE_DESKTOP.md)**: Desktop implementation guide (Java 21, 4 UIs)
+- **[CLAUDE_ANDROID.md](CLAUDE_ANDROID.md)**: Android implementation guide (Kotlin, Jetpack Compose)
+- **[CLAUDE_IOS.md](CLAUDE_IOS.md)**: iOS/macOS implementation guide (Swift, SwiftUI)
+- **[DEVELOPMENT_GUIDE.md](DEVELOPMENT_GUIDE.md)**: Common development tasks and debugging
+
+### Architecture & Design
+
+- **[COMPARISON.md](COMPARISON.md)**: Comparison with other Nexus tools
+- **[API_COMPATIBILITY.md](API_COMPATIBILITY.md)**: API versioning and compatibility policy
+- **[QUALITY.md](QUALITY.md)**: Quality assurance and testing strategy
+
+### Operations
+
+- **[RUNNING.md](RUNNING.md)**: Detailed running instructions for all platforms
+- **[CI-CD.md](CI-CD.md)**: Build and release processes
+- **[TEST_COVERAGE.md](TEST_COVERAGE.md)**: Testing strategy and coverage
+- **[SECURITY.md](SECURITY.md)**: Security considerations and best practices
+
 ## License
 
 Licensed under the Apache License 2.0. See LICENSE file for details.
