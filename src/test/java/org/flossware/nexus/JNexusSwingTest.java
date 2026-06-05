@@ -21,18 +21,18 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 /**
- * Tests for JNexusSwing GUI.
+ * Tests for NexusSwing GUI.
  * <p>
  * Tests Swing UI component creation, event handling, and accessibility features
  * in headless mode (no display required).
  * </p>
  */
-class JNexusSwingTest {
+class NexusSwingTest {
 
     @TempDir
     Path tempDir;
 
-    private JNexusSwing swing;
+    private NexusSwing swing;
     private NexusClient mockClient;
     private NexusService mockService;
     private Credentials mockCredentials;
@@ -53,8 +53,8 @@ class JNexusSwingTest {
         mockClient = mock(NexusClient.class);
         mockService = mock(NexusService.class);
 
-        // Create JNexusSwing instance without showing GUI
-        swing = new JNexusSwing(mockCredentials);
+        // Create NexusSwing instance without showing GUI
+        swing = new NexusSwing(mockCredentials);
 
         // Replace mocks via reflection (since fields are private)
         setPrivateField(swing, "client", mockClient);
@@ -118,7 +118,7 @@ class JNexusSwingTest {
 
     @Test
     void testConstructor_withCredentials_initializesCorrectly() throws Exception {
-        JNexusSwing swingWithCreds = new JNexusSwing(mockCredentials);
+        NexusSwing swingWithCreds = new NexusSwing(mockCredentials);
         assertNotNull(swingWithCreds);
         assertNotNull(getPrivateField(swingWithCreds, "client"));
         assertNotNull(getPrivateField(swingWithCreds, "service"));
@@ -127,7 +127,7 @@ class JNexusSwingTest {
     @Test
     void testCreateInputPanel_createsComponents() throws Exception {
         // Access private method via reflection
-        var method = JNexusSwing.class.getDeclaredMethod("createInputPanel");
+        var method = NexusSwing.class.getDeclaredMethod("createInputPanel");
         method.setAccessible(true);
         JPanel panel = (JPanel) method.invoke(swing);
 
@@ -137,7 +137,7 @@ class JNexusSwingTest {
 
     @Test
     void testCreateButtonPanel_createsAllButtons() throws Exception {
-        var method = JNexusSwing.class.getDeclaredMethod("createButtonPanel");
+        var method = NexusSwing.class.getDeclaredMethod("createButtonPanel");
         method.setAccessible(true);
         JPanel panel = (JPanel) method.invoke(swing);
 
@@ -156,7 +156,7 @@ class JNexusSwingTest {
 
     @Test
     void testButtonMnemonics_allSet() throws Exception {
-        var method = JNexusSwing.class.getDeclaredMethod("createButtonPanel");
+        var method = NexusSwing.class.getDeclaredMethod("createButtonPanel");
         method.setAccessible(true);
         JPanel panel = (JPanel) method.invoke(swing);
 
@@ -177,139 +177,139 @@ class JNexusSwingTest {
 
     @Test
     void testListButton_hasMnemonic() throws Exception {
-        var method = JNexusSwing.class.getDeclaredMethod("createButtonPanel");
+        var method = NexusSwing.class.getDeclaredMethod("createButtonPanel");
         method.setAccessible(true);
         JPanel panel = (JPanel) method.invoke(swing);
 
-        JButton listButton = findButtonByText(panel, "List");
+        JButtonlistButton = findButtonByText(panel, "List");
         assertNotNull(listButton, "List button should exist");
         assertEquals(KeyEvent.VK_L, listButton.getMnemonic(), "List button should have Alt+L mnemonic");
     }
 
     @Test
     void testRefreshButton_hasMnemonic() throws Exception {
-        var method = JNexusSwing.class.getDeclaredMethod("createButtonPanel");
+        var method = NexusSwing.class.getDeclaredMethod("createButtonPanel");
         method.setAccessible(true);
         JPanel panel = (JPanel) method.invoke(swing);
 
-        JButton refreshButton = findButtonByText(panel, "Refresh");
+        JButtonrefreshButton = findButtonByText(panel, "Refresh");
         assertNotNull(refreshButton, "Refresh button should exist");
         assertEquals(KeyEvent.VK_R, refreshButton.getMnemonic(), "Refresh button should have Alt+R mnemonic");
     }
 
     @Test
     void testDeleteButton_hasMnemonic() throws Exception {
-        var method = JNexusSwing.class.getDeclaredMethod("createButtonPanel");
+        var method = NexusSwing.class.getDeclaredMethod("createButtonPanel");
         method.setAccessible(true);
         JPanel panel = (JPanel) method.invoke(swing);
 
-        JButton deleteButton = findButtonByText(panel, "Delete All");
+        JButtondeleteButton = findButtonByText(panel, "Delete All");
         assertNotNull(deleteButton, "Delete All button should exist");
         assertEquals(KeyEvent.VK_D, deleteButton.getMnemonic(), "Delete All button should have Alt+D mnemonic");
     }
 
     @Test
     void testQuitButton_hasMnemonic() throws Exception {
-        var method = JNexusSwing.class.getDeclaredMethod("createButtonPanel");
+        var method = NexusSwing.class.getDeclaredMethod("createButtonPanel");
         method.setAccessible(true);
         JPanel panel = (JPanel) method.invoke(swing);
 
-        JButton quitButton = findButtonByText(panel, "Quit");
+        JButtonquitButton = findButtonByText(panel, "Quit");
         assertNotNull(quitButton, "Quit button should exist");
         assertEquals(KeyEvent.VK_Q, quitButton.getMnemonic(), "Quit button should have Alt+Q mnemonic");
     }
 
     @Test
     void testClearButton_hasMnemonic() throws Exception {
-        var method = JNexusSwing.class.getDeclaredMethod("createButtonPanel");
+        var method = NexusSwing.class.getDeclaredMethod("createButtonPanel");
         method.setAccessible(true);
         JPanel panel = (JPanel) method.invoke(swing);
 
-        JButton clearButton = findButtonByText(panel, "Clear Results");
+        JButtonclearButton = findButtonByText(panel, "Clear Results");
         assertNotNull(clearButton, "Clear Results button should exist");
         assertEquals(KeyEvent.VK_C, clearButton.getMnemonic(), "Clear button should have Alt+C mnemonic");
     }
 
     @Test
     void testStatsButton_hasMnemonic() throws Exception {
-        var method = JNexusSwing.class.getDeclaredMethod("createButtonPanel");
+        var method = NexusSwing.class.getDeclaredMethod("createButtonPanel");
         method.setAccessible(true);
         JPanel panel = (JPanel) method.invoke(swing);
 
-        JButton statsButton = findButtonByText(panel, "Statistics");
+        JButtonstatsButton = findButtonByText(panel, "Statistics");
         assertNotNull(statsButton, "Statistics button should exist");
         assertEquals(KeyEvent.VK_S, statsButton.getMnemonic(), "Statistics button should have Alt+S mnemonic");
     }
 
     @Test
     void testCreateMenuBar_createsFileMenu() throws Exception {
-        var method = JNexusSwing.class.getDeclaredMethod("createMenuBar");
+        var method = NexusSwing.class.getDeclaredMethod("createMenuBar");
         method.setAccessible(true);
-        JMenuBar menuBar = (JMenuBar) method.invoke(swing);
+        MenuBar menuBar = (JMenuBar) method.invoke(swing);
 
         assertNotNull(menuBar);
         assertTrue(menuBar.getMenuCount() >= 3, "Should have at least 3 menus (File, Actions, Help)");
 
-        JMenu fileMenu = menuBar.getMenu(0);
+        Menu fileMenu = menuBar.getMenu(0);
         assertEquals("File", fileMenu.getText(), "First menu should be File");
         assertEquals(KeyEvent.VK_F, fileMenu.getMnemonic(), "File menu should have Alt+F mnemonic");
     }
 
     @Test
     void testCreateMenuBar_createsActionsMenu() throws Exception {
-        var method = JNexusSwing.class.getDeclaredMethod("createMenuBar");
+        var method = NexusSwing.class.getDeclaredMethod("createMenuBar");
         method.setAccessible(true);
-        JMenuBar menuBar = (JMenuBar) method.invoke(swing);
+        MenuBar menuBar = (JMenuBar) method.invoke(swing);
 
-        JMenu actionsMenu = menuBar.getMenu(1);
+        Menu actionsMenu = menuBar.getMenu(1);
         assertEquals("Actions", actionsMenu.getText(), "Second menu should be Actions");
         assertEquals(KeyEvent.VK_A, actionsMenu.getMnemonic(), "Actions menu should have Alt+A mnemonic");
     }
 
     @Test
     void testCreateMenuBar_createsHelpMenu() throws Exception {
-        var method = JNexusSwing.class.getDeclaredMethod("createMenuBar");
+        var method = NexusSwing.class.getDeclaredMethod("createMenuBar");
         method.setAccessible(true);
-        JMenuBar menuBar = (JMenuBar) method.invoke(swing);
+        MenuBar menuBar = (JMenuBar) method.invoke(swing);
 
-        JMenu helpMenu = menuBar.getMenu(2);
+        Menu helpMenu = menuBar.getMenu(2);
         assertEquals("Help", helpMenu.getText(), "Third menu should be Help");
         assertEquals(KeyEvent.VK_H, helpMenu.getMnemonic(), "Help menu should have Alt+H mnemonic");
     }
 
     @Test
     void testCreateResultsPanel_createsTable() throws Exception {
-        var method = JNexusSwing.class.getDeclaredMethod("createResultsPanel");
+        var method = NexusSwing.class.getDeclaredMethod("createResultsPanel");
         method.setAccessible(true);
         JPanel panel = (JPanel) method.invoke(swing);
 
         assertNotNull(panel);
 
-        // Find JScrollPane containing the table
-        JScrollPane scrollPane = findComponentOfType(panel, JScrollPane.class);
+        // Find ScrollPane containing the table
+        ScrollPane scrollPane = findComponentOfType(panel, JScrollPane.class);
         assertNotNull(scrollPane, "Results panel should contain JScrollPane");
 
-        JTable table = (JTable) scrollPane.getViewport().getView();
+        Table table = (JTable) scrollPane.getViewport().getView();
         assertNotNull(table, "Scroll pane should contain JTable");
         assertEquals(7, table.getColumnCount(), "Table should have 7 columns");
     }
 
     @Test
     void testCreateStatusPanel_createsStatusLabel() throws Exception {
-        var method = JNexusSwing.class.getDeclaredMethod("createStatusPanel");
+        var method = NexusSwing.class.getDeclaredMethod("createStatusPanel");
         method.setAccessible(true);
         JPanel panel = (JPanel) method.invoke(swing);
 
         assertNotNull(panel);
 
-        JLabel statusLabel = findComponentOfType(panel, JLabel.class);
+        Label statusLabel = findComponentOfType(panel, JLabel.class);
         assertNotNull(statusLabel, "Status panel should contain JLabel");
         assertTrue(statusLabel.getText().contains("Ready"), "Status label should show 'Ready' message");
     }
 
     @Test
     void testCreateAdvancedFiltersPanel_createsFilterFields() throws Exception {
-        var method = JNexusSwing.class.getDeclaredMethod("createAdvancedFiltersPanel");
+        var method = NexusSwing.class.getDeclaredMethod("createAdvancedFiltersPanel");
         method.setAccessible(true);
         JPanel panel = (JPanel) method.invoke(swing);
 

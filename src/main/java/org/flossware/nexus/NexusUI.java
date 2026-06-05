@@ -18,7 +18,7 @@ import java.util.List;
  * @author sfloess
  * @since 1.0
  */
-public class JNexusUI {
+public class NexusUI {
     private static final List<Component> focusableComponents = new ArrayList<>();
     private static int currentFocus = 0;
     private static boolean running = true;
@@ -37,17 +37,20 @@ public class JNexusUI {
     private static final int KEY_Q = 113;
 
     // UI Components
-    private static JTextField repositoryField;
-    private static JTextField regexField;
-    private static JCheckbox dryRunCheckbox;
-    private static JLabel statusLabel;
-    private static JPanel resultsPanel;
-    private static final List<JLabel> resultLabels = new ArrayList<>();
+    private static TextField repositoryField;
+    private static TextField regexField;
+    private static Checkbox dryRunCheckbox;
+    private static Label statusLabel;
+    private static Panel resultsPanel;
+    private static final List<Label> resultLabels = new ArrayList<>();
 
     // Services
     private static NexusClient client;
     private static NexusService service;
     private static Credentials credentials;
+
+    // Deletion history for undo/recovery reference
+    private static final DeletionHistory deletionHistory = new DeletionHistory();
 
     /**
      * Get terminal size using stty command.
@@ -151,7 +154,7 @@ public class JNexusUI {
                 // Initialize Nexus client with selected profile
                 credentials = new Credentials(selectedProfile);
                 client = new NexusClient(credentials);
-                service = new NexusService(client);
+                service = new NexusService(client, deletionHistory);
             } catch (Exception e) {
                 System.err.println("ERROR: Failed to initialize Nexus client: " + e.getMessage());
                 System.err.println("\nPlease configure credentials:");
@@ -166,7 +169,7 @@ public class JNexusUI {
             try {
                 // Initialize Nexus client with collected credentials
                 client = new NexusClient(credentials);
-                service = new NexusService(client);
+                service = new NexusService(client, deletionHistory);
             } catch (Exception e) {
                 System.err.println("ERROR: Failed to initialize Nexus client: " + e.getMessage());
                 System.exit(1);
@@ -278,55 +281,55 @@ public class JNexusUI {
         root.setSize(80, 24);
 
         // Create main frame (shorter title for 80 cols)
-        JFrame frame = new JFrame("Nexus Repo - TAB:nav SPACE:select Q:quit");
+        Frame frame = new Frame("Nexus Repo - TAB:nav SPACE:select Q:quit");
         frame.setLocation(0, 0);
         frame.setSize(80, 22);
         frame.setVisible(true);
 
         // Create main panel
-        JPanel panel = new JPanel();
+        Panel panel = new Panel();
         panel.setLocation(1, 2);
         panel.setSize(78, 18);
         panel.setBordered(true);
 
         // Title
-        JLabel title = new JLabel("Nexus Repository Manager");
+        Label title = new Label("Nexus Repository Manager");
         title.setLocation(2, 3);
         title.setSize(30, 1);
         title.setAlignment(JLabel.ALIGN_LEFT);
 
         // Repository and Regex on same line
-        JLabel repoLabel = new JLabel("Repo:");
+        Label repoLabel = new Label("Repo:");
         repoLabel.setLocation(2, 4);
         repoLabel.setSize(6, 1);
 
-        repositoryField = new JTextField();
+        repositoryField = new TextField();
         repositoryField.setLocation(8, 4);
         repositoryField.setSize(20, 1);
         repositoryField.setText(credentials.getDefaultRepository());
         focusableComponents.add(repositoryField);
 
-        JLabel regexLabel = new JLabel("Regex:");
+        Label regexLabel = new Label("Regex:");
         regexLabel.setLocation(30, 4);
         regexLabel.setSize(7, 1);
 
-        regexField = new JTextField();
+        regexField = new TextField();
         regexField.setLocation(37, 4);
         regexField.setSize(20, 1);
         regexField.setText(credentials.getDefaultRegex());
         focusableComponents.add(regexField);
 
         // Dry run checkbox and repos on same line
-        dryRunCheckbox = new JCheckbox("Dry Run");
+        dryRunCheckbox = new Checkbox("Dry Run");
         dryRunCheckbox.setLocation(2, 5);
         dryRunCheckbox.setSize(12, 1);
         dryRunCheckbox.setChecked(credentials.isDefaultDryRun());
         focusableComponents.add(dryRunCheckbox);
 
         // Available repositories label (if configured) - truncated
-        JLabel reposDisplayLabel = null;
+        Label reposDisplayLabel = null;
         if (!credentials.getRepositories().isEmpty()) {
-            JLabel reposLabelText = new JLabel("Repos:");
+            Label reposLabelText = new Label("Repos:");
             reposLabelText.setLocation(16, 5);
             reposLabelText.setSize(7, 1);
 
@@ -335,7 +338,7 @@ public class JNexusUI {
             if (reposList.length() > 54) {
                 reposList = reposList.substring(0, 51) + "...";
             }
-            reposDisplayLabel = new JLabel(reposList);
+            reposDisplayLabel = new Label(reposList);
             reposDisplayLabel.setLocation(23, 5);
             reposDisplayLabel.setSize(54, 1);
 
@@ -344,25 +347,25 @@ public class JNexusUI {
         }
 
         // Buttons - all on one row
-        JButton listButton = new JButton("List");
+        Button listButton = new Button("List");
         listButton.setLocation(2, 7);
         listButton.setSize(8, 1);
         listButton.addActionListener(() -> executeList(false));
         focusableComponents.add(listButton);
 
-        JButton refreshButton = new JButton("Refresh");
+        Button refreshButton = new Button("Refresh");
         refreshButton.setLocation(11, 7);
         refreshButton.setSize(10, 1);
         refreshButton.addActionListener(() -> executeList(true));
         focusableComponents.add(refreshButton);
 
-        JButton deleteButton = new JButton("Delete");
+        Button deleteButton = new Button("Delete");
         deleteButton.setLocation(22, 7);
         deleteButton.setSize(9, 1);
         deleteButton.addActionListener(() -> executeDelete());
         focusableComponents.add(deleteButton);
 
-        JButton clearButton = new JButton("Clear");
+        Button clearButton = new Button("Clear");
         clearButton.setLocation(32, 7);
         clearButton.setSize(8, 1);
         clearButton.addActionListener(() -> {
@@ -372,24 +375,24 @@ public class JNexusUI {
         });
         focusableComponents.add(clearButton);
 
-        JButton quitButton = new JButton("Quit");
+        Button quitButton = new Button("Quit");
         quitButton.setLocation(41, 7);
         quitButton.setSize(7, 1);
         quitButton.addActionListener(() -> running = false);
         focusableComponents.add(quitButton);
 
         // Status label - shorter message
-        statusLabel = new JLabel("Ready (List=cached, Refresh=fresh, Delete=fresh)");
+        statusLabel = new Label("Ready (List=cached, Refresh=fresh, Delete=fresh)");
         statusLabel.setLocation(2, 9);
         statusLabel.setSize(72, 1);
 
         // Results label
-        JLabel resultsLabel = new JLabel("Results:");
+        Label resultsLabel = new Label("Results:");
         resultsLabel.setLocation(2, 10);
         resultsLabel.setSize(10, 1);
 
         // Results panel - smaller (9 rows instead of 13-14)
-        resultsPanel = new JPanel();
+        resultsPanel = new Panel();
         resultsPanel.setLocation(2, 11);
         resultsPanel.setSize(74, 9);
         resultsPanel.setBordered(false);
@@ -418,12 +421,12 @@ public class JNexusUI {
 
     private static void setupResultsPanel() {
         // Remove all existing result labels
-        for (JLabel label : resultLabels) {
+        for (Label label : resultLabels) {
             resultsPanel.remove(label);
         }
         resultLabels.clear();
 
-        JLabel placeholder = new JLabel("No results. Enter repository and click List (uses cache) or Refresh (bypasses cache)");
+        Label placeholder = new Label("No results. Enter repository and click List (uses cache) or Refresh (bypasses cache)");
         placeholder.setLocation(0, 0);
         placeholder.setSize(108, 1);
         resultsPanel.add(placeholder);
@@ -432,7 +435,7 @@ public class JNexusUI {
 
     private static void setResults(String text) {
         // Remove all existing result labels
-        for (JLabel label : resultLabels) {
+        for (Label label : resultLabels) {
             resultsPanel.remove(label);
         }
         resultLabels.clear();
@@ -442,7 +445,7 @@ public class JNexusUI {
         for (String line : lines) {
             if (y >= 14) break;  // Max height of results panel
 
-            JLabel lineLabel = new JLabel(line);
+            Label lineLabel = new Label(line);
             lineLabel.setLocation(0, y);
             lineLabel.setSize(108, 1);
             resultsPanel.add(lineLabel);
@@ -579,7 +582,7 @@ public class JNexusUI {
         } else if (ch >= 32 && ch <= 126) {
             // Printable character - pass to focused component
             Component focused = getFocusedComponent();
-            if (focused instanceof JTextField field) {
+            if (focused instanceof TextField field) {
                 String current = field.getText();
                 field.setText(current + (char) ch);
                 markDirty();
@@ -587,7 +590,7 @@ public class JNexusUI {
         } else if (ch == 127 || ch == 263) {
             // Backspace
             Component focused = getFocusedComponent();
-            if (focused instanceof JTextField field) {
+            if (focused instanceof TextField field) {
                 String current = field.getText();
                 if (!current.isEmpty()) {
                     field.setText(current.substring(0, current.length() - 1));
@@ -598,9 +601,9 @@ public class JNexusUI {
     }
 
     private static void activateComponent(Component component) {
-        if (component instanceof JButton button) {
+        if (component instanceof Button button) {
             button.doClick();
-        } else if (component instanceof JCheckbox checkbox) {
+        } else if (component instanceof Checkbox checkbox) {
             checkbox.setChecked(!checkbox.isChecked());
             markDirty();
         }

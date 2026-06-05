@@ -12,14 +12,14 @@ import java.util.Properties;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Tests for JNexusUI Terminal GUI.
+ * Tests for NexusUI Terminal GUI.
  * <p>
  * Note: jcurses terminal UI requires a terminal environment and cannot be fully tested in headless mode.
- * JNexusUI is designed as a static application (main method), not an instantiable class.
+ * NexusUI is designed as a static application (main method), not an instantiable class.
  * These tests verify helper methods and static behavior.
  * </p>
  */
-class JNexusUITest {
+class NexusUITest {
 
     @TempDir
     Path tempDir;
@@ -54,7 +54,7 @@ class JNexusUITest {
     @Test
     void testGetTerminalSize_handlesMissingCommand() throws Exception {
         // Test the static helper method that gets terminal size
-        var method = JNexusUI.class.getDeclaredMethod("getTerminalSize");
+        var method = NexusUI.class.getDeclaredMethod("getTerminalSize");
         method.setAccessible(true);
 
         // Invoke static method (null target)
@@ -68,7 +68,7 @@ class JNexusUITest {
 
     @Test
     void testGetTerminalSize_returnsReasonableDefaults() throws Exception {
-        var method = JNexusUI.class.getDeclaredMethod("getTerminalSize");
+        var method = NexusUI.class.getDeclaredMethod("getTerminalSize");
         method.setAccessible(true);
 
         int[] size = (int[]) method.invoke(null);
@@ -79,20 +79,20 @@ class JNexusUITest {
     }
 
     @Test
-    void testJNexusUI_hasDefaultConstructor() {
-        // JNexusUI should have a default constructor (implicit or explicit)
+    void testNexusUI_hasDefaultConstructor() {
+        // NexusUI should have a default constructor (implicit or explicit)
         try {
-            JNexusUI ui = new JNexusUI();
-            assertNotNull(ui, "JNexusUI instance should be created");
+            NexusUI ui = new NexusUI();
+            assertNotNull(ui, "NexusUI instance should be created");
         } catch (Exception e) {
-            fail("JNexusUI should have a default constructor: " + e.getMessage());
+            fail("NexusUI should have a default constructor: " + e.getMessage());
         }
     }
 
     @Test
-    void testJNexusUI_classExists() {
+    void testNexusUI_classExists() {
         // Basic sanity test that the class exists and can be loaded
-        assertNotNull(JNexusUI.class, "JNexusUI class should exist");
+        assertNotNull(NexusUI.class, "NexusUI class should exist");
     }
 
     /**

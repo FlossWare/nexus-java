@@ -12,7 +12,7 @@ import java.util.Properties;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Tests for JNexus CLI command parsing and validation.
+ * Tests for Nexus CLI command parsing and validation.
  * <p>
  * Tests CLI exit codes and command parsing without requiring a real Nexus server.
  * Focuses on:
@@ -28,7 +28,7 @@ import static org.junit.jupiter.api.Assertions.*;
  * These tests focus on exit codes which indicate success/failure.
  * </p>
  */
-class JNexusCommandTest {
+class NexusCommandTest {
 
     @TempDir
     Path tempDir;
@@ -58,14 +58,14 @@ class JNexusCommandTest {
     @Test
     void testHelpFlag_showsUsage() {
         String[] args = {"--help"};
-        int exitCode = new CommandLine(new JNexus()).execute(args);
+        int exitCode = new CommandLine(new Nexus()).execute(args);
         assertEquals(0, exitCode, "Help flag should exit 0");
     }
 
     @Test
     void testVersionFlag_showsVersion() {
         String[] args = {"--version"};
-        int exitCode = new CommandLine(new JNexus()).execute(args);
+        int exitCode = new CommandLine(new Nexus()).execute(args);
         assertEquals(0, exitCode, "Version flag should exit 0");
     }
 
@@ -74,7 +74,7 @@ class JNexusCommandTest {
         createMockProperties();
 
         String[] args = {"list", "test-repo", "--created-after", "invalid-date"};
-        int exitCode = new CommandLine(new JNexus()).execute(args);
+        int exitCode = new CommandLine(new Nexus()).execute(args);
 
         assertEquals(1, exitCode, "Invalid date should return exit code 1 (error)");
     }
@@ -85,7 +85,7 @@ class JNexusCommandTest {
 
         // ISO date without time part - should fail with DateTimeParseException
         String[] args = {"list", "test-repo", "--created-after", "2024-01-01"};
-        int exitCode = new CommandLine(new JNexus()).execute(args);
+        int exitCode = new CommandLine(new Nexus()).execute(args);
 
         assertEquals(1, exitCode, "Partial ISO date should return exit code 1");
     }
@@ -95,7 +95,7 @@ class JNexusCommandTest {
         createMockProperties();
 
         String[] args = {"list", "test-repo", "--created-before", "not-a-date"};
-        int exitCode = new CommandLine(new JNexus()).execute(args);
+        int exitCode = new CommandLine(new Nexus()).execute(args);
 
         assertEquals(1, exitCode, "Invalid --created-before should return exit code 1");
     }
@@ -107,7 +107,7 @@ class JNexusCommandTest {
         String[] args = {"list", "test-repo",
             "--created-after", "bad1",
             "--created-before", "bad2"};
-        int exitCode = new CommandLine(new JNexus()).execute(args);
+        int exitCode = new CommandLine(new Nexus()).execute(args);
 
         assertEquals(1, exitCode, "Invalid dates should return exit code 1");
     }
@@ -115,7 +115,7 @@ class JNexusCommandTest {
     @Test
     void testListCommand_missingRepository_showsError() {
         String[] args = {"list"};
-        int exitCode = new CommandLine(new JNexus()).execute(args);
+        int exitCode = new CommandLine(new Nexus()).execute(args);
 
         assertEquals(2, exitCode, "Missing required parameter should return Picocli's error code 2");
     }
@@ -123,7 +123,7 @@ class JNexusCommandTest {
     @Test
     void testDeleteCommand_missingRepository_showsError() {
         String[] args = {"delete"};
-        int exitCode = new CommandLine(new JNexus()).execute(args);
+        int exitCode = new CommandLine(new Nexus()).execute(args);
 
         assertEquals(2, exitCode, "Missing required parameter should return Picocli's error code 2");
     }
@@ -131,7 +131,7 @@ class JNexusCommandTest {
     @Test
     void testStatsCommand_missingRepository_showsError() {
         String[] args = {"stats"};
-        int exitCode = new CommandLine(new JNexus()).execute(args);
+        int exitCode = new CommandLine(new Nexus()).execute(args);
 
         assertEquals(2, exitCode, "Missing required parameter should return Picocli's error code 2");
     }
@@ -139,7 +139,7 @@ class JNexusCommandTest {
     @Test
     void testVerboseFlag_isRecognized() {
         String[] args = {"-v", "list", "test-repo"};
-        CommandLine cmd = new CommandLine(new JNexus());
+        CommandLine cmd = new CommandLine(new Nexus());
         int exitCode = cmd.execute(args);
 
         // Exit code will be 1 (credential error) not 2 (parsing error)
@@ -150,7 +150,7 @@ class JNexusCommandTest {
     @Test
     void testQuietFlag_isRecognized() {
         String[] args = {"-q", "list", "test-repo"};
-        CommandLine cmd = new CommandLine(new JNexus());
+        CommandLine cmd = new CommandLine(new Nexus());
         int exitCode = cmd.execute(args);
 
         assertNotEquals(2, exitCode,
@@ -160,7 +160,7 @@ class JNexusCommandTest {
     @Test
     void testProfileFlag_isRecognized() {
         String[] args = {"-p", "prod", "list", "test-repo"};
-        CommandLine cmd = new CommandLine(new JNexus());
+        CommandLine cmd = new CommandLine(new Nexus());
         int exitCode = cmd.execute(args);
 
         assertNotEquals(2, exitCode,
@@ -170,7 +170,7 @@ class JNexusCommandTest {
     @Test
     void testListCommand_withMinSize_isRecognized() {
         String[] args = {"list", "test-repo", "--min-size", "1000"};
-        CommandLine cmd = new CommandLine(new JNexus());
+        CommandLine cmd = new CommandLine(new Nexus());
         int exitCode = cmd.execute(args);
 
         assertNotEquals(2, exitCode, "Min size option should be recognized");
@@ -179,7 +179,7 @@ class JNexusCommandTest {
     @Test
     void testListCommand_withMaxSize_isRecognized() {
         String[] args = {"list", "test-repo", "--max-size", "100000"};
-        CommandLine cmd = new CommandLine(new JNexus());
+        CommandLine cmd = new CommandLine(new Nexus());
         int exitCode = cmd.execute(args);
 
         assertNotEquals(2, exitCode, "Max size option should be recognized");
@@ -188,7 +188,7 @@ class JNexusCommandTest {
     @Test
     void testListCommand_withExtension_isRecognized() {
         String[] args = {"list", "test-repo", "--extension", ".jar"};
-        CommandLine cmd = new CommandLine(new JNexus());
+        CommandLine cmd = new CommandLine(new Nexus());
         int exitCode = cmd.execute(args);
 
         assertNotEquals(2, exitCode, "Extension option should be recognized");
@@ -197,7 +197,7 @@ class JNexusCommandTest {
     @Test
     void testListCommand_withShowMetadata_isRecognized() {
         String[] args = {"list", "test-repo", "--show-metadata"};
-        CommandLine cmd = new CommandLine(new JNexus());
+        CommandLine cmd = new CommandLine(new Nexus());
         int exitCode = cmd.execute(args);
 
         assertNotEquals(2, exitCode, "Show metadata flag should be recognized");
@@ -206,7 +206,7 @@ class JNexusCommandTest {
     @Test
     void testDeleteCommand_withDryRun_isRecognized() {
         String[] args = {"delete", "test-repo", "--dry-run"};
-        CommandLine cmd = new CommandLine(new JNexus());
+        CommandLine cmd = new CommandLine(new Nexus());
         int exitCode = cmd.execute(args);
 
         assertNotEquals(2, exitCode, "Dry run flag should be recognized");
@@ -215,7 +215,7 @@ class JNexusCommandTest {
     @Test
     void testDeleteCommand_withYesFlag_isRecognized() {
         String[] args = {"delete", "test-repo", "--yes"};
-        CommandLine cmd = new CommandLine(new JNexus());
+        CommandLine cmd = new CommandLine(new Nexus());
         int exitCode = cmd.execute(args);
 
         assertNotEquals(2, exitCode, "Yes flag should be recognized");
@@ -224,7 +224,7 @@ class JNexusCommandTest {
     @Test
     void testStatsCommand_withTextFormat_isRecognized() {
         String[] args = {"stats", "test-repo", "--format", "text"};
-        CommandLine cmd = new CommandLine(new JNexus());
+        CommandLine cmd = new CommandLine(new Nexus());
         int exitCode = cmd.execute(args);
 
         assertNotEquals(2, exitCode, "Text format should be recognized");
@@ -233,7 +233,7 @@ class JNexusCommandTest {
     @Test
     void testStatsCommand_withJsonFormat_isRecognized() {
         String[] args = {"stats", "test-repo", "--format", "json"};
-        CommandLine cmd = new CommandLine(new JNexus());
+        CommandLine cmd = new CommandLine(new Nexus());
         int exitCode = cmd.execute(args);
 
         assertNotEquals(2, exitCode, "JSON format should be recognized");

@@ -14,13 +14,13 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 /**
- * Tests for JNexusAWT GUI.
+ * Tests for NexusAWT GUI.
  * <p>
  * Note: AWT components require a graphics environment and cannot be fully tested in headless mode.
  * These tests verify object initialization and field values without creating AWT components.
  * </p>
  */
-class JNexusAWTTest {
+class NexusAWTTest {
 
     @TempDir
     Path tempDir;
@@ -85,7 +85,7 @@ class JNexusAWTTest {
 
     @Test
     void testConstructor_withProfile_initializesCorrectly() throws Exception {
-        JNexusAWT awt = new JNexusAWT(mockCredentials);
+        NexusAWT awt = new NexusAWT(mockCredentials);
         assertNotNull(awt);
         assertNotNull(getPrivateField(awt, "client"));
         assertNotNull(getPrivateField(awt, "service"));
@@ -94,7 +94,7 @@ class JNexusAWTTest {
 
     @Test
     void testConstructor_withCredentials_initializesCorrectly() throws Exception {
-        JNexusAWT awt = new JNexusAWT(mockCredentials);
+        NexusAWT awt = new NexusAWT(mockCredentials);
         assertNotNull(awt);
         assertNotNull(getPrivateField(awt, "client"));
         assertNotNull(getPrivateField(awt, "service"));
@@ -102,21 +102,21 @@ class JNexusAWTTest {
 
     @Test
     void testConstructor_initializesNexusClient() throws Exception {
-        JNexusAWT awt = new JNexusAWT(mockCredentials);
+        NexusAWT awt = new NexusAWT(mockCredentials);
         NexusClient client = (NexusClient) getPrivateField(awt, "client");
         assertNotNull(client, "NexusClient should be initialized");
     }
 
     @Test
     void testConstructor_initializesNexusService() throws Exception {
-        JNexusAWT awt = new JNexusAWT(mockCredentials);
+        NexusAWT awt = new NexusAWT(mockCredentials);
         NexusService service = (NexusService) getPrivateField(awt, "service");
         assertNotNull(service, "NexusService should be initialized");
     }
 
     @Test
     void testConstructor_storesCredentials() throws Exception {
-        JNexusAWT awt = new JNexusAWT(mockCredentials);
+        NexusAWT awt = new NexusAWT(mockCredentials);
         Credentials storedCreds = (Credentials) getPrivateField(awt, "credentials");
         assertEquals(mockCredentials, storedCreds, "Credentials should be stored");
     }

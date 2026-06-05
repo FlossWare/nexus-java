@@ -75,15 +75,19 @@ import java.util.concurrent.Callable;
     mixinStandardHelpOptions = true,
     version = "jnexus 2.0.0",
     subcommands = {
-        JNexus.ListCommand.class,
-        JNexus.DeleteCommand.class,
-        JNexus.StatsCommand.class
+        Nexus.ListCommand.class,
+        Nexus.DeleteCommand.class,
+        Nexus.StatsCommand.class,
+        Nexus.HistoryCommand.class
     }
 )
-public class JNexus implements Callable<Integer> {
+public class Nexus implements Callable<Integer> {
 
     // Shared Scanner for System.in - never close this to avoid closing System.in
     private static final java.util.Scanner CONSOLE_SCANNER = new java.util.Scanner(System.in);
+
+    // Shared deletion history across subcommands within the same session
+    private final DeletionHistory deletionHistory = new DeletionHistory();
 
     @Option(
         names = {"-v", "--verbose"},
@@ -143,7 +147,7 @@ public class JNexus implements Callable<Integer> {
     )
     static class ListCommand implements Callable<Integer> {
         @CommandLine.ParentCommand
-        private JNexus parent;
+        private Nexus parent;
 
         @Parameters(index = "0", description = "Repository name")
         private String repository;
@@ -181,7 +185,7 @@ public class JNexus implements Callable<Integer> {
         @Override
         public Integer call() {
             parent.configureLogging();
-            org.slf4j.Logger logger = LoggerFactory.getLogger(JNexus.class);
+            org.slf4j.Logger logger = LoggerFactory.getLogger(Nexus.class);
 
             try {
                 Credentials credentials = new Credentials(parent.profile);
@@ -343,7 +347,7 @@ public class JNexus implements Callable<Integer> {
     )
     static class DeleteCommand implements Callable<Integer> {
         @CommandLine.ParentCommand
-        private JNexus parent;
+        private Nexus parent;
 
         @Parameters(index = "0", description = "Repository name")
         private String repository;
@@ -363,6 +367,12 @@ public class JNexus implements Callable<Integer> {
         )
         private boolean skipConfirmation;
 
+        @Option(
+            names = {"--export-before-delete"},
+            description = "Export list of components to a JSON file before deleting"
+        )
+        private String exportBeforeDeletePath;
+
         /**
          * Executes the delete command.
          * <p>
@@ -376,7 +386,7 @@ public class JNexus implements Callable<Integer> {
         @Override
         public Integer call() {
             parent.configureLogging();
-            org.slf4j.Logger logger = LoggerFactory.getLogger(JNexus.class);
+            org.slf4j.Logger logger = LoggerFactory.getLogger(Nexus.class);
 
             try {
                 if (!dryRun && !skipConfirmation) {
@@ -397,7 +407,7 @@ public class JNexus implements Callable<Integer> {
 
                 Credentials credentials = new Credentials(parent.profile);
                 NexusClient client = new NexusClient(credentials);
-                NexusService service = new NexusService(client);
+                NexusService service = new NexusService(client, parent.deletionHistory);
 
                 if (credentials.getProfile() != null) {
                     logger.debug("Using profile: {}", credentials.getProfile());
@@ -412,7 +422,32 @@ public class JNexus implements Callable<Integer> {
                 }
                 System.out.println();
 
+                // Export before delete if requested
+                if (exportBeforeDeletePath != null && !dryRun) {
+                    List<RepoRecord> recordsToExport = service.getRepositoryRecords(repository, regexFilter, true);
+                    if (!recordsToExport.isEmpty()) {
+                        List<DeletionHistory.DeletedComponent> exportComponents =
+                            DeletionHistory.fromRepoRecords(recordsToExport, repository);
+                        String json = DeletionHistory.formatAsJson(exportComponents, repository, regexFilter);
+                        java.nio.file.Path exportPath = java.nio.file.Path.of(exportBeforeDeletePath);
+                        if (exportPath.getParent() != null) {
+                            java.nio.file.Files.createDirectories(exportPath.getParent());
+                        }
+                        java.nio.file.Files.writeString(exportPath, json);
+                        System.out.println("Exported " + recordsToExport.size() +
+                            " component(s) to " + exportBeforeDeletePath + " before deletion");
+                        System.out.println();
+                    }
+                }
+
                 service.deleteFromRepository(repository, regexFilter, dryRun);
+
+                // Show deletion history summary after the operation
+                if (!dryRun && !parent.deletionHistory.isEmpty()) {
+                    System.out.println("\nDeletion history: " + parent.deletionHistory.size() +
+                        " component(s) recorded this session. Use 'jnexus history' to view.");
+                }
+
                 return 0;
             } catch (IllegalArgumentException e) {
                 logger.error("Error: {}", e.getMessage());
@@ -440,7 +475,7 @@ public class JNexus implements Callable<Integer> {
     )
     static class StatsCommand implements Callable<Integer> {
         @CommandLine.ParentCommand
-        private JNexus parent;
+        private Nexus parent;
 
         @Parameters(index = "0", description = "Repository name")
         private String repository;
@@ -460,7 +495,7 @@ public class JNexus implements Callable<Integer> {
         @Override
         public Integer call() {
             parent.configureLogging();
-            org.slf4j.Logger logger = LoggerFactory.getLogger(JNexus.class);
+            org.slf4j.Logger logger = LoggerFactory.getLogger(Nexus.class);
 
             try {
                 Credentials credentials = new Credentials(parent.profile);
@@ -619,6 +654,126 @@ public class JNexus implements Callable<Integer> {
     }
 
     /**
+     * Subcommand for viewing the deletion history from the current session.
+     * <p>
+     * Shows all components that have been deleted during this session,
+     * providing a reference for manual recovery if needed.
+     * The history can optionally be exported to a JSON file.
+     * </p>
+     */
+    @Command(
+        name = "history",
+        description = "Show deletion history from the current session"
+    )
+    static class HistoryCommand implements Callable<Integer> {
+        @CommandLine.ParentCommand
+        private Nexus parent;
+
+        @Option(
+            names = {"--export"},
+            description = "Export deletion history to a JSON file"
+        )
+        private String exportPath;
+
+        @Option(
+            names = {"--limit"},
+            description = "Maximum number of records to display (default: all)",
+            defaultValue = "0"
+        )
+        private int limit;
+
+        @Option(
+            names = {"--clear"},
+            description = "Clear the deletion history after displaying it"
+        )
+        private boolean clearHistory;
+
+        /**
+         * Executes the history command.
+         *
+         * @return exit code: 0 for success, 1 for error
+         */
+        @Override
+        public Integer call() {
+            parent.configureLogging();
+            org.slf4j.Logger logger = LoggerFactory.getLogger(Nexus.class);
+
+            try {
+                DeletionHistory history = parent.deletionHistory;
+
+                if (history.isEmpty()) {
+                    System.out.println("No deletions recorded in this session.");
+                    System.out.println("Deletion history tracks components deleted via the 'delete' command.");
+                    return 0;
+                }
+
+                // Get deletions
+                List<DeletionHistory.DeletedComponent> deletions = limit > 0
+                    ? history.getRecentDeletions(limit)
+                    : history.getAllDeletions();
+
+                // Display header
+                System.out.println("Deletion History (" + history.size() + " total records)");
+                System.out.println("=".repeat(80));
+                System.out.println();
+
+                // Display records
+                NumberFormat numberFormat = NumberFormat.getNumberInstance(Locale.US);
+                java.time.format.DateTimeFormatter formatter =
+                    java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+                        .withZone(java.time.ZoneId.systemDefault());
+
+                System.out.printf("%-36s  %15s  %-15s  %s%n",
+                    "ID", "Size (bytes)", "Repository", "Path");
+                System.out.printf("%-36s  %15s  %-15s  %s%n",
+                    "-".repeat(36), "-".repeat(15), "-".repeat(15), "-".repeat(40));
+
+                long totalSize = 0;
+                for (DeletionHistory.DeletedComponent comp : deletions) {
+                    System.out.printf("%-36s  %,15d  %-15s  %s%n",
+                        comp.id(),
+                        comp.fileSize(),
+                        truncateStr(comp.repository(), 15),
+                        comp.path());
+                    totalSize += comp.fileSize();
+                }
+
+                System.out.println();
+                System.out.printf("Showing %d of %d records | Total size: %s bytes (%.2f MB)%n",
+                    deletions.size(), history.size(),
+                    numberFormat.format(totalSize),
+                    totalSize / 1024.0 / 1024.0);
+
+                // Export if requested
+                if (exportPath != null) {
+                    history.exportToJson(java.nio.file.Path.of(exportPath));
+                    System.out.println("Exported to: " + exportPath);
+                }
+
+                // Clear if requested
+                if (clearHistory) {
+                    history.clear();
+                    System.out.println("Deletion history cleared.");
+                }
+
+                return 0;
+            } catch (Exception e) {
+                logger.error("Error: {}", e.getMessage());
+                if (parent.verbose) {
+                    logger.error("Stack trace:", e);
+                }
+                return 1;
+            }
+        }
+
+        private String truncateStr(String text, int maxLength) {
+            if (text == null) return "";
+            if (text.length() <= maxLength) return text;
+            return text.substring(0, maxLength - 3) + "...";
+        }
+    }
+
+    /**
      * Main entry point for the Nexus CLI tool.
      * <p>
      * Parses command-line arguments using Picocli and executes the appropriate
@@ -628,7 +783,7 @@ public class JNexus implements Callable<Integer> {
      * @param args command-line arguments
      */
     public static void main(String[] args) {
-        int exitCode = new CommandLine(new JNexus()).execute(args);
+        int exitCode = new CommandLine(new Nexus()).execute(args);
         System.exit(exitCode);
     }
 }

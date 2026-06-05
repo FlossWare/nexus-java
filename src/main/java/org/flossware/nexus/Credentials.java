@@ -730,7 +730,7 @@ public class Credentials {
         }
 
         try (java.io.OutputStream output = Files.newOutputStream(configPath)) {
-            props.store(output, "Nexus Configuration - Saved by JNexus");
+            props.store(output, "Nexus Configuration - Saved by Nexus");
         }
 
         // Set file permissions to 600 (rw-------, user read/write only) for security

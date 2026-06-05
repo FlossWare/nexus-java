@@ -35,6 +35,8 @@ public class CredentialsAndroid implements Credentials {
     private static final String KEY_DEFAULT_REGEX = "nexus.default.regex";
     private static final String KEY_DEFAULT_DRYRUN = "nexus.default.dryrun";
     private static final String KEY_TIMEOUT = "nexus.http.timeout.seconds";
+    private static final String KEY_MAX_RETRIES = "nexus.http.max.retries";
+    private static final String KEY_RETRY_DELAY_MS = "nexus.http.retry.delay.ms";
 
     private final SharedPreferences prefs;
 
@@ -118,6 +120,16 @@ public class CredentialsAndroid implements Credentials {
         return prefs.getInt(KEY_TIMEOUT, 30);
     }
 
+    @Override
+    public int getMaxRetries() {
+        return prefs.getInt(KEY_MAX_RETRIES, 3);
+    }
+
+    @Override
+    public long getInitialRetryDelayMs() {
+        return prefs.getLong(KEY_RETRY_DELAY_MS, 1000);
+    }
+
     // Save methods for settings screen
 
     /**
@@ -172,6 +184,19 @@ public class CredentialsAndroid implements Credentials {
     public void saveHttpTimeout(int timeoutSeconds) {
         prefs.edit()
             .putInt(KEY_TIMEOUT, timeoutSeconds)
+            .apply();
+    }
+
+    /**
+     * Saves HTTP retry configuration.
+     *
+     * @param maxRetries the maximum number of retry attempts
+     * @param retryDelayMs the initial retry delay in milliseconds
+     */
+    public void saveHttpRetryConfig(int maxRetries, long retryDelayMs) {
+        prefs.edit()
+            .putInt(KEY_MAX_RETRIES, maxRetries)
+            .putLong(KEY_RETRY_DELAY_MS, retryDelayMs)
             .apply();
     }
 

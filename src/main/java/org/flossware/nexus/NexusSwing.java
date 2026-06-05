@@ -37,8 +37,8 @@ import java.util.Map;
  * @author sfloess
  * @since 1.0
  */
-public class JNexusSwing {
-    private static final Logger logger = LoggerFactory.getLogger(JNexusSwing.class);
+public class NexusSwing {
+    private static final Logger logger = LoggerFactory.getLogger(NexusSwing.class);
 
     // UI Components
     private JFrame frame;
@@ -72,6 +72,9 @@ public class JNexusSwing {
     // Current data
     private List<ComponentMetadata> currentComponents = new ArrayList<>();
     private String currentRepository = "";
+
+    // Deletion history for undo/recovery reference
+    private final DeletionHistory deletionHistory = new DeletionHistory();
 
     public static void main(String[] args) {
         // Set system look and feel for native appearance
@@ -156,13 +159,13 @@ public class JNexusSwing {
                     }
                 }
 
-                JNexusSwing app;
+                NexusSwing app;
                 if (credentials != null) {
                     // Use credentials from dialog
-                    app = new JNexusSwing(credentials);
+                    app = new NexusSwing(credentials);
                 } else {
                     // Use credentials from profile
-                    app = new JNexusSwing(selectedProfile);
+                    app = new NexusSwing(selectedProfile);
                 }
                 app.createAndShowGUI();
             } catch (Exception e) {
@@ -178,22 +181,22 @@ public class JNexusSwing {
         });
     }
 
-    public JNexusSwing(String profile) throws Exception {
+    public NexusSwing(String profile) throws Exception {
         // Initialize Nexus client with selected profile
         credentials = new Credentials(profile);
         client = new NexusClient(credentials);
-        service = new NexusService(client);
+        service = new NexusService(client, deletionHistory);
     }
 
-    public JNexusSwing(Credentials credentials) throws Exception {
+    public NexusSwing(Credentials credentials) throws Exception {
         // Initialize Nexus client with provided credentials
         this.credentials = credentials;
         client = new NexusClient(credentials);
-        service = new NexusService(client);
+        service = new NexusService(client, deletionHistory);
     }
 
     private static Credentials showCredentialDialog() {
-        JPanel panel = new JPanel(new GridBagLayout());
+        Panel panel = new Panel(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(5, 5, 5, 5);
         gbc.fill = GridBagConstraints.HORIZONTAL;
@@ -202,11 +205,11 @@ public class JNexusSwing {
         gbc.gridx = 0;
         gbc.gridy = 0;
         gbc.weightx = 0.0;
-        panel.add(new JLabel("Nexus URL:"), gbc);
+        panel.add(new Label("Nexus URL:"), gbc);
 
         gbc.gridx = 1;
         gbc.weightx = 1.0;
-        JTextField urlField = new JTextField(30);
+        TextField urlField = new TextField(30);
         urlField.setToolTipText("e.g., https://your-nexus-server.com");
         panel.add(urlField, gbc);
 
@@ -214,18 +217,18 @@ public class JNexusSwing {
         gbc.gridx = 0;
         gbc.gridy = 1;
         gbc.weightx = 0.0;
-        panel.add(new JLabel("Username:"), gbc);
+        panel.add(new Label("Username:"), gbc);
 
         gbc.gridx = 1;
         gbc.weightx = 1.0;
-        JTextField userField = new JTextField(30);
+        TextField userField = new TextField(30);
         panel.add(userField, gbc);
 
         // Password field
         gbc.gridx = 0;
         gbc.gridy = 2;
         gbc.weightx = 0.0;
-        panel.add(new JLabel("Password:"), gbc);
+        panel.add(new Label("Password:"), gbc);
 
         gbc.gridx = 1;
         gbc.weightx = 1.0;
@@ -236,11 +239,11 @@ public class JNexusSwing {
         gbc.gridx = 0;
         gbc.gridy = 3;
         gbc.weightx = 0.0;
-        panel.add(new JLabel("Repositories:"), gbc);
+        panel.add(new Label("Repositories:"), gbc);
 
         gbc.gridx = 1;
         gbc.weightx = 1.0;
-        JTextField reposField = new JTextField(30);
+        TextField reposField = new TextField(30);
         reposField.setToolTipText("Optional: comma-separated list (e.g., maven-releases,npm-public)");
         panel.add(reposField, gbc);
 
@@ -248,7 +251,7 @@ public class JNexusSwing {
         gbc.gridx = 0;
         gbc.gridy = 4;
         gbc.gridwidth = 2;
-        JLabel infoLabel = new JLabel("<html><i>No configuration files found. Please enter your Nexus credentials.</i></html>");
+        Label infoLabel = new Label("<html><i>No configuration files found. Please enter your Nexus credentials.</i></html>");
         panel.add(infoLabel, gbc);
 
         int result = JOptionPane.showConfirmDialog(
@@ -288,7 +291,7 @@ public class JNexusSwing {
     }
 
     private void createAndShowGUI() {
-        frame = new JFrame("Nexus Repository Manager - Swing UI");
+        frame = new Frame("Nexus Repository Manager - Swing UI");
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 
         // Close client resources when window closes
@@ -308,19 +311,19 @@ public class JNexusSwing {
         frame.setJMenuBar(createMenuBar());
 
         // Create main panel with padding
-        JPanel mainPanel = new JPanel(new BorderLayout(10, 10));
+        Panel mainPanel = new Panel(new BorderLayout(10, 10));
         mainPanel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
         // Top panel for input fields
-        JPanel inputPanel = createInputPanel();
+        Panel inputPanel = createInputPanel();
         mainPanel.add(inputPanel, BorderLayout.NORTH);
 
         // Center panel for results
-        JPanel resultsPanel = createResultsPanel();
+        Panel resultsPanel = createResultsPanel();
         mainPanel.add(resultsPanel, BorderLayout.CENTER);
 
         // Bottom panel for status
-        JPanel statusPanel = createStatusPanel();
+        Panel statusPanel = createStatusPanel();
         mainPanel.add(statusPanel, BorderLayout.SOUTH);
 
         frame.add(mainPanel);
@@ -331,8 +334,8 @@ public class JNexusSwing {
         frame.setVisible(true);
     }
 
-    private JPanel createInputPanel() {
-        JPanel panel = new JPanel(new GridBagLayout());
+    private Panel createInputPanel() {
+        Panel panel = new Panel(new GridBagLayout());
         panel.setBorder(BorderFactory.createTitledBorder("Repository Configuration"));
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(5, 5, 5, 5);
@@ -342,7 +345,7 @@ public class JNexusSwing {
         gbc.gridx = 0;
         gbc.gridy = 0;
         gbc.weightx = 0.0;
-        panel.add(new JLabel("Repository:"), gbc);
+        panel.add(new Label("Repository:"), gbc);
 
         gbc.gridx = 1;
         gbc.weightx = 1.0;
@@ -370,11 +373,11 @@ public class JNexusSwing {
         gbc.gridx = 0;
         gbc.gridy = 1;
         gbc.weightx = 0.0;
-        panel.add(new JLabel("Regex Filter:"), gbc);
+        panel.add(new Label("Regex Filter:"), gbc);
 
         gbc.gridx = 1;
         gbc.weightx = 1.0;
-        regexField = new JTextField(credentials.getDefaultRegex(), 30);
+        regexField = new TextField(credentials.getDefaultRegex(), 30);
         regexField.setToolTipText("Optional regex pattern to filter components (e.g., .*SNAPSHOT.*)");
         regexField.addActionListener(e -> executeList(false)); // Enter triggers List
         panel.add(regexField, gbc);
@@ -391,7 +394,7 @@ public class JNexusSwing {
         gbc.gridy = 3;
         gbc.gridwidth = 2;
         gbc.anchor = GridBagConstraints.WEST;
-        toggleFiltersButton = new JButton("▶ Advanced Filters");
+        toggleFiltersButton = new Button("▶ Advanced Filters");
         toggleFiltersButton.setMnemonic(KeyEvent.VK_F); // Alt+F
         toggleFiltersButton.setToolTipText("Toggle advanced filters panel - Alt+F");
         toggleFiltersButton.setBorderPainted(false);
@@ -419,12 +422,12 @@ public class JNexusSwing {
         gbc.weightx = 0.0;
         gbc.gridwidth = 1;
         gbc.anchor = GridBagConstraints.WEST;
-        panel.add(new JLabel("Nexus URL:"), gbc);
+        panel.add(new Label("Nexus URL:"), gbc);
 
         gbc.gridx = 1;
         gbc.weightx = 1.0;
         gbc.fill = GridBagConstraints.HORIZONTAL;
-        JTextField nexusUrlField = new JTextField(credentials.getUrl(), 30);
+        TextField nexusUrlField = new TextField(credentials.getUrl(), 30);
         nexusUrlField.setEditable(false);
         nexusUrlField.setBackground(panel.getBackground());
         nexusUrlField.setBorder(BorderFactory.createEmptyBorder());
@@ -437,7 +440,7 @@ public class JNexusSwing {
         gbc.weightx = 0.0;
         gbc.gridwidth = 1;
         gbc.anchor = GridBagConstraints.WEST;
-        panel.add(new JLabel("Config File:"), gbc);
+        panel.add(new Label("Config File:"), gbc);
 
         gbc.gridx = 1;
         gbc.weightx = 1.0;
@@ -445,7 +448,7 @@ public class JNexusSwing {
         String configFile = credentials.getProfile() == null
             ? "~/.flossware/nexus/nexus.properties"
             : "~/.flossware/nexus/nexus-" + credentials.getProfile() + ".properties";
-        JTextField configFileField = new JTextField(configFile, 30);
+        TextField configFileField = new TextField(configFile, 30);
         configFileField.setEditable(false);
         configFileField.setBackground(panel.getBackground());
         configFileField.setBorder(BorderFactory.createEmptyBorder());
@@ -462,8 +465,8 @@ public class JNexusSwing {
         return panel;
     }
 
-    private JPanel createAdvancedFiltersPanel() {
-        JPanel panel = new JPanel(new GridBagLayout());
+    private Panel createAdvancedFiltersPanel() {
+        Panel panel = new Panel(new GridBagLayout());
         panel.setBorder(BorderFactory.createTitledBorder("Advanced Filters"));
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(5, 5, 5, 5);
@@ -473,22 +476,22 @@ public class JNexusSwing {
         gbc.gridx = 0;
         gbc.gridy = 0;
         gbc.weightx = 0.0;
-        panel.add(new JLabel("Min Size (bytes):"), gbc);
+        panel.add(new Label("Min Size (bytes):"), gbc);
 
         gbc.gridx = 1;
         gbc.weightx = 1.0;
-        minSizeField = new JTextField(15);
+        minSizeField = new TextField(15);
         minSizeField.setToolTipText("Minimum file size in bytes (e.g., 1048576 for 1 MB)");
         panel.add(minSizeField, gbc);
 
         // Max Size
         gbc.gridx = 2;
         gbc.weightx = 0.0;
-        panel.add(new JLabel("Max Size (bytes):"), gbc);
+        panel.add(new Label("Max Size (bytes):"), gbc);
 
         gbc.gridx = 3;
         gbc.weightx = 1.0;
-        maxSizeField = new JTextField(15);
+        maxSizeField = new TextField(15);
         maxSizeField.setToolTipText("Maximum file size in bytes (e.g., 10485760 for 10 MB)");
         panel.add(maxSizeField, gbc);
 
@@ -496,22 +499,22 @@ public class JNexusSwing {
         gbc.gridx = 0;
         gbc.gridy = 1;
         gbc.weightx = 0.0;
-        panel.add(new JLabel("Created After:"), gbc);
+        panel.add(new Label("Created After:"), gbc);
 
         gbc.gridx = 1;
         gbc.weightx = 1.0;
-        createdAfterField = new JTextField(15);
+        createdAfterField = new TextField(15);
         createdAfterField.setToolTipText("ISO format: 2024-01-01T00:00:00Z");
         panel.add(createdAfterField, gbc);
 
         // Created Before
         gbc.gridx = 2;
         gbc.weightx = 0.0;
-        panel.add(new JLabel("Created Before:"), gbc);
+        panel.add(new Label("Created Before:"), gbc);
 
         gbc.gridx = 3;
         gbc.weightx = 1.0;
-        createdBeforeField = new JTextField(15);
+        createdBeforeField = new TextField(15);
         createdBeforeField.setToolTipText("ISO format: 2024-01-01T00:00:00Z");
         panel.add(createdBeforeField, gbc);
 
@@ -519,12 +522,12 @@ public class JNexusSwing {
         gbc.gridx = 0;
         gbc.gridy = 2;
         gbc.weightx = 0.0;
-        panel.add(new JLabel("File Extension:"), gbc);
+        panel.add(new Label("File Extension:"), gbc);
 
         gbc.gridx = 1;
         gbc.weightx = 1.0;
         gbc.gridwidth = 3;
-        extensionField = new JTextField(15);
+        extensionField = new TextField(15);
         extensionField.setToolTipText("File extension including dot (e.g., .jar, .war, .zip)");
         panel.add(extensionField, gbc);
 
@@ -538,35 +541,35 @@ public class JNexusSwing {
         frame.pack(); // Resize window to fit content
     }
 
-    private JPanel createButtonPanel() {
-        JPanel panel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+    private Panel createButtonPanel() {
+        Panel panel = new Panel(new FlowLayout(FlowLayout.LEFT));
 
-        listButton = new JButton("List");
+        listButton = new Button("List");
         listButton.setMnemonic(KeyEvent.VK_L); // Alt+L
         listButton.setToolTipText("List components (uses cache) - Alt+L or Ctrl+L");
         listButton.addActionListener(e -> executeList(false));
         panel.add(listButton);
 
-        refreshButton = new JButton("Refresh");
+        refreshButton = new Button("Refresh");
         refreshButton.setMnemonic(KeyEvent.VK_R); // Alt+R
         refreshButton.setToolTipText("Refresh components (bypasses cache) - Alt+R or Ctrl+R or F5");
         refreshButton.addActionListener(e -> executeList(true));
         panel.add(refreshButton);
 
-        deleteButton = new JButton("Delete All");
+        deleteButton = new Button("Delete All");
         deleteButton.setMnemonic(KeyEvent.VK_D); // Alt+D
         deleteButton.setToolTipText("Delete all components matching filter - Alt+D");
         deleteButton.addActionListener(e -> executeDelete());
         panel.add(deleteButton);
 
-        deleteSelectedButton = new JButton("Delete Selected");
+        deleteSelectedButton = new Button("Delete Selected");
         deleteSelectedButton.setMnemonic(KeyEvent.VK_E); // Alt+E (avoiding conflict with D)
         deleteSelectedButton.setToolTipText("Delete selected rows from table - Alt+E");
         deleteSelectedButton.addActionListener(e -> executeDeleteSelected());
         deleteSelectedButton.setVisible(false); // Hidden until rows are selected
         panel.add(deleteSelectedButton);
 
-        clearButton = new JButton("Clear Results");
+        clearButton = new Button("Clear Results");
         clearButton.setMnemonic(KeyEvent.VK_C); // Alt+C
         clearButton.setToolTipText("Clear all results from table - Alt+C");
         clearButton.addActionListener(e -> {
@@ -576,13 +579,13 @@ public class JNexusSwing {
         });
         panel.add(clearButton);
 
-        statsButton = new JButton("Statistics");
+        statsButton = new Button("Statistics");
         statsButton.setMnemonic(KeyEvent.VK_S); // Alt+S
         statsButton.setToolTipText("Show repository statistics for current results - Alt+S or Ctrl+T");
         statsButton.addActionListener(e -> showStatisticsDialog());
         panel.add(statsButton);
 
-        JButton quitButton = new JButton("Quit");
+        Button quitButton = new Button("Quit");
         quitButton.setMnemonic(KeyEvent.VK_Q); // Alt+Q
         quitButton.setToolTipText("Exit application - Alt+Q or Ctrl+Q");
         quitButton.addActionListener(e -> System.exit(0));
@@ -591,8 +594,8 @@ public class JNexusSwing {
         return panel;
     }
 
-    private JPanel createResultsPanel() {
-        JPanel panel = new JPanel(new BorderLayout());
+    private Panel createResultsPanel() {
+        Panel panel = new Panel(new BorderLayout());
         panel.setBorder(BorderFactory.createTitledBorder("Results"));
 
         // Create table model with columns
@@ -604,7 +607,7 @@ public class JNexusSwing {
             }
         };
 
-        resultsTable = new JTable(tableModel);
+        resultsTable = new Table(tableModel);
         resultsTable.setFont(new Font("Monospaced", Font.PLAIN, 12));
 
         // Create custom sorter with numeric comparators for size columns
@@ -677,33 +680,33 @@ public class JNexusSwing {
             }
         });
 
-        JScrollPane scrollPane = new JScrollPane(resultsTable);
+        ScrollPane scrollPane = new ScrollPane(resultsTable);
         scrollPane.setPreferredSize(new Dimension(800, 400));
         panel.add(scrollPane, BorderLayout.CENTER);
 
         return panel;
     }
 
-    private JPanel createStatusPanel() {
-        JPanel panel = new JPanel(new BorderLayout());
+    private Panel createStatusPanel() {
+        Panel panel = new Panel(new BorderLayout());
         panel.setBorder(BorderFactory.createEtchedBorder());
 
-        statusLabel = new JLabel("Ready - List: cached, Refresh: bypass cache, Delete: always fresh");
+        statusLabel = new Label("Ready - List: cached, Refresh: bypass cache, Delete: always fresh");
         statusLabel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
         panel.add(statusLabel, BorderLayout.WEST);
 
         return panel;
     }
 
-    private JMenuBar createMenuBar() {
-        JMenuBar menuBar = new JMenuBar();
+    private MenuBar createMenuBar() {
+        MenuBar menuBar = new MenuBar();
 
         // File menu
-        JMenu fileMenu = new JMenu("File");
+        Menu fileMenu = new Menu("File");
         fileMenu.setMnemonic(KeyEvent.VK_F);
         menuBar.add(fileMenu);
 
-        JMenuItem clearItem = new JMenuItem("Clear Results");
+        MenuItem clearItem = new MenuItem("Clear Results");
         clearItem.setMnemonic(KeyEvent.VK_C);
         clearItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0));
         clearItem.addActionListener(e -> {
@@ -715,42 +718,68 @@ public class JNexusSwing {
 
         fileMenu.addSeparator();
 
-        JMenuItem quitItem = new JMenuItem("Quit");
+        MenuItem quitItem = new MenuItem("Quit");
         quitItem.setMnemonic(KeyEvent.VK_Q);
         quitItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_Q, InputEvent.CTRL_DOWN_MASK));
         quitItem.addActionListener(e -> System.exit(0));
         fileMenu.add(quitItem);
 
+        // Edit menu
+        Menu editMenu = new Menu("Edit");
+        editMenu.setMnemonic(KeyEvent.VK_E);
+        menuBar.add(editMenu);
+
+        MenuItem recentDeletionsItem = new MenuItem("Recent Deletions...");
+        recentDeletionsItem.setMnemonic(KeyEvent.VK_R);
+        recentDeletionsItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_H, InputEvent.CTRL_DOWN_MASK));
+        recentDeletionsItem.addActionListener(e -> showDeletionHistoryDialog());
+        editMenu.add(recentDeletionsItem);
+
+        MenuItem clearHistoryItem = new MenuItem("Clear Deletion History");
+        clearHistoryItem.setMnemonic(KeyEvent.VK_C);
+        clearHistoryItem.addActionListener(e -> {
+            deletionHistory.clear();
+            setStatus("Deletion history cleared", false);
+        });
+        editMenu.add(clearHistoryItem);
+
+        editMenu.addSeparator();
+
+        MenuItem exportHistoryItem = new MenuItem("Export Deletion History...");
+        exportHistoryItem.setMnemonic(KeyEvent.VK_X);
+        exportHistoryItem.addActionListener(e -> exportDeletionHistory());
+        editMenu.add(exportHistoryItem);
+
         // Actions menu
-        JMenu actionsMenu = new JMenu("Actions");
+        Menu actionsMenu = new Menu("Actions");
         actionsMenu.setMnemonic(KeyEvent.VK_A);
         menuBar.add(actionsMenu);
 
-        JMenuItem listItem = new JMenuItem("List Components");
+        MenuItem listItem = new MenuItem("List Components");
         listItem.setMnemonic(KeyEvent.VK_L);
         listItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_L, InputEvent.CTRL_DOWN_MASK));
         listItem.addActionListener(e -> executeList(false));
         actionsMenu.add(listItem);
 
-        JMenuItem refreshItem = new JMenuItem("Refresh Components");
+        MenuItem refreshItem = new MenuItem("Refresh Components");
         refreshItem.setMnemonic(KeyEvent.VK_R);
         refreshItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_R, InputEvent.CTRL_DOWN_MASK));
         refreshItem.addActionListener(e -> executeList(true));
         actionsMenu.add(refreshItem);
 
-        JMenuItem refreshF5Item = new JMenuItem("Refresh (F5)");
+        MenuItem refreshF5Item = new MenuItem("Refresh (F5)");
         refreshF5Item.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_F5, 0));
         refreshF5Item.addActionListener(e -> executeList(true));
         actionsMenu.add(refreshF5Item);
 
         actionsMenu.addSeparator();
 
-        JMenuItem deleteAllItem = new JMenuItem("Delete All");
+        MenuItem deleteAllItem = new MenuItem("Delete All");
         deleteAllItem.setMnemonic(KeyEvent.VK_D);
         deleteAllItem.addActionListener(e -> executeDelete());
         actionsMenu.add(deleteAllItem);
 
-        JMenuItem deleteSelectedItem = new JMenuItem("Delete Selected");
+        MenuItem deleteSelectedItem = new MenuItem("Delete Selected");
         deleteSelectedItem.setMnemonic(KeyEvent.VK_E);
         deleteSelectedItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, InputEvent.CTRL_DOWN_MASK));
         deleteSelectedItem.addActionListener(e -> executeDeleteSelected());
@@ -758,18 +787,18 @@ public class JNexusSwing {
 
         actionsMenu.addSeparator();
 
-        JMenuItem statsItem = new JMenuItem("Show Statistics");
+        MenuItem statsItem = new MenuItem("Show Statistics");
         statsItem.setMnemonic(KeyEvent.VK_S);
         statsItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_T, InputEvent.CTRL_DOWN_MASK));
         statsItem.addActionListener(e -> showStatisticsDialog());
         actionsMenu.add(statsItem);
 
         // Help menu
-        JMenu helpMenu = new JMenu("Help");
+        Menu helpMenu = new Menu("Help");
         helpMenu.setMnemonic(KeyEvent.VK_H);
         menuBar.add(helpMenu);
 
-        JMenuItem keyboardShortcutsItem = new JMenuItem("Keyboard Shortcuts");
+        MenuItem keyboardShortcutsItem = new MenuItem("Keyboard Shortcuts");
         keyboardShortcutsItem.setMnemonic(KeyEvent.VK_K);
         keyboardShortcutsItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0));
         keyboardShortcutsItem.addActionListener(e -> showKeyboardShortcuts());
@@ -777,7 +806,7 @@ public class JNexusSwing {
 
         helpMenu.addSeparator();
 
-        JMenuItem aboutItem = new JMenuItem("About");
+        MenuItem aboutItem = new MenuItem("About");
         aboutItem.setMnemonic(KeyEvent.VK_A);
         aboutItem.addActionListener(e -> showAboutDialog());
         helpMenu.add(aboutItem);
@@ -882,10 +911,10 @@ public class JNexusSwing {
         shortcuts.append("  Shift+Click    - Range select\n");
         shortcuts.append("  Double-Click   - View component details\n");
 
-        JTextArea textArea = new JTextArea(shortcuts.toString());
+        TextArea textArea = new TextArea(shortcuts.toString());
         textArea.setEditable(false);
         textArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
-        JScrollPane scrollPane = new JScrollPane(textArea);
+        ScrollPane scrollPane = new ScrollPane(textArea);
         scrollPane.setPreferredSize(new Dimension(500, 400));
 
         JOptionPane.showMessageDialog(frame,
@@ -910,7 +939,7 @@ public class JNexusSwing {
             ? "~/.flossware/nexus/nexus.properties"
             : "~/.flossware/nexus/nexus-" + credentials.getProfile() + ".properties");
 
-        JTextArea textArea = new JTextArea(about.toString());
+        TextArea textArea = new TextArea(about.toString());
         textArea.setEditable(false);
         textArea.setFont(new Font("SansSerif", Font.PLAIN, 12));
 
@@ -1142,10 +1171,10 @@ public class JNexusSwing {
                     String output = get();
 
                     // Show result in a dialog
-                    JTextArea textArea = new JTextArea(output);
+                    TextArea textArea = new TextArea(output);
                     textArea.setEditable(false);
                     textArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
-                    JScrollPane scrollPane = new JScrollPane(textArea);
+                    ScrollPane scrollPane = new ScrollPane(textArea);
                     scrollPane.setPreferredSize(new Dimension(600, 400));
 
                     if (output.startsWith("ERROR:")) {
@@ -1263,10 +1292,10 @@ public class JNexusSwing {
                     String result = get();
 
                     // Show result in a dialog
-                    JTextArea textArea = new JTextArea(result);
+                    TextArea textArea = new TextArea(result);
                     textArea.setEditable(false);
                     textArea.setFont(new Font("Monospaced", Font.PLAIN, 12));
-                    JScrollPane scrollPane = new JScrollPane(textArea);
+                    ScrollPane scrollPane = new ScrollPane(textArea);
                     scrollPane.setPreferredSize(new Dimension(600, 300));
 
                     JOptionPane.showMessageDialog(frame,
@@ -1401,7 +1430,7 @@ public class JNexusSwing {
 
         ComponentMetadata component = currentComponents.get(modelRow);
 
-        JPanel panel = new JPanel(new GridBagLayout());
+        Panel panel = new Panel(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(5, 5, 5, 5);
         gbc.anchor = GridBagConstraints.WEST;
@@ -1413,10 +1442,10 @@ public class JNexusSwing {
         gbc.gridx = 0;
         gbc.gridy = row++;
         gbc.weightx = 0.0;
-        panel.add(new JLabel("ID:"), gbc);
+        panel.add(new Label("ID:"), gbc);
         gbc.gridx = 1;
         gbc.weightx = 1.0;
-        JTextField idField = new JTextField(component.id());
+        TextField idField = new TextField(component.id());
         idField.setEditable(false);
         panel.add(idField, gbc);
 
@@ -1424,10 +1453,10 @@ public class JNexusSwing {
         gbc.gridx = 0;
         gbc.gridy = row++;
         gbc.weightx = 0.0;
-        panel.add(new JLabel("Path:"), gbc);
+        panel.add(new Label("Path:"), gbc);
         gbc.gridx = 1;
         gbc.weightx = 1.0;
-        JTextField pathField = new JTextField(component.path());
+        TextField pathField = new TextField(component.path());
         pathField.setEditable(false);
         panel.add(pathField, gbc);
 
@@ -1435,7 +1464,7 @@ public class JNexusSwing {
         gbc.gridx = 0;
         gbc.gridy = row++;
         gbc.weightx = 0.0;
-        panel.add(new JLabel("File Size:"), gbc);
+        panel.add(new Label("File Size:"), gbc);
         gbc.gridx = 1;
         gbc.weightx = 1.0;
         NumberFormat numberFormat = NumberFormat.getNumberInstance(Locale.US);
@@ -1443,7 +1472,7 @@ public class JNexusSwing {
         double sizeGB = component.fileSize() / 1024.0 / 1024.0 / 1024.0;
         String sizeText = String.format("%s bytes (%.2f MB / %.4f GB)",
             numberFormat.format(component.fileSize()), sizeMB, sizeGB);
-        JTextField sizeField = new JTextField(sizeText);
+        TextField sizeField = new TextField(sizeText);
         sizeField.setEditable(false);
         panel.add(sizeField, gbc);
 
@@ -1451,10 +1480,10 @@ public class JNexusSwing {
         gbc.gridx = 0;
         gbc.gridy = row++;
         gbc.weightx = 0.0;
-        panel.add(new JLabel("Content Type:"), gbc);
+        panel.add(new Label("Content Type:"), gbc);
         gbc.gridx = 1;
         gbc.weightx = 1.0;
-        JTextField typeField = new JTextField(component.contentType() != null ? component.contentType() : "unknown");
+        TextField typeField = new TextField(component.contentType() != null ? component.contentType() : "unknown");
         typeField.setEditable(false);
         panel.add(typeField, gbc);
 
@@ -1462,10 +1491,10 @@ public class JNexusSwing {
         gbc.gridx = 0;
         gbc.gridy = row++;
         gbc.weightx = 0.0;
-        panel.add(new JLabel("Format:"), gbc);
+        panel.add(new Label("Format:"), gbc);
         gbc.gridx = 1;
         gbc.weightx = 1.0;
-        JTextField formatField = new JTextField(component.format() != null ? component.format() : "unknown");
+        TextField formatField = new TextField(component.format() != null ? component.format() : "unknown");
         formatField.setEditable(false);
         panel.add(formatField, gbc);
 
@@ -1473,14 +1502,14 @@ public class JNexusSwing {
         gbc.gridx = 0;
         gbc.gridy = row++;
         gbc.weightx = 0.0;
-        panel.add(new JLabel("Created:"), gbc);
+        panel.add(new Label("Created:"), gbc);
         gbc.gridx = 1;
         gbc.weightx = 1.0;
         DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss z");
         String createdText = component.createdDate() != null
             ? dateFormat.format(Date.from(component.createdDate()))
             : "N/A";
-        JTextField createdField = new JTextField(createdText);
+        TextField createdField = new TextField(createdText);
         createdField.setEditable(false);
         panel.add(createdField, gbc);
 
@@ -1488,13 +1517,13 @@ public class JNexusSwing {
         gbc.gridx = 0;
         gbc.gridy = row++;
         gbc.weightx = 0.0;
-        panel.add(new JLabel("Last Modified:"), gbc);
+        panel.add(new Label("Last Modified:"), gbc);
         gbc.gridx = 1;
         gbc.weightx = 1.0;
         String modifiedText = component.lastModified() != null
             ? dateFormat.format(Date.from(component.lastModified()))
             : "N/A";
-        JTextField modifiedField = new JTextField(modifiedText);
+        TextField modifiedField = new TextField(modifiedText);
         modifiedField.setEditable(false);
         panel.add(modifiedField, gbc);
 
@@ -1502,10 +1531,10 @@ public class JNexusSwing {
         gbc.gridx = 0;
         gbc.gridy = row++;
         gbc.weightx = 0.0;
-        panel.add(new JLabel("Checksum:"), gbc);
+        panel.add(new Label("Checksum:"), gbc);
         gbc.gridx = 1;
         gbc.weightx = 1.0;
-        JTextField checksumField = new JTextField(component.checksum() != null ? component.checksum() : "N/A");
+        TextField checksumField = new TextField(component.checksum() != null ? component.checksum() : "N/A");
         checksumField.setEditable(false);
         panel.add(checksumField, gbc);
 
@@ -1527,22 +1556,22 @@ public class JNexusSwing {
         // Calculate statistics
         RepositoryStats stats = service.calculateStatistics(currentRepository, currentComponents);
 
-        JTabbedPane tabs = new JTabbedPane();
+        TabbedPane tabs = new TabbedPane();
         tabs.addTab("Overview", createOverviewPanel(stats));
         tabs.addTab("Size Distribution", createSizeDistributionPanel(stats));
         tabs.addTab("File Types", createFileTypePanel(stats));
         tabs.addTab("Age Distribution", createAgePanel(stats));
         tabs.addTab("Largest Components", createLargestComponentsPanel(stats));
 
-        JDialog dialog = new JDialog(frame, "Repository Statistics: " + stats.repository(), true);
+        Dialog dialog = new Dialog(frame, "Repository Statistics: " + stats.repository(), true);
         dialog.add(tabs);
         dialog.setSize(900, 600);
         dialog.setLocationRelativeTo(frame);
         dialog.setVisible(true);
     }
 
-    private JPanel createOverviewPanel(RepositoryStats stats) {
-        JPanel panel = new JPanel(new GridBagLayout());
+    private Panel createOverviewPanel(RepositoryStats stats) {
+        Panel panel = new Panel(new GridBagLayout());
         GridBagConstraints gbc = new GridBagConstraints();
         gbc.insets = new Insets(10, 10, 10, 10);
         gbc.anchor = GridBagConstraints.WEST;
@@ -1554,45 +1583,45 @@ public class JNexusSwing {
         // Total Components
         gbc.gridx = 0;
         gbc.gridy = row++;
-        panel.add(new JLabel("Total Components:"), gbc);
+        panel.add(new Label("Total Components:"), gbc);
         gbc.gridx = 1;
-        panel.add(new JLabel(numberFormat.format(stats.totalComponents())), gbc);
+        panel.add(new Label(numberFormat.format(stats.totalComponents())), gbc);
 
         // Total Size
         gbc.gridx = 0;
         gbc.gridy = row++;
-        panel.add(new JLabel("Total Size:"), gbc);
+        panel.add(new Label("Total Size:"), gbc);
         gbc.gridx = 1;
         String totalSizeText = String.format("%s bytes (%.2f MB / %.4f GB)",
             numberFormat.format(stats.totalSize()),
             stats.getTotalSizeMB(),
             stats.getTotalSizeGB());
-        panel.add(new JLabel(totalSizeText), gbc);
+        panel.add(new Label(totalSizeText), gbc);
 
         // Average Size
         gbc.gridx = 0;
         gbc.gridy = row++;
-        panel.add(new JLabel("Average Size:"), gbc);
+        panel.add(new Label("Average Size:"), gbc);
         gbc.gridx = 1;
         String avgSizeText = String.format("%s bytes (%.2f MB)",
             numberFormat.format(stats.averageSize()),
             stats.getAverageSizeMB());
-        panel.add(new JLabel(avgSizeText), gbc);
+        panel.add(new Label(avgSizeText), gbc);
 
         // Median Size
         gbc.gridx = 0;
         gbc.gridy = row++;
-        panel.add(new JLabel("Median Size:"), gbc);
+        panel.add(new Label("Median Size:"), gbc);
         gbc.gridx = 1;
         String medianSizeText = String.format("%s bytes (%.2f MB)",
             numberFormat.format(stats.medianSize()),
             stats.getMedianSizeMB());
-        panel.add(new JLabel(medianSizeText), gbc);
+        panel.add(new Label(medianSizeText), gbc);
 
         return panel;
     }
 
-    private JPanel createSizeDistributionPanel(RepositoryStats stats) {
+    private Panel createSizeDistributionPanel(RepositoryStats stats) {
         String[] columnNames = {"Size Range", "Count", "Percentage"};
         Object[][] data = new Object[stats.sizeDistribution().size()][3];
 
@@ -1605,16 +1634,16 @@ public class JNexusSwing {
             i++;
         }
 
-        JTable table = new JTable(data, columnNames);
+        Table table = new Table(data, columnNames);
         table.setEnabled(false);
-        JScrollPane scrollPane = new JScrollPane(table);
+        ScrollPane scrollPane = new ScrollPane(table);
 
-        JPanel panel = new JPanel(new BorderLayout());
+        Panel panel = new Panel(new BorderLayout());
         panel.add(scrollPane, BorderLayout.CENTER);
         return panel;
     }
 
-    private JPanel createFileTypePanel(RepositoryStats stats) {
+    private Panel createFileTypePanel(RepositoryStats stats) {
         String[] columnNames = {"File Extension", "Total Size", "Percentage"};
         Object[][] data = new Object[stats.fileTypeBreakdown().size()][3];
 
@@ -1629,16 +1658,16 @@ public class JNexusSwing {
             i++;
         }
 
-        JTable table = new JTable(data, columnNames);
+        Table table = new Table(data, columnNames);
         table.setEnabled(false);
-        JScrollPane scrollPane = new JScrollPane(table);
+        ScrollPane scrollPane = new ScrollPane(table);
 
-        JPanel panel = new JPanel(new BorderLayout());
+        Panel panel = new Panel(new BorderLayout());
         panel.add(scrollPane, BorderLayout.CENTER);
         return panel;
     }
 
-    private JPanel createAgePanel(RepositoryStats stats) {
+    private Panel createAgePanel(RepositoryStats stats) {
         String[] columnNames = {"Age Range", "Count"};
         Object[][] data = new Object[stats.ageDistribution().size()][2];
 
@@ -1650,16 +1679,16 @@ public class JNexusSwing {
             i++;
         }
 
-        JTable table = new JTable(data, columnNames);
+        Table table = new Table(data, columnNames);
         table.setEnabled(false);
-        JScrollPane scrollPane = new JScrollPane(table);
+        ScrollPane scrollPane = new ScrollPane(table);
 
-        JPanel panel = new JPanel(new BorderLayout());
+        Panel panel = new Panel(new BorderLayout());
         panel.add(scrollPane, BorderLayout.CENTER);
         return panel;
     }
 
-    private JPanel createLargestComponentsPanel(RepositoryStats stats) {
+    private Panel createLargestComponentsPanel(RepositoryStats stats) {
         String[] columnNames = {"ID", "Size (MB)", "Path"};
         List<ComponentMetadata> largest = stats.largestComponents();
         Object[][] data = new Object[Math.min(20, largest.size())][3];
@@ -1672,13 +1701,112 @@ public class JNexusSwing {
             data[i][2] = component.path();
         }
 
-        JTable table = new JTable(data, columnNames);
+        Table table = new Table(data, columnNames);
         table.setEnabled(false);
-        JScrollPane scrollPane = new JScrollPane(table);
+        ScrollPane scrollPane = new ScrollPane(table);
 
-        JPanel panel = new JPanel(new BorderLayout());
+        Panel panel = new Panel(new BorderLayout());
         panel.add(scrollPane, BorderLayout.CENTER);
         return panel;
+    }
+
+    private void showDeletionHistoryDialog() {
+        if (deletionHistory.isEmpty()) {
+            JOptionPane.showMessageDialog(frame,
+                "No deletions recorded in this session.\n" +
+                "Deletion history tracks components deleted via the Delete button.",
+                "No Deletion History",
+                JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+
+        List<DeletionHistory.DeletedComponent> recent = deletionHistory.getRecentDeletions(100);
+
+        // Create table model
+        String[] columnNames = {"ID", "File Size (Bytes)", "Repository", "Deleted At", "Path"};
+        DefaultTableModel historyModel = new DefaultTableModel(columnNames, 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+
+        java.text.NumberFormat numberFormat = java.text.NumberFormat.getNumberInstance(java.util.Locale.US);
+        java.text.DateFormat dateFormat = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+
+        for (DeletionHistory.DeletedComponent comp : recent) {
+            historyModel.addRow(new Object[]{
+                comp.id(),
+                numberFormat.format(comp.fileSize()),
+                comp.repository(),
+                dateFormat.format(java.util.Date.from(comp.deletedAt())),
+                comp.path()
+            });
+        }
+
+        Table historyTable = new Table(historyModel);
+        historyTable.setFont(new Font("Monospaced", Font.PLAIN, 12));
+        historyTable.getColumnModel().getColumn(0).setPreferredWidth(200);
+        historyTable.getColumnModel().getColumn(1).setPreferredWidth(120);
+        historyTable.getColumnModel().getColumn(2).setPreferredWidth(120);
+        historyTable.getColumnModel().getColumn(3).setPreferredWidth(140);
+        historyTable.getColumnModel().getColumn(4).setPreferredWidth(300);
+
+        ScrollPane scrollPane = new ScrollPane(historyTable);
+        scrollPane.setPreferredSize(new Dimension(900, 400));
+
+        // Summary panel
+        Panel summaryPanel = new Panel(new FlowLayout(FlowLayout.LEFT));
+        long totalSize = deletionHistory.getTotalDeletedSize();
+        double totalMB = totalSize / 1024.0 / 1024.0;
+        summaryPanel.add(new Label(String.format(
+            "Showing %d of %d deleted component(s) | Total deleted: %s bytes (%.2f MB)",
+            recent.size(), deletionHistory.size(),
+            numberFormat.format(totalSize), totalMB)));
+
+        // Main panel
+        Panel mainPanel = new Panel(new BorderLayout(5, 5));
+        mainPanel.add(scrollPane, BorderLayout.CENTER);
+        mainPanel.add(summaryPanel, BorderLayout.SOUTH);
+
+        JOptionPane.showMessageDialog(frame,
+            mainPanel,
+            "Recently Deleted Components",
+            JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    private void exportDeletionHistory() {
+        if (deletionHistory.isEmpty()) {
+            JOptionPane.showMessageDialog(frame,
+                "No deletions to export.",
+                "No Deletion History",
+                JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+
+        javax.swing.JFileChooser fileChooser = new javax.swing.JFileChooser();
+        fileChooser.setDialogTitle("Export Deletion History");
+        fileChooser.setSelectedFile(new java.io.File("deletion-history.json"));
+        fileChooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("JSON files", "json"));
+
+        int result = fileChooser.showSaveDialog(frame);
+        if (result == javax.swing.JFileChooser.APPROVE_OPTION) {
+            try {
+                java.nio.file.Path exportPath = fileChooser.getSelectedFile().toPath();
+                deletionHistory.exportToJson(exportPath);
+                setStatus("Deletion history exported to: " + exportPath, false);
+                JOptionPane.showMessageDialog(frame,
+                    "Exported " + deletionHistory.size() + " deletion record(s) to:\n" + exportPath,
+                    "Export Successful",
+                    JOptionPane.INFORMATION_MESSAGE);
+            } catch (java.io.IOException ex) {
+                setStatus("Export failed: " + ex.getMessage(), true);
+                JOptionPane.showMessageDialog(frame,
+                    "Failed to export: " + ex.getMessage(),
+                    "Export Error",
+                    JOptionPane.ERROR_MESSAGE);
+            }
+        }
     }
 
     private void setButtonsEnabled(boolean enabled) {

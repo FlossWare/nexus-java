@@ -75,4 +75,18 @@ public interface Credentials {
      * @return the timeout in seconds (default: 30)
      */
     int getHttpTimeoutSeconds();
+
+    /**
+     * Gets the maximum number of retry attempts for failed HTTP requests.
+     *
+     * @return the maximum number of retries (default: 3)
+     */
+    int getMaxRetries();
+
+    /**
+     * Gets the initial retry delay in milliseconds for exponential backoff.
+     *
+     * @return the initial retry delay in milliseconds (default: 1000)
+     */
+    long getInitialRetryDelayMs();
 }

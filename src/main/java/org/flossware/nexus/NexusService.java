@@ -79,14 +79,43 @@ public class NexusService {
     private static final Logger logger = LoggerFactory.getLogger(NexusService.class);
 
     private final NexusHttpClient client;
+    private final DeletionHistory deletionHistory;
 
     /**
      * Constructs a new NexusService with the specified client.
+     * <p>
+     * Creates a deletion history with the default maximum size of 1000 entries.
+     * </p>
      *
      * @param client the NexusHttpClient to use for HTTP operations
      */
     public NexusService(NexusHttpClient client) {
+        this(client, new DeletionHistory());
+    }
+
+    /**
+     * Constructs a new NexusService with the specified client and deletion history.
+     *
+     * @param client          the NexusHttpClient to use for HTTP operations
+     * @param deletionHistory the deletion history tracker for recording deletions
+     */
+    public NexusService(NexusHttpClient client, DeletionHistory deletionHistory) {
         this.client = client;
+        this.deletionHistory = deletionHistory;
+    }
+
+    /**
+     * Returns the deletion history tracker for this service.
+     * <p>
+     * The deletion history records all components deleted through this service
+     * during the current session. It can be used to review what was deleted
+     * and to export deletion records for manual recovery reference.
+     * </p>
+     *
+     * @return the deletion history tracker
+     */
+    public DeletionHistory getDeletionHistory() {
+        return deletionHistory;
     }
 
     /**
@@ -235,6 +264,9 @@ public class NexusService {
                     client.deleteComponent(record.id());
                     deleted++;
                     logger.info("Deleted: {}", record.path());
+
+                    // Record deletion in history for undo/recovery reference
+                    deletionHistory.recordDeletion(record.id(), record.path(), record.fileSize(), repository);
 
                     // Callback: component deleted
                     if (callback != null) {

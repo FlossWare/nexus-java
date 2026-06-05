@@ -22,8 +22,8 @@ import java.util.List;
  * @author sfloess
  * @since 1.0
  */
-public class JNexusAWT {
-    private static final Logger logger = LoggerFactory.getLogger(JNexusAWT.class);
+public class NexusAWT {
+    private static final Logger logger = LoggerFactory.getLogger(NexusAWT.class);
 
     // UI Components
     private Frame frame;
@@ -41,6 +41,9 @@ public class JNexusAWT {
     private NexusClient client;
     private NexusService service;
     private Credentials credentials;
+
+    // Deletion history for undo/recovery reference
+    private final DeletionHistory deletionHistory = new DeletionHistory();
 
     public static void main(String[] args) {
         EventQueue.invokeLater(() -> {
@@ -90,17 +93,17 @@ public class JNexusAWT {
                     }
                 }
 
-                JNexusAWT app;
+                NexusAWT app;
                 if (credentials != null) {
                     // Use credentials from dialog
-                    app = new JNexusAWT(credentials);
+                    app = new NexusAWT(credentials);
                 } else {
                     // Use credentials from profile
-                    app = new JNexusAWT(selectedProfile);
+                    app = new NexusAWT(selectedProfile);
                 }
                 app.createAndShowGUI();
             } catch (Exception e) {
-                LoggerFactory.getLogger(JNexusAWT.class).error("Failed to start AWT UI: {}", e.getMessage(), e);
+                LoggerFactory.getLogger(NexusAWT.class).error("Failed to start AWT UI: {}", e.getMessage(), e);
                 showErrorDialog(
                     "Failed to initialize Nexus client:\n" + e.getMessage() +
                     "\n\nPlease configure credentials:\n" +
@@ -239,18 +242,18 @@ public class JNexusAWT {
         return result[0];
     }
 
-    public JNexusAWT(String profile) throws Exception {
+    public NexusAWT(String profile) throws Exception {
         // Initialize Nexus client with selected profile
         credentials = new Credentials(profile);
         client = new NexusClient(credentials);
-        service = new NexusService(client);
+        service = new NexusService(client, deletionHistory);
     }
 
-    public JNexusAWT(Credentials credentials) throws Exception {
+    public NexusAWT(Credentials credentials) throws Exception {
         // Initialize Nexus client with provided credentials
         this.credentials = credentials;
         client = new NexusClient(credentials);
-        service = new NexusService(client);
+        service = new NexusService(client, deletionHistory);
     }
 
     private static Credentials showCredentialDialog() {
