@@ -1,6 +1,7 @@
 package org.flossware.nexus;
 
 import com.sun.net.httpserver.HttpServer;
+import org.flossware.jnexus.RepoRecord;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -25,7 +26,10 @@ class NexusClientErrorTest {
 
     @BeforeEach
     void setUp() throws IOException {
-        port = 8890; // Different port
+        // Use dynamic port allocation to avoid conflicts during parallel test execution
+        try (java.net.ServerSocket ss = new java.net.ServerSocket(0)) {
+            port = ss.getLocalPort();
+        }
         server = HttpServer.create(new InetSocketAddress(port), 0);
         server.start();
 

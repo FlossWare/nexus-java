@@ -78,6 +78,16 @@ protocol Credentials {
     /// - Returns: Timeout value in seconds, defaults to 30 if not configured
     var httpTimeoutSeconds: Int { get }
 
+    /// Maximum number of retry attempts for failed HTTP requests.
+    ///
+    /// - Returns: Maximum retries, defaults to 3 if not configured
+    var maxRetries: Int { get }
+
+    /// Initial retry delay in milliseconds for exponential backoff.
+    ///
+    /// - Returns: Initial delay in milliseconds, defaults to 1000 if not configured
+    var initialRetryDelayMs: Int { get }
+
     // MARK: - Methods
 
     /// Check if all required credentials are configured.
@@ -131,4 +141,14 @@ protocol Credentials {
     ///
     /// - Throws: `KeychainError` if Keychain deletion fails
     func clearAll() throws
+}
+
+// MARK: - Default Retry Configuration
+
+extension Credentials {
+    /// Default maximum retries: 3
+    var maxRetries: Int { 3 }
+
+    /// Default initial retry delay: 1000ms
+    var initialRetryDelayMs: Int { 1000 }
 }

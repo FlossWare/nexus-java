@@ -50,7 +50,11 @@ This roadmap outlines the complete enhancement plan for achieving **A+ (96-98/10
 |-------|-------|--------|--------|--------|
 | #58 | Architecture Decision Records (ADRs) | ✅ Complete | 12h | High |
 | #68 | Platform-specific user guides | ⏳ Planned | 40h | High |
+<<<<<<< HEAD
 | #69 | Video tutorials and screencasts | ⏳ Planned | 30-70h | Medium |
+=======
+| #69 | Video tutorials and screencasts | 🔄 In Progress | 30-70h | Medium |
+>>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
 
 **Target Impact**: +5 points → **A+ (99/100)**
 
@@ -282,9 +286,19 @@ The following issues form the critical path for achieving A+ rating:
 ### Planned ⏳
 
 - **Testing**: Integration test coverage (#67)
+<<<<<<< HEAD
 - **Documentation**: Platform-specific user guides (#68), video tutorials (#69)
 - **Build/CI-CD**: Unified release automation (#74), package manager deployment (#75)
 
+=======
+- **Documentation**: Platform-specific user guides (#68)
+- **Build/CI-CD**: Unified release automation (#74), package manager deployment (#75)
+
+### In Progress (Documentation) 🔄
+
+- **Documentation**: Video tutorials and screencasts (#69) - Scripts and production guide complete, recording pending
+
+>>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
 ### Related Foundation Work (Completed)
 
 These issues were created and completed as foundational work:

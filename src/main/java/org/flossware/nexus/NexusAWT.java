@@ -1,5 +1,6 @@
 package org.flossware.nexus;
 
+import org.flossware.jnexus.RepoRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

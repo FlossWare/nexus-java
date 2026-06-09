@@ -1,0 +1,264 @@
+name: Deploy to App Store
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  deploy-ios:
+    name: Deploy iOS to App Store
+    runs-on: macos-latest
+    if: "!github.event.release.prerelease"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get release version
+        id: release
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Check for App Store credentials
+        id: check_creds
+        run: |
+          if [ -z "${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}" ]; then
+            echo "has_creds=false" >> $GITHUB_OUTPUT
+            echo "::notice::App Store Connect credentials not configured. Skipping App Store deployment."
+          else
+            echo "has_creds=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Setup Xcode
+        if: steps.check_creds.outputs.has_creds == 'true'
+        run: |
+          sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
+          xcodebuild -version
+
+      - name: Install Apple Certificate
+        if: steps.check_creds.outputs.has_creds == 'true'
+        env:
+          BUILD_CERTIFICATE_BASE64: ${{ secrets.IOS_BUILD_CERTIFICATE }}
+          P12_PASSWORD: ${{ secrets.IOS_P12_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.IOS_KEYCHAIN_PASSWORD }}
+        run: |
+          echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode -o certificate.p12
+
+          KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain-db
+          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security import certificate.p12 -k $KEYCHAIN_PATH -P "$P12_PASSWORD" \
+            -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security list-keychain -d user -s $KEYCHAIN_PATH
+
+      - name: Install Provisioning Profile
+        if: steps.check_creds.outputs.has_creds == 'true'
+        env:
+          PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE }}
+        run: |
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo -n "$PROVISIONING_PROFILE_BASE64" | base64 --decode \
+            -o ~/Library/MobileDevice/Provisioning\ Profiles/profile.mobileprovision
+
+      - name: Install Fastlane
+        if: steps.check_creds.outputs.has_creds == 'true'
+        run: |
+          sudo gem install fastlane -NV
+
+      - name: Write App Store Connect API key
+        if: steps.check_creds.outputs.has_creds == 'true'
+        run: |
+          mkdir -p jnexus-ios/fastlane
+          cat > jnexus-ios/fastlane/AuthKey.p8 << 'EOF'
+          ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+          EOF
+
+      - name: Archive and upload iOS app
+        if: steps.check_creds.outputs.has_creds == 'true'
+        working-directory: jnexus-ios
+        run: |
+          xcodebuild -scheme JNexus \
+            -configuration Release \
+            -archivePath build/JNexus.xcarchive \
+            archive
+
+          cat > ExportOptions.plist << 'PLISTEOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key>
+            <string>app-store</string>
+            <key>signingStyle</key>
+            <string>automatic</string>
+            <key>uploadBitcode</key>
+            <false/>
+            <key>uploadSymbols</key>
+            <true/>
+          </dict>
+          </plist>
+          PLISTEOF
+
+          xcodebuild -exportArchive \
+            -archivePath build/JNexus.xcarchive \
+            -exportPath build/export \
+            -exportOptionsPlist ExportOptions.plist
+        continue-on-error: true
+
+      - name: Upload to App Store Connect
+        if: steps.check_creds.outputs.has_creds == 'true'
+        working-directory: jnexus-ios
+        run: |
+          IPA_FILE=$(find build/export -name "*.ipa" 2>/dev/null | head -1)
+          if [ -n "$IPA_FILE" ]; then
+            xcrun altool --upload-app \
+              --file "$IPA_FILE" \
+              --type ios \
+              --apiKey "${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}" \
+              --apiIssuer "${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}"
+          else
+            echo "::warning::No IPA file found. Archive or export may have failed."
+          fi
+        continue-on-error: true
+
+      - name: Cleanup keychain
+        if: always() && steps.check_creds.outputs.has_creds == 'true'
+        run: |
+          KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain-db
+          security delete-keychain $KEYCHAIN_PATH 2>/dev/null || true
+          rm -f jnexus-ios/fastlane/AuthKey.p8
+
+      - name: Publish summary
+        if: always()
+        run: |
+          echo "## App Store Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.check_creds.outputs.has_creds }}" == "true" ]; then
+            echo "**Version:** ${{ steps.release.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+            echo "**Platform:** iOS / iPadOS" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "Skipped: App Store Connect credentials not configured." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Setup Instructions" >> $GITHUB_STEP_SUMMARY
+            echo "1. Enroll in Apple Developer Program (99 USD/year)" >> $GITHUB_STEP_SUMMARY
+            echo "2. Create an App Store Connect API key" >> $GITHUB_STEP_SUMMARY
+            echo "3. Add secrets: \`APP_STORE_CONNECT_API_KEY_ID\`, \`APP_STORE_CONNECT_ISSUER_ID\`, \`APP_STORE_CONNECT_API_KEY\`" >> $GITHUB_STEP_SUMMARY
+            echo "4. Add signing secrets: \`IOS_BUILD_CERTIFICATE\`, \`IOS_P12_PASSWORD\`, \`IOS_PROVISIONING_PROFILE\`" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  deploy-macos:
+    name: Deploy macOS to App Store
+    runs-on: macos-latest
+    if: "!github.event.release.prerelease"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get release version
+        id: release
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Check for App Store credentials
+        id: check_creds
+        run: |
+          if [ -z "${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}" ]; then
+            echo "has_creds=false" >> $GITHUB_OUTPUT
+            echo "::notice::App Store Connect credentials not configured. Skipping macOS App Store deployment."
+          else
+            echo "has_creds=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Setup Xcode
+        if: steps.check_creds.outputs.has_creds == 'true'
+        run: |
+          sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
+          xcodebuild -version
+
+      - name: Install macOS Certificate
+        if: steps.check_creds.outputs.has_creds == 'true'
+        env:
+          BUILD_CERTIFICATE_BASE64: ${{ secrets.MACOS_BUILD_CERTIFICATE }}
+          P12_PASSWORD: ${{ secrets.MACOS_P12_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.IOS_KEYCHAIN_PASSWORD }}
+        run: |
+          echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode -o certificate.p12
+
+          KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain-db
+          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security import certificate.p12 -k $KEYCHAIN_PATH -P "$P12_PASSWORD" \
+            -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security list-keychain -d user -s $KEYCHAIN_PATH
+
+      - name: Archive macOS app
+        if: steps.check_creds.outputs.has_creds == 'true'
+        working-directory: jnexus-ios
+        run: |
+          xcodebuild -scheme JNexus \
+            -sdk macosx \
+            -configuration Release \
+            -archivePath build/JNexus-macOS.xcarchive \
+            archive
+        continue-on-error: true
+
+      - name: Export and upload macOS app
+        if: steps.check_creds.outputs.has_creds == 'true'
+        working-directory: jnexus-ios
+        run: |
+          if [ -d "build/JNexus-macOS.xcarchive" ]; then
+            cat > ExportOptions-macOS.plist << 'PLISTEOF'
+            <?xml version="1.0" encoding="UTF-8"?>
+            <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+            <plist version="1.0">
+            <dict>
+              <key>method</key>
+              <string>mac-app-store</string>
+              <key>signingStyle</key>
+              <string>automatic</string>
+            </dict>
+            </plist>
+            PLISTEOF
+
+            xcodebuild -exportArchive \
+              -archivePath build/JNexus-macOS.xcarchive \
+              -exportPath build/export-macos \
+              -exportOptionsPlist ExportOptions-macOS.plist
+
+            PKG_FILE=$(find build/export-macos -name "*.pkg" -o -name "*.app" 2>/dev/null | head -1)
+            if [ -n "$PKG_FILE" ]; then
+              xcrun altool --upload-app \
+                --file "$PKG_FILE" \
+                --type osx \
+                --apiKey "${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}" \
+                --apiIssuer "${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}"
+            fi
+          else
+            echo "::warning::No macOS archive found. Build may have failed."
+          fi
+        continue-on-error: true
+
+      - name: Cleanup keychain
+        if: always() && steps.check_creds.outputs.has_creds == 'true'
+        run: |
+          KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain-db
+          security delete-keychain $KEYCHAIN_PATH 2>/dev/null || true
+
+      - name: Publish summary
+        if: always()
+        run: |
+          echo "## macOS App Store Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.check_creds.outputs.has_creds }}" == "true" ]; then
+            echo "**Version:** ${{ steps.release.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+            echo "**Platform:** macOS" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "Skipped: App Store Connect credentials not configured." >> $GITHUB_STEP_SUMMARY
+          fi

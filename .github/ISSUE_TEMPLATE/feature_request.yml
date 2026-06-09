@@ -1,0 +1,34 @@
+name: Feature Request
+description: Propose a new idea for JNexus.
+title: "[FEATURE]: <title>"
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Statement
+      description: What limitation or problem does this feature solve?
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: Detailed description of the requested functionality.
+    validations:
+      required: true
+  - type: checkboxes
+    id: target_interfaces
+    attributes:
+      label: Target Interfaces
+      description: Which interfaces should this feature be implemented in? (Select all that apply)
+      options:
+        - label: "Mobile (Android, iOS)"
+        - label: "Desktop Native (macOS)"
+        - label: "Java GUIs (Swing, AWT)"
+        - label: "CLI / Terminal UI"
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Describe any workarounds you are currently using.

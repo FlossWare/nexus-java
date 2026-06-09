@@ -1,5 +1,6 @@
 package org.flossware.nexus;
 
+import org.flossware.jnexus.RepoRecord;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

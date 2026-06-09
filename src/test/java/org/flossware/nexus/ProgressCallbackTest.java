@@ -1,5 +1,9 @@
 package org.flossware.nexus;
 
+import org.flossware.jnexus.ComponentMetadata;
+import org.flossware.jnexus.ProgressCallback;
+import org.flossware.jnexus.RepoRecord;
+import org.flossware.jnexus.RepositoryStats;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;

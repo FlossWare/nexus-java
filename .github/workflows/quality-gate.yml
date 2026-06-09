@@ -39,12 +39,22 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-maven-
 
+      - name: Cache NVD database
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository/org/owasp/dependency-check-data
+          key: ${{ runner.os }}-nvd-${{ github.run_id }}
+          restore-keys: |
+            ${{ runner.os }}-nvd-
+
       - name: Run Maven verify (all quality checks)
         id: maven-verify
         continue-on-error: true
         run: |
           mvn clean verify -B -e 2>&1 | tee maven-verify.log
           echo "exit_code=${PIPESTATUS[0]}" >> $GITHUB_OUTPUT
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
 
       - name: Generate quality reports
         if: always()

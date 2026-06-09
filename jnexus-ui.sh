@@ -16,4 +16,4 @@ echo "Using JAR: $JAR"
 # Run the UI with preview features and native access enabled
 exec java --enable-preview --enable-native-access=ALL-UNNAMED \
     -cp "$JAR" \
-    org.flossware.jnexus.JNexusUI
+    org.flossware.nexus.NexusUI

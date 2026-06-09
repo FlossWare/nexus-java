@@ -1,5 +1,9 @@
 package org.flossware.nexus;
 
+import org.flossware.jnexus.ComponentMetadata;
+import org.flossware.jnexus.RepoRecord;
+import org.flossware.jnexus.RepositoryStats;
+import org.flossware.jnexus.SearchCriteria;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -725,17 +729,29 @@ public class NexusSwing {
         fileMenu.add(quitItem);
 
         // Edit menu
+<<<<<<< HEAD
         Menu editMenu = new Menu("Edit");
         editMenu.setMnemonic(KeyEvent.VK_E);
         menuBar.add(editMenu);
 
         MenuItem recentDeletionsItem = new MenuItem("Recent Deletions...");
+=======
+        JMenu editMenu = new JMenu("Edit");
+        editMenu.setMnemonic(KeyEvent.VK_E);
+        menuBar.add(editMenu);
+
+        JMenuItem recentDeletionsItem = new JMenuItem("Recent Deletions...");
+>>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
         recentDeletionsItem.setMnemonic(KeyEvent.VK_R);
         recentDeletionsItem.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_H, InputEvent.CTRL_DOWN_MASK));
         recentDeletionsItem.addActionListener(e -> showDeletionHistoryDialog());
         editMenu.add(recentDeletionsItem);
 
+<<<<<<< HEAD
         MenuItem clearHistoryItem = new MenuItem("Clear Deletion History");
+=======
+        JMenuItem clearHistoryItem = new JMenuItem("Clear Deletion History");
+>>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
         clearHistoryItem.setMnemonic(KeyEvent.VK_C);
         clearHistoryItem.addActionListener(e -> {
             deletionHistory.clear();
@@ -745,7 +761,11 @@ public class NexusSwing {
 
         editMenu.addSeparator();
 
+<<<<<<< HEAD
         MenuItem exportHistoryItem = new MenuItem("Export Deletion History...");
+=======
+        JMenuItem exportHistoryItem = new JMenuItem("Export Deletion History...");
+>>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
         exportHistoryItem.setMnemonic(KeyEvent.VK_X);
         exportHistoryItem.addActionListener(e -> exportDeletionHistory());
         editMenu.add(exportHistoryItem);
@@ -1744,7 +1764,11 @@ public class NexusSwing {
             });
         }
 
+<<<<<<< HEAD
         Table historyTable = new Table(historyModel);
+=======
+        JTable historyTable = new JTable(historyModel);
+>>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
         historyTable.setFont(new Font("Monospaced", Font.PLAIN, 12));
         historyTable.getColumnModel().getColumn(0).setPreferredWidth(200);
         historyTable.getColumnModel().getColumn(1).setPreferredWidth(120);
@@ -1752,6 +1776,7 @@ public class NexusSwing {
         historyTable.getColumnModel().getColumn(3).setPreferredWidth(140);
         historyTable.getColumnModel().getColumn(4).setPreferredWidth(300);
 
+<<<<<<< HEAD
         ScrollPane scrollPane = new ScrollPane(historyTable);
         scrollPane.setPreferredSize(new Dimension(900, 400));
 
@@ -1760,12 +1785,26 @@ public class NexusSwing {
         long totalSize = deletionHistory.getTotalDeletedSize();
         double totalMB = totalSize / 1024.0 / 1024.0;
         summaryPanel.add(new Label(String.format(
+=======
+        JScrollPane scrollPane = new JScrollPane(historyTable);
+        scrollPane.setPreferredSize(new Dimension(900, 400));
+
+        // Summary panel
+        JPanel summaryPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        long totalSize = deletionHistory.getTotalDeletedSize();
+        double totalMB = totalSize / 1024.0 / 1024.0;
+        summaryPanel.add(new JLabel(String.format(
+>>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
             "Showing %d of %d deleted component(s) | Total deleted: %s bytes (%.2f MB)",
             recent.size(), deletionHistory.size(),
             numberFormat.format(totalSize), totalMB)));
 
         // Main panel
+<<<<<<< HEAD
         Panel mainPanel = new Panel(new BorderLayout(5, 5));
+=======
+        JPanel mainPanel = new JPanel(new BorderLayout(5, 5));
+>>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
         mainPanel.add(scrollPane, BorderLayout.CENTER);
         mainPanel.add(summaryPanel, BorderLayout.SOUTH);
 

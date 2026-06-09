@@ -8,8 +8,12 @@ import java.util.List;
  * <p>
  * This interface abstracts the HTTP communication layer to support multiple
  * platform implementations:
- * - Desktop: NexusClientHttp (uses java.net.http.HttpClient)
+ * - Desktop: NexusClient (uses java.net.http.HttpClient)
  * - Android: NexusClientOkHttp (uses OkHttp)
+ * </p>
+ * <p>
+ * HTTP client implementations should be configured with {@link HttpConfig}
+ * (typically provided via {@link Credentials}) to control timeouts and retry behavior.
  * </p>
  */
 public interface NexusHttpClient {

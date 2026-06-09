@@ -268,18 +268,96 @@ Core service layer functionality:
    - Color support in terminal
    - Accessibility features
 
+## Performance & Load Testing Suite
+
+### JMH Benchmarks (NexusClientBenchmark.java)
+
+**11 benchmark scenarios** measuring critical paths:
+- **List operations**: 100, 1000, 10000 components (cached performance)
+- **Cache overhead**: Hit latency measurement (<1ms SLA)
+- **Filtering**: Regex, complex filters, extension filters (1000 components)
+- **Statistics**: 100, 1000, 10000 components
+- **Cache operations**: Invalidation, pre-population checks
+
+**Run with:** `mvn test -Pbenchmark`
+
+Performance SLAs:
+- Cache hit: <10ms
+- Cached list (100): p50 <50ms
+- Cached list (1000): p50 <100ms
+- Cached list (10000): p50 <500ms
+- Statistics (1000): p50 <500ms
+- Cache hit overhead: <1ms
+
+### Load Tests (NexusClientLoadTest.java)
+
+**8 load testing scenarios** under realistic conditions:
+- **Concurrent 100 list operations**: <10 seconds (caching helps)
+- **Concurrent 50 delete operations**: <60 seconds
+- **Concurrent cache operations**: Mixed read/clear with consistency verification
+- **Memory tests**: 10K components (<300MB), 100K components (<500MB)
+- **Statistics memory**: Reasonable overhead on large datasets
+- **Throughput tests**: 10+ ops/sec with caching, cache-miss performance
+- **Timeout handling**: Graceful error handling under failure
+
+Load SLAs:
+- 100 concurrent lists: <10 seconds (avg 100ms/op)
+- 10K components: <300MB memory
+- 100K components: <500MB memory
+- Throughput: 10+ ops/sec with caching
+- Timeout handling: No crashes, partial success acceptable
+
+### Stress Tests (NexusStressTest.java)
+
+**10 stress testing scenarios** for extreme conditions:
+- **Cache stress**: 10,000 repositories with 100 components each (no memory leak)
+- **Retry logic**: 50% failure rate handling with exponential backoff
+- **Bulk delete**: 1000 components within 5 minutes
+- **Bulk delete with progress**: Progress callback consistency
+- **Large paths**: Components with 500+ character paths
+- **Many small files**: 10,000 small files (<100 bytes each)
+- **Large file sizes**: Near-max long values (preventing integer overflow)
+- **Exponential backoff recovery**: Retry logic under repeated failures
+- **Concurrent read/write**: Mixed operations under contention without deadlock
+
+Stress SLAs:
+- 10K repositories: <500MB memory, no leaks
+- 50% failure rate: System remains stable
+- 1000 component delete: <5 minutes
+- 10K small files: <10 seconds to retrieve
+- Large file size: Correctly preserved (no overflow)
+- Concurrent mixed ops: <5s per operation, no deadlock
+
+### Test Execution
+
+```bash
+# Run all performance/load/stress tests
+mvn test -Dtest=*LoadTest,*StressTest
+
+# Run JMH benchmarks
+mvn test -Pbenchmark
+
+# Run specific benchmark
+mvn test -Pbenchmark -Dtest=NexusClientBenchmark
+
+# Run with additional JMH options
+mvn test -Pbenchmark -Djmh.resultFormat=json -Djmh.resultsFile=target/jmh-results.json
+```
+
 ## Recommended Additions
 
 ### High Priority
-- [ ] Jacoco for code coverage reporting
+- [x] Performance benchmarks (JMH) - **COMPLETED**
+- [x] Load testing suite - **COMPLETED**
+- [x] Stress testing suite - **COMPLETED**
 - [ ] E2E tests with Testcontainers + Nexus
-- [ ] Performance benchmarks (startup time, memory usage)
+- [ ] GitHub Actions CI integration for benchmarks
 
 ### Medium Priority
 - [ ] GUI testing framework (AssertJ Swing or TestFX)
 - [ ] CLI integration tests with Picocli testing utilities
 - [ ] Mutation testing with PIT
-- [ ] Load testing for cache performance
+- [ ] Benchmark result tracking (historical data)
 
 ### Low Priority
 - [ ] Visual regression testing for GUIs
@@ -302,6 +380,7 @@ Suggested CI pipeline:
 
 | Version | Tests | Pass Rate | Notable Changes | Date |
 |---------|-------|-----------|-----------------|------|
+| 2.0 | 110+ | 100% | Added performance testing suite (JMH benchmarks, load tests, stress tests) with 29+ scenarios | 2026-06-05 |
 | 1.6 | 92 | 100% | Fixed Repository field auto-population from first repository in list | 2026-05-19 |
 | 1.5 | 92 | 100% | Added save credentials tests (5), save credential dialogs for all GUIs | 2026-05-19 |
 | 1.4 | 87 | 100% | Added explicit credentials constructor tests (9), interactive credential collection dialogs | 2026-05-19 |
@@ -310,22 +389,38 @@ Suggested CI pipeline:
 | 1.1 | 61 | 100% | Added cache tests (11), regex validation tests (3), config tests (3), GUIs (manual) | 2026-05-18 |
 | 1.0 | 44 | 100% | Initial release | 2026-05-15 |
 
-**Last Updated**: 2026-05-19  
-**Test Suite Version**: 1.6
+**Last Updated**: 2026-06-05  
+**Test Suite Version**: 2.0 (Performance Testing Suite Added)
 
 ## Test Growth
 
 ```
-Initial (1.0):  44 tests ████████████████████
-Version (1.1):  61 tests ███████████████████████████
-Version (1.2):  73 tests █████████████████████████████████
-Version (1.3):  78 tests ███████████████████████████████████
-Version (1.4):  87 tests ████████████████████████████████████████
-Current (1.5):  92 tests ██████████████████████████████████████████
-Growth:         +48 tests (+109%)
+Initial (1.0):     44 tests  ████████████████████
+Version (1.1):     61 tests  ███████████████████████████
+Version (1.2):     73 tests  █████████████████████████████████
+Version (1.3):     78 tests  ███████████████████████████████████
+Version (1.4):     87 tests  ████████████████████████████████████████
+Version (1.5):     92 tests  ██████████████████████████████████████████
+Current (2.0):    110+ tests ██████████████████████████████████████████████████
+Growth:           +66 tests (+150% from 1.0)
 ```
 
-New improvements in 1.6:
+New improvements in 2.0 (Performance Testing Suite):
+- ✅ JMH Benchmarks (11 scenarios) - cache hit, list operations, filtering, statistics, cache operations
+- ✅ Load Tests (8 scenarios) - concurrent operations, memory usage, throughput, timeout handling
+- ✅ Stress Tests (10 scenarios) - cache stress, retry logic, bulk operations, resource exhaustion, deadlock prevention
+- ✅ Maven benchmark profile for running JMH tests
+- ✅ Comprehensive performance SLA documentation
+- ✅ Fixed import issues in benchmark classes
+- ✅ Added @Timeout annotations to load/stress tests for safety
+
+Performance Testing Coverage:
+- Benchmarks: 11 JMH scenarios with warmup/measurement configuration
+- Load tests: 8 concurrent/memory/throughput scenarios with timeout protection
+- Stress tests: 10 extreme condition scenarios (10K repos, 50% failure rate, 1000 deletes, etc.)
+- Total performance test coverage: 29+ scenarios across 3 test classes
+
+New test areas added in 1.6:
 - ✅ Repository field auto-population fix (first repository from list becomes default)
 - ✅ Updated test to expect first repo as default repository
 

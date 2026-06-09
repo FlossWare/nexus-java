@@ -21,4 +21,4 @@ echo "Using JAR: $JAR_FILE"
 
 # Launch Swing UI
 echo "Starting JNexus Swing UI..."
-java --enable-preview -cp "$JAR_FILE" org.flossware.jnexus.JNexusSwing "$@"
+java --enable-preview -cp "$JAR_FILE" org.flossware.nexus.NexusSwing "$@"

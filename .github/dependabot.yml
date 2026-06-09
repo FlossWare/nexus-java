@@ -1,0 +1,63 @@
+version: 2
+updates:
+  # Maven dependencies (Desktop app)
+  - package-ecosystem: "maven"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "maven"
+    commit-message:
+      prefix: "deps(maven):"
+    reviewers:
+      - "sfloess"
+
+  # Gradle dependencies (Core library)
+  - package-ecosystem: "gradle"
+    directory: "/jnexus-core"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "gradle"
+      - "core"
+    commit-message:
+      prefix: "deps(core):"
+    reviewers:
+      - "sfloess"
+
+  # Gradle dependencies (Android app)
+  - package-ecosystem: "gradle"
+    directory: "/jnexus-android"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "gradle"
+      - "android"
+    commit-message:
+      prefix: "deps(android):"
+    reviewers:
+      - "sfloess"
+
+  # GitHub Actions versions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "deps(actions):"
+    reviewers:
+      - "sfloess"

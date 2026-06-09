@@ -1,5 +1,6 @@
 package org.flossware.nexus;
 
+import org.flossware.jnexus.SearchCriteria;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;

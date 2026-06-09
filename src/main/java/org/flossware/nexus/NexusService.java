@@ -1,5 +1,11 @@
 package org.flossware.nexus;
 
+import org.flossware.jnexus.ComponentMetadata;
+import org.flossware.jnexus.NexusHttpClient;
+import org.flossware.jnexus.ProgressCallback;
+import org.flossware.jnexus.RepoRecord;
+import org.flossware.jnexus.RepositoryStats;
+import org.flossware.jnexus.SearchCriteria;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -78,6 +84,20 @@ import java.util.stream.Collectors;
 public class NexusService {
     private static final Logger logger = LoggerFactory.getLogger(NexusService.class);
 
+    /**
+     * Shared executor for regex validation with timeout (ReDoS prevention).
+     * <p>
+     * Using a static executor avoids creating a new thread pool for each validation.
+     * Daemon thread ensures it doesn't block JVM shutdown.
+     * </p>
+     */
+    private static final java.util.concurrent.ExecutorService REGEX_VALIDATOR =
+        java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
+            Thread t = new Thread(r, "jnexus-desktop-regex-validator");
+            t.setDaemon(true);
+            return t;
+        });
+
     private final NexusHttpClient client;
     private final DeletionHistory deletionHistory;
 
@@ -94,10 +114,21 @@ public class NexusService {
     }
 
     /**
+<<<<<<< HEAD
      * Constructs a new NexusService with the specified client and deletion history.
      *
      * @param client          the NexusHttpClient to use for HTTP operations
      * @param deletionHistory the deletion history tracker for recording deletions
+=======
+     * Constructs a new NexusService with the specified client and optional deletion history.
+     * <p>
+     * Allows callers to disable deletion recording by passing null for deletionHistory.
+     * When null, deletion events are not recorded.
+     * </p>
+     *
+     * @param client          the NexusHttpClient to use for HTTP operations
+     * @param deletionHistory the deletion history tracker for recording deletions, or null to disable recording
+>>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
      */
     public NexusService(NexusHttpClient client, DeletionHistory deletionHistory) {
         this.client = client;
@@ -105,14 +136,39 @@ public class NexusService {
     }
 
     /**
+<<<<<<< HEAD
+=======
+     * Constructs a new NexusService with deletion recording disabled.
+     * <p>
+     * This is a convenience method for creating a service without deletion history tracking.
+     * Useful when recording is not needed or adds unwanted overhead.
+     * </p>
+     *
+     * @param client the NexusHttpClient to use for HTTP operations
+     * @return a new NexusService with deletion recording disabled
+     */
+    public static NexusService withoutDeletionHistory(NexusHttpClient client) {
+        return new NexusService(client, null);
+    }
+
+    /**
+>>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
      * Returns the deletion history tracker for this service.
      * <p>
      * The deletion history records all components deleted through this service
      * during the current session. It can be used to review what was deleted
      * and to export deletion records for manual recovery reference.
      * </p>
+<<<<<<< HEAD
      *
      * @return the deletion history tracker
+=======
+     * <p>
+     * Note: Returns null if deletion recording is disabled (service was constructed with null deletionHistory).
+     * </p>
+     *
+     * @return the deletion history tracker, or null if recording is disabled
+>>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
      */
     public DeletionHistory getDeletionHistory() {
         return deletionHistory;
@@ -130,19 +186,52 @@ public class NexusService {
     }
 
     /**
-     * Validates a regex pattern.
+     * Validates a regex pattern for both syntax and safety (ReDoS prevention).
+     * <p>
+     * Tests the pattern against a long string with a timeout to detect catastrophic backtracking.
+     * Patterns that take too long to match are rejected to prevent Regular Expression Denial of Service (ReDoS) attacks.
+     * Uses a shared static executor to avoid creating a new thread pool for each validation.
+     * </p>
      *
      * @param regex the regex pattern to validate
-     * @throws IllegalArgumentException if the pattern is invalid
+     * @throws IllegalArgumentException if the pattern is invalid or potentially unsafe
      */
     private void validateRegex(String regex) {
         if (regex == null || regex.isEmpty()) {
             return; // null or empty regex is valid (means no filtering)
         }
+
+        // Validate syntax
+        Pattern pattern;
         try {
-            Pattern.compile(regex);
+            pattern = Pattern.compile(regex);
         } catch (PatternSyntaxException e) {
             throw new IllegalArgumentException("Invalid regex pattern: " + safeExceptionMessage(e), e);
+        }
+
+        // Test for catastrophic backtracking (ReDoS prevention)
+        // Try matching against a long string that could trigger exponential behavior
+        String testString = "a".repeat(10000);
+        java.util.concurrent.Future<Boolean> future = REGEX_VALIDATOR.submit(() -> {
+            try {
+                pattern.matcher(testString).find();
+                return true;
+            } catch (Exception e) {
+                return false;
+            }
+        });
+
+        try {
+            // Wait up to 1 second for the regex to execute
+            future.get(1, java.util.concurrent.TimeUnit.SECONDS);
+        } catch (java.util.concurrent.TimeoutException e) {
+            future.cancel(true);
+            throw new IllegalArgumentException(
+                "Regex pattern is too complex and may cause performance issues. " +
+                "Avoid nested quantifiers like (a+)+ or (a*)* which can cause exponential backtracking."
+            );
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Error testing regex pattern: " + safeExceptionMessage(e), e);
         }
     }
 
@@ -237,12 +326,76 @@ public class NexusService {
 
         // Always refresh for delete operations to get current state
         List<RepoRecord> allRecords = client.listComponents(repository, true);
+        deleteFromRepositoryWithRecords(repository, regexFilter, dryRun, callback, allRecords);
+    }
+
+    /**
+     * Deletes components from a repository using pre-fetched records.
+     * <p>
+     * This variant allows reusing previously fetched records to avoid duplicate HTTP calls,
+     * which is useful when exporting before deletion (avoids double-fetching for large repositories).
+     * </p>
+     *
+     * @param repository  the name of the repository to delete from
+     * @param regexFilter optional regex pattern to filter component paths (null for all components)
+     * @param dryRun      if true, shows what would be deleted without actually deleting
+     * @param allRecords  pre-fetched list of all repository records to use instead of fetching
+     * @throws IOException          if an HTTP error occurs
+     * @throws InterruptedException if the operation is interrupted
+     */
+    public void deleteFromRepositoryWithRecords(String repository, String regexFilter, boolean dryRun,
+            List<RepoRecord> allRecords)
+            throws IOException, InterruptedException {
+        deleteFromRepositoryWithRecords(repository, regexFilter, dryRun, null, allRecords);
+    }
+
+    /**
+     * Deletes components from a repository using pre-fetched records with progress tracking.
+     * <p>
+     * This variant allows reusing previously fetched records to avoid duplicate HTTP calls,
+     * which is useful when exporting before deletion (avoids double-fetching for large repositories).
+     * </p>
+     *
+     * @param repository  the name of the repository to delete from
+     * @param regexFilter optional regex pattern to filter component paths (null for all components)
+     * @param dryRun      if true, shows what would be deleted without actually deleting
+     * @param callback    optional callback for progress notifications (null for no callbacks)
+     * @param allRecords  pre-fetched list of all repository records to use instead of fetching
+     * @throws IOException          if an HTTP error occurs
+     * @throws InterruptedException if the operation is interrupted
+     */
+    public void deleteFromRepositoryWithRecords(String repository, String regexFilter, boolean dryRun,
+            ProgressCallback callback, List<RepoRecord> allRecords)
+            throws IOException, InterruptedException {
+        validateRegex(regexFilter);
 
         List<RepoRecord> recordsToDelete = regexFilter == null
             ? allRecords
             : allRecords.stream()
                 .filter(record -> record.path().matches(regexFilter))
                 .toList();
+
+        deleteFromRepositoryWithFilteredRecords(repository, recordsToDelete, allRecords.size(), dryRun, callback);
+    }
+
+    /**
+     * Deletes components from a repository using pre-filtered records.
+     * <p>
+     * Internal helper method that performs the actual deletion logic given
+     * pre-fetched and pre-filtered records. Separated for code reusability.
+     * </p>
+     *
+     * @param repository       the name of the repository to delete from
+     * @param recordsToDelete  pre-filtered list of records to delete
+     * @param totalRecords     total number of records in the repository (for stats)
+     * @param dryRun           if true, shows what would be deleted without actually deleting
+     * @param callback         optional callback for progress notifications (null for no callbacks)
+     * @throws IOException          if an HTTP error occurs
+     * @throws InterruptedException if the operation is interrupted
+     */
+    private void deleteFromRepositoryWithFilteredRecords(String repository, List<RepoRecord> recordsToDelete,
+            int totalRecords, boolean dryRun, ProgressCallback callback)
+            throws IOException, InterruptedException {
 
         if (recordsToDelete.isEmpty()) {
             System.out.println("No components match the criteria.");
@@ -265,8 +418,15 @@ public class NexusService {
                     deleted++;
                     logger.info("Deleted: {}", record.path());
 
+<<<<<<< HEAD
                     // Record deletion in history for undo/recovery reference
                     deletionHistory.recordDeletion(record.id(), record.path(), record.fileSize(), repository);
+=======
+                    // Record deletion in history for undo/recovery reference (if enabled)
+                    if (deletionHistory != null) {
+                        deletionHistory.recordDeletion(record.id(), record.path(), record.fileSize(), repository);
+                    }
+>>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
 
                     // Callback: component deleted
                     if (callback != null) {
@@ -328,7 +488,7 @@ public class NexusService {
             client.clearAllCache();
         }
 
-        printStatistics(allRecords.size(), recordsToDelete);
+        printStatistics(totalRecords, recordsToDelete);
     }
 
     /**

@@ -1,5 +1,7 @@
 package org.flossware.nexus;
 
+import org.flossware.jnexus.ComponentMetadata;
+import org.flossware.jnexus.RepoRecord;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;

@@ -21,4 +21,4 @@ echo "Using JAR: $JAR_FILE"
 
 # Launch AWT UI
 echo "Starting JNexus AWT UI..."
-java --enable-preview -cp "$JAR_FILE" org.flossware.jnexus.JNexusAWT "$@"
+java --enable-preview -cp "$JAR_FILE" org.flossware.nexus.NexusAWT "$@"

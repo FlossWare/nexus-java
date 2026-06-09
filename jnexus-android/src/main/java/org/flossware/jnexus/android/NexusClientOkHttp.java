@@ -28,6 +28,11 @@ import java.util.concurrent.TimeUnit;
  * retry logic, and pagination handling.
  * </p>
  * <p>
+ * HTTP configuration (timeouts, retries) is provided via the {@link Credentials}
+ * object, which implements {@link org.flossware.jnexus.HttpConfig}. This allows
+ * consistent behavior across all platform implementations.
+ * </p>
+ * <p>
  * Implements AutoCloseable to properly release OkHttp resources (connection pools, thread pools).
  * Use try-with-resources or call close() when done:
  * </p>
@@ -53,9 +58,9 @@ public class NexusClientOkHttp implements NexusHttpClient, AutoCloseable {
     private static final long DEFAULT_CACHE_TTL_SECONDS = 300; // 5 minutes
     private final long cacheTtlSeconds;
 
-    // Retry configuration
-    private static final int MAX_RETRIES = 3;
-    private static final long INITIAL_RETRY_DELAY_MS = 1000; // 1 second
+    // Retry configuration (read from credentials)
+    private final int maxRetries;
+    private final long initialRetryDelayMs;
 
     // Cache storage: repository -> CacheEntry
     private final Map<String, CacheEntry> cache = new ConcurrentHashMap<>();
@@ -110,6 +115,10 @@ public class NexusClientOkHttp implements NexusHttpClient, AutoCloseable {
         String auth = credentials.getUser() + ":" + credentials.getPassword();
         this.authHeader = "Basic " + Base64.getEncoder().encodeToString(auth.getBytes());
 
+        // Read HTTP configuration from credentials
+        this.maxRetries = credentials.getMaxRetries();
+        this.initialRetryDelayMs = credentials.getInitialRetryDelayMs();
+
         // Build optimized HTTP client with connection pooling and HTTP/2
         this.httpClient = buildOptimizedHttpClient(credentials.getHttpTimeoutSeconds());
     }
@@ -122,14 +131,14 @@ public class NexusClientOkHttp implements NexusHttpClient, AutoCloseable {
      * <ul>
      *   <li><strong>Connection Pooling</strong> - 5 idle connections kept alive for 5 minutes</li>
      *   <li><strong>HTTP/2</strong> - Enables multiplexing (multiple requests over one connection)</li>
-     *   <li><strong>Retry Logic</strong> - Exponential backoff with 3 attempts</li>
+     *   <li><strong>Retry Logic</strong> - Exponential backoff with configured max retries</li>
      *   <li><strong>Compression</strong> - Automatically handles gzip/deflate responses</li>
      * </ul>
      *
      * @param timeoutSeconds connection/read/write timeout in seconds
      * @return configured OkHttpClient instance
      */
-    private static OkHttpClient buildOptimizedHttpClient(int timeoutSeconds) {
+    private OkHttpClient buildOptimizedHttpClient(int timeoutSeconds) {
         ConnectionPool pool = new ConnectionPool(
             5,          // maxIdleConnections
             5,          // keepAliveDuration
@@ -142,7 +151,7 @@ public class NexusClientOkHttp implements NexusHttpClient, AutoCloseable {
             .writeTimeout(timeoutSeconds, TimeUnit.SECONDS)
             .connectionPool(pool)
             .protocols(Arrays.asList(Protocol.HTTP_2, Protocol.HTTP_1_1))
-            .addInterceptor(new RetryInterceptor(MAX_RETRIES, INITIAL_RETRY_DELAY_MS))
+            .addInterceptor(new RetryInterceptor(maxRetries, initialRetryDelayMs))
             .build();
     }
 

@@ -2,7 +2,6 @@ package org.flossware.nexus;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.Files;
@@ -18,6 +17,7 @@ import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.flossware.crypto.AESEncryption;
+import org.flossware.jnexus.HttpConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -173,7 +173,7 @@ import org.slf4j.LoggerFactory;
  * @see NexusClient
  * @see NexusService
  */
-public class Credentials {
+public class Credentials implements HttpConfig {
     private final String url;
     private final String user;
     private final String password;
@@ -285,58 +285,68 @@ public class Credentials {
      */
     public Credentials(String profile) {
         this.profile = (profile != null && !profile.isBlank()) ? profile : null;
+
+        // Load credentials from environment variables and/or properties file
+        Properties props = loadPropertiesFile();
+        String[] creds = loadRequiredCredentials(props);
+        this.url = creds[0];
+        this.user = creds[1];
+        this.password = creds[2];
+
+        // Load optional UI defaults from properties file
+        this.defaultRepository = props.getProperty("nexus.default.repository", "");
+        this.defaultRegex = props.getProperty("nexus.default.regex", "");
+        this.defaultDryRun = Boolean.parseBoolean(props.getProperty("nexus.default.dryrun", "true"));
+        this.repositories = parseRepositoryList(props.getProperty("nexus.repositories", ""));
+
+        // Load optional HTTP and retry configuration
+        this.httpTimeoutSeconds = loadIntConfig("NEXUS_HTTP_TIMEOUT",
+            props.getProperty("nexus.http.timeout.seconds"), 30, 1, Integer.MAX_VALUE,
+            "HTTP timeout must be positive");
+        this.maxRetries = loadIntConfig("NEXUS_MAX_RETRIES",
+            props.getProperty("nexus.http.max.retries"), 3, 0, 10,
+            "Max retries must be between 0 and 10");
+        this.initialRetryDelayMs = loadLongConfig("NEXUS_RETRY_DELAY_MS",
+            props.getProperty("nexus.http.retry.delay.ms"), 1000, 0, 60000,
+            "Retry delay must be between 0 and 60000ms");
+
+        // Load optional logging configuration
+        this.logLevel = loadLogLevel(props);
+        System.setProperty("nexus.log.level", this.logLevel);
+    }
+
+    /**
+     * Loads required credentials from environment variables with properties file fallback.
+     * <p>
+     * Environment variables (NEXUS_URL, NEXUS_USER, NEXUS_PASSWORD) take precedence.
+     * Falls back to properties file values. Validates that all required fields are present.
+     * Handles password decryption for encrypted properties file values.
+     * </p>
+     *
+     * @param props the loaded properties file
+     * @return a String array of [url, user, password]
+     * @throws IllegalStateException if any required credential is missing or invalid
+     */
+    private String[] loadRequiredCredentials(Properties props) {
         String url = System.getenv("NEXUS_URL");
         String user = System.getenv("NEXUS_USER");
         String password = System.getenv("NEXUS_PASSWORD");
 
-        // Load from properties file if any required field is missing
-        Properties props = new Properties();
-        if (url == null || user == null || password == null) {
-            props = loadPropertiesFile();
-            url = props.getProperty("nexus.url", url);
-            user = props.getProperty("nexus.user", user);
-
-            // Load and decrypt password if encrypted
-            String rawPassword = props.getProperty("nexus.password", password);
-            if (rawPassword != null && AESEncryption.isEncrypted(rawPassword)) {
-                try {
-                    AESEncryption encryption = new AESEncryption();
-                    password = encryption.decrypt(rawPassword);
-                    logger.debug("Successfully decrypted password from properties file");
-                } catch (Exception e) {
-                    logger.error("Failed to decrypt password - credentials may be corrupted or from a different machine", e);
-                    throw new IllegalStateException(
-                        "Failed to decrypt password. Credentials may be corrupted or created on a different machine. " +
-                        "Delete ~/.flossware/nexus/nexus.properties and reconfigure.", e);
-                }
-            } else {
-                password = rawPassword;
-                if (password != null) {
-                    logger.warn("Password is stored in plaintext - will be encrypted on next save");
-                }
-            }
-        } else {
-            // Even if env vars are set, load properties for optional UI defaults
-            props = loadPropertiesFile();
+        // Fill in missing values from properties file
+        if (url == null) {
+            url = props.getProperty("nexus.url");
+        }
+        if (user == null) {
+            user = props.getProperty("nexus.user");
+        }
+        if (password == null) {
+            password = loadPassword(props);
         }
 
-        if (url == null || url.isBlank()) {
-            throw new IllegalStateException(
-                "Nexus URL not configured. Set NEXUS_URL environment variable or nexus.url in ~/.flossware/nexus/nexus.properties"
-            );
-        }
-
-        if (user == null || user.isBlank()) {
-            throw new IllegalStateException(
-                "Nexus user not configured. Set NEXUS_USER environment variable or nexus.user in ~/.flossware/nexus/nexus.properties"
-            );
-        }
-
-        if (password == null || password.isBlank()) {
-            throw new IllegalStateException(
-                "Nexus password not configured. Set NEXUS_PASSWORD environment variable or nexus.password in ~/.flossware/nexus/nexus.properties"
-            );
-        }
+        // Validate required fields
+        validateRequired(url, "Nexus URL", "NEXUS_URL", "nexus.url");
+        validateRequired(user, "Nexus user", "NEXUS_USER", "nexus.user");
+        validateRequired(password, "Nexus password", "NEXUS_PASSWORD", "nexus.password");
 
         // Validate URL format and security
         try {
@@ -345,102 +355,156 @@ public class Credentials {
             throw new IllegalStateException("Invalid Nexus URL: " + e.getMessage(), e);
         }
 
-        this.url = url;
-        this.user = user;
-        this.password = password;
+        return new String[]{url, user, password};
+    }
 
-        // Load optional UI defaults from properties file
-        this.defaultRepository = props.getProperty("nexus.default.repository", "");
-        this.defaultRegex = props.getProperty("nexus.default.regex", "");
-        this.defaultDryRun = Boolean.parseBoolean(props.getProperty("nexus.default.dryrun", "true"));
-
-        // Load optional repository list (comma-separated)
-        String repoListProp = props.getProperty("nexus.repositories", "");
-        if (repoListProp != null && !repoListProp.isBlank()) {
-            this.repositories = Arrays.stream(repoListProp.split(","))
-                .map(String::trim)
-                .filter(s -> !s.isEmpty())
-                .collect(Collectors.toList());
-        } else {
-            this.repositories = Collections.emptyList();
+    /**
+     * Loads and decrypts password from properties file.
+     *
+     * @param props the loaded properties
+     * @return decrypted password, or null if not present
+     * @throws IllegalStateException if decryption fails
+     */
+    private static String loadPassword(Properties props) {
+        String rawPassword = props.getProperty("nexus.password");
+        if (rawPassword == null) {
+            return null;
         }
-
-        // Load optional HTTP configuration with validation
-        String timeoutEnv = System.getenv("NEXUS_HTTP_TIMEOUT");
-        String timeoutProp = props.getProperty("nexus.http.timeout.seconds");
-        String timeoutStr = timeoutEnv != null ? timeoutEnv : timeoutProp;
-
-        int timeout = 30; // default
-        if (timeoutStr != null) {
+        if (AESEncryption.isEncrypted(rawPassword)) {
             try {
-                timeout = Integer.parseInt(timeoutStr);
-                if (timeout <= 0) {
-                    logger.warn("HTTP timeout must be positive. Using default: 30 seconds");
-                    timeout = 30;
-                }
-            } catch (NumberFormatException e) {
-                logger.warn("Invalid HTTP timeout value '{}'. Using default: 30 seconds", timeoutStr);
+                AESEncryption encryption = new AESEncryption();
+                String decrypted = encryption.decrypt(rawPassword);
+                logger.debug("Successfully decrypted password from properties file");
+                return decrypted;
+            } catch (Exception e) {
+                logger.error("Failed to decrypt password - credentials may be corrupted or from a different machine", e);
+                throw new IllegalStateException(
+                    "Failed to decrypt password. Credentials may be corrupted or created on a different machine. " +
+                    "Delete ~/.flossware/nexus/nexus.properties and reconfigure.", e);
             }
         }
-        this.httpTimeoutSeconds = timeout;
+        logger.warn("Password is stored in plaintext - will be encrypted on next save");
+        return rawPassword;
+    }
 
-        // Load optional retry configuration with validation
-        String maxRetriesEnv = System.getenv("NEXUS_MAX_RETRIES");
-        String maxRetriesProp = props.getProperty("nexus.http.max.retries");
-        String maxRetriesStr = maxRetriesEnv != null ? maxRetriesEnv : maxRetriesProp;
-
-        int retries = 3; // default
-        if (maxRetriesStr != null) {
-            try {
-                retries = Integer.parseInt(maxRetriesStr);
-                if (retries < 0 || retries > 10) {
-                    logger.warn("Max retries must be between 0 and 10. Using default: 3");
-                    retries = 3;
-                }
-            } catch (NumberFormatException e) {
-                logger.warn("Invalid max retries value '{}'. Using default: 3", maxRetriesStr);
-            }
+    /**
+     * Validates that a required configuration value is present and non-blank.
+     *
+     * @param value    the value to check
+     * @param name     human-readable name for error messages
+     * @param envVar   the environment variable name
+     * @param propKey  the properties file key
+     * @throws IllegalStateException if the value is null or blank
+     */
+    private static void validateRequired(String value, String name, String envVar, String propKey) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalStateException(
+                name + " not configured. Set " + envVar +
+                " environment variable or " + propKey +
+                " in ~/.flossware/nexus/nexus.properties"
+            );
         }
-        this.maxRetries = retries;
+    }
 
-        String retryDelayEnv = System.getenv("NEXUS_RETRY_DELAY_MS");
-        String retryDelayProp = props.getProperty("nexus.http.retry.delay.ms");
-        String retryDelayStr = retryDelayEnv != null ? retryDelayEnv : retryDelayProp;
-
-        long delay = 1000; // default 1 second
-        if (retryDelayStr != null) {
-            try {
-                delay = Long.parseLong(retryDelayStr);
-                if (delay < 0 || delay > 60000) {
-                    logger.warn("Retry delay must be between 0 and 60000ms. Using default: 1000ms");
-                    delay = 1000;
-                }
-            } catch (NumberFormatException e) {
-                logger.warn("Invalid retry delay value '{}'. Using default: 1000ms", retryDelayStr);
-            }
+    /**
+     * Parses a comma-separated repository list into an unmodifiable list.
+     *
+     * @param repoListStr comma-separated repository names
+     * @return list of trimmed, non-empty repository names
+     */
+    private static List<String> parseRepositoryList(String repoListStr) {
+        if (repoListStr == null || repoListStr.isBlank()) {
+            return Collections.emptyList();
         }
-        this.initialRetryDelayMs = delay;
+        return Arrays.stream(repoListStr.split(","))
+            .map(String::trim)
+            .filter(s -> !s.isEmpty())
+            .collect(Collectors.toList());
+    }
 
-        // Load optional logging configuration
-        String logLevelEnv = System.getenv("NEXUS_LOG_LEVEL");
-        String logLevelProp = props.getProperty("nexus.log.level");
-        String logLevelStr = logLevelEnv != null ? logLevelEnv : logLevelProp;
-
-        String level = "INFO"; // default
-        if (logLevelStr != null) {
-            String upperLevel = logLevelStr.toUpperCase();
-            if (upperLevel.equals("TRACE") || upperLevel.equals("DEBUG") ||
-                upperLevel.equals("INFO") || upperLevel.equals("WARN") ||
-                upperLevel.equals("ERROR") || upperLevel.equals("OFF")) {
-                level = upperLevel;
-            } else {
-                logger.warn("Invalid log level '{}'. Valid values: TRACE, DEBUG, INFO, WARN, ERROR, OFF. Using default: INFO", logLevelStr);
-            }
+    /**
+     * Loads an integer configuration value from environment variable or properties,
+     * with range validation and default fallback.
+     *
+     * @param envVarName   the environment variable name to check first
+     * @param propValue    the properties file value (fallback)
+     * @param defaultValue the default if neither source provides a valid value
+     * @param min          minimum valid value (inclusive)
+     * @param max          maximum valid value (inclusive)
+     * @param rangeMessage warning message when value is out of range
+     * @return the resolved configuration value
+     */
+    private static int loadIntConfig(String envVarName, String propValue,
+            int defaultValue, int min, int max, String rangeMessage) {
+        String envValue = System.getenv(envVarName);
+        String valueStr = envValue != null ? envValue : propValue;
+        if (valueStr == null) {
+            return defaultValue;
         }
-        this.logLevel = level;
+        try {
+            int value = Integer.parseInt(valueStr);
+            if (value < min || value > max) {
+                logger.warn("{}. Using default: {}", rangeMessage, defaultValue);
+                return defaultValue;
+            }
+            return value;
+        } catch (NumberFormatException e) {
+            logger.warn("Invalid value '{}' for {}. Using default: {}", valueStr, envVarName, defaultValue);
+            return defaultValue;
+        }
+    }
 
-        // Set system property for logback to pick up
-        System.setProperty("nexus.log.level", this.logLevel);
+    /**
+     * Loads a long configuration value from environment variable or properties,
+     * with range validation and default fallback.
+     *
+     * @param envVarName   the environment variable name to check first
+     * @param propValue    the properties file value (fallback)
+     * @param defaultValue the default if neither source provides a valid value
+     * @param min          minimum valid value (inclusive)
+     * @param max          maximum valid value (inclusive)
+     * @param rangeMessage warning message when value is out of range
+     * @return the resolved configuration value
+     */
+    private static long loadLongConfig(String envVarName, String propValue,
+            long defaultValue, long min, long max, String rangeMessage) {
+        String envValue = System.getenv(envVarName);
+        String valueStr = envValue != null ? envValue : propValue;
+        if (valueStr == null) {
+            return defaultValue;
+        }
+        try {
+            long value = Long.parseLong(valueStr);
+            if (value < min || value > max) {
+                logger.warn("{}. Using default: {}", rangeMessage, defaultValue);
+                return defaultValue;
+            }
+            return value;
+        } catch (NumberFormatException e) {
+            logger.warn("Invalid value '{}' for {}. Using default: {}", valueStr, envVarName, defaultValue);
+            return defaultValue;
+        }
+    }
+
+    /**
+     * Loads and validates the log level configuration.
+     *
+     * @param props the loaded properties
+     * @return validated log level string (TRACE, DEBUG, INFO, WARN, ERROR, or OFF)
+     */
+    private static String loadLogLevel(Properties props) {
+        String envValue = System.getenv("NEXUS_LOG_LEVEL");
+        String propValue = props.getProperty("nexus.log.level");
+        String logLevelStr = envValue != null ? envValue : propValue;
+        if (logLevelStr == null) {
+            return "INFO";
+        }
+        String upperLevel = logLevelStr.toUpperCase();
+        if (Set.of("TRACE", "DEBUG", "INFO", "WARN", "ERROR", "OFF").contains(upperLevel)) {
+            return upperLevel;
+        }
+        logger.warn("Invalid log level '{}'. Valid values: TRACE, DEBUG, INFO, WARN, ERROR, OFF. Using default: INFO", logLevelStr);
+        return "INFO";
     }
 
     /**
@@ -629,24 +693,39 @@ public class Credentials {
      *
      * @return the HTTP timeout in seconds (default: 30)
      */
+    @Override
     public int getHttpTimeoutSeconds() {
         return httpTimeoutSeconds;
     }
 
     /**
      * Gets the maximum number of retry attempts for failed HTTP requests.
+     * <p>
+     * This is read from configuration (env var or properties file):
+     * - Environment variable: NEXUS_MAX_RETRIES
+     * - Properties file: nexus.http.max.retries
+     * - Default: 3
+     * </p>
      *
-     * @return the maximum number of retries (default: 3)
+     * @return the maximum number of retries (default: 3, range: 0-10)
      */
+    @Override
     public int getMaxRetries() {
         return maxRetries;
     }
 
     /**
      * Gets the initial retry delay in milliseconds for exponential backoff.
+     * <p>
+     * This is read from configuration (env var or properties file):
+     * - Environment variable: NEXUS_RETRY_DELAY_MS
+     * - Properties file: nexus.http.retry.delay.ms
+     * - Default: 1000ms
+     * </p>
      *
-     * @return the initial retry delay in milliseconds (default: 1000)
+     * @return the initial retry delay in milliseconds (default: 1000, range: 0-60000)
      */
+    @Override
     public long getInitialRetryDelayMs() {
         return initialRetryDelayMs;
     }

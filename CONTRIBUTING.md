@@ -234,26 +234,49 @@ Types:
 
 ## Reporting Issues
 
+JNexus uses structured GitHub Issue Templates to help organize and categorize issues effectively. When reporting issues, use the appropriate template for your situation.
+
 ### Bug Reports
 
-When reporting bugs, please include:
+Use the **Bug Report** template when you encounter a problem or unexpected behavior.
 
-- JNexus CLI version: `java -jar jnexus-1.0-jar-with-dependencies.jar --version`
-- Java version: `java -version`
-- Operating system
-- Steps to reproduce the issue
-- Expected behavior
-- Actual behavior
-- Error messages or stack traces
+The template will guide you to provide:
+
+- Target interface (Android, iOS, macOS, Swing, AWT, Terminal UI, or CLI)
+- JNexus version in X.Y.Z format
+- Expected vs. actual behavior
+- Clear reproduction steps
+- Dry-run verification (for deletion issues)
+- Verbose logs or error traces
+- Environment details (OS, Java version, device info)
+
+**For Security Issues:** Do NOT use the bug report template for security vulnerabilities. Instead:
+1. Email **sfloess@redhat.com** with details
+2. Or use [GitHub Security Advisories](https://github.com/FlossWare/nexus-java/security/advisories/new)
+3. Never report security issues in public GitHub issues
 
 ### Feature Requests
 
-When requesting features, please include:
+Use the **Feature Request** template when proposing new functionality or improvements.
 
-- Clear description of the feature
-- Use case / why it's needed
-- Example of how it would work
-- Any alternative solutions you've considered
+The template will guide you to provide:
+
+- Problem statement: What limitation does this solve?
+- Proposed solution: How should the feature work?
+- Target interfaces: Which platforms should this be implemented in?
+- Alternative solutions: What else have you considered?
+- Use cases and examples
+
+### Documentation Updates
+
+Use the **Documentation Update** template when you find:
+
+- Outdated information
+- Missing steps or unclear explanations
+- Typos or grammatical errors
+- Misleading examples
+
+The template includes a checklist of all documentation files for easy reference.
 
 ## Development Tips
 
@@ -300,19 +323,70 @@ The Maven enforcer plugin validates that versions follow the X.Y format:
 
 ### Creating a Release
 
-Only maintainers can create releases. There are three options:
+**Releases are now fully automated!** Push a version tag and all platforms build, test, and release automatically.
 
-**1. Automated (GitHub Actions - Recommended)**
-Push to `main` branch and the CI/CD pipeline automatically:
-- Increments version
-- Builds and tests
-- Deploys to PackageCloud
-- Creates git tag
+**Unified Release Process (Recommended):**
 
-**2. Automated (GitLab CI)**
-Push to `main`, then manually trigger `release` job in pipeline.
+```bash
+# 1. Update versions in all files
+# 2. Update CHANGELOG.md with release notes
+# 3. Commit changes
+git add pom.xml jnexus-core/build.gradle jnexus-android/build.gradle \
+        jnexus-ios/iOS/Info.plist jnexus-ios/macOS/Info.plist CHANGELOG.md
+git commit -m "chore: bump version to 2.1.0"
+git push origin main
 
-**3. Manual Script**
+# 4. Tag and release (triggers unified workflow for all platforms)
+git tag v2.1.0
+git push origin v2.1.0
+# Done! Workflow builds Desktop JAR, Android APK, iOS IPA, and macOS DMG
+```
+
+**Important:** Make sure to update the version in **all** of these files:
+- `pom.xml` - Desktop Maven version
+- `jnexus-core/build.gradle` - Shared library version
+- `jnexus-android/build.gradle` - Android app version
+- `jnexus-ios/iOS/Info.plist` - iOS app version
+- `jnexus-ios/macOS/Info.plist` - macOS app version
+- `CHANGELOG.md` - Release notes (must be formatted correctly)
+
+For detailed release instructions, troubleshooting, and rollback procedures, see [RELEASE_PROCESS.md](RELEASE_PROCESS.md).
+
+### Automated Release Workflow
+
+The unified release workflow (`.github/workflows/release.yml`) automatically:
+
+1. **Validates** version consistency across all platform files
+2. **Builds** all 4 platform artifacts in parallel:
+   - Desktop JAR (Java 21, Maven, ~5 min)
+   - Android APK (Gradle, Kotlin, ~8 min)
+   - iOS IPA (Xcode, Swift, ~10 min, optional signing)
+   - macOS DMG (Xcode, Swift, ~8 min, optional signing)
+3. **Creates** a GitHub Release with all artifacts and release notes
+4. **Deploys** Desktop JAR to PackageCloud.io
+5. **Posts** a release summary with status of all platforms
+
+Total build time: **10-15 minutes** (iOS/macOS builds are slowest)
+
+**Monitor the workflow:**
+1. Go to your repository → **Actions** tab
+2. Click the **Unified Release** workflow run
+3. View progress and build logs for each platform
+4. Check the final GitHub Release page for artifacts
+
+**The unified release workflow:**
+- ✅ Validates version consistency across all files
+- ✅ Builds all 4 platforms in parallel (~10-15 minutes)
+- ✅ Creates GitHub Release with all artifacts
+- ✅ Deploys Desktop JAR to PackageCloud.io
+- ✅ Extracts changelog from CHANGELOG.md
+
+**For detailed instructions, see [RELEASE_PROCESS.md](RELEASE_PROCESS.md)**
+
+### Alternative: Manual Release (Desktop Only)
+
+For desktop-only releases without Android/iOS:
+
 ```bash
 ./ci/rev-version.sh
 ```
@@ -327,6 +401,11 @@ This will:
 
 **Note:** Major version bumps (e.g., 1.9 → 2.0) require manual editing of
 `pom.xml` before running the script.
+
+### CI/CD Platform Support
+
+- **GitHub Actions** (Primary): Unified release workflow + Desktop CI
+- **GitLab CI** (Secondary): Desktop CI only
 
 For detailed CI/CD documentation, see [CI-CD.md](CI-CD.md).
 

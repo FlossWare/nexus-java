@@ -10,8 +10,13 @@ import java.util.List;
  * - Desktop: CredentialsFile (uses ~/.flossware/nexus/nexus.properties)
  * - Android: CredentialsAndroid (uses EncryptedSharedPreferences)
  * </p>
+ * <p>
+ * Credentials extends HttpConfig to provide both authentication and HTTP
+ * configuration parameters. This allows HTTP client implementations to accept
+ * a single Credentials object that provides all necessary configuration.
+ * </p>
  */
-public interface Credentials {
+public interface Credentials extends HttpConfig {
 
     /**
      * Gets the Nexus server URL.
@@ -78,6 +83,7 @@ public interface Credentials {
 
     /**
      * Gets the maximum number of retry attempts for failed HTTP requests.
+<<<<<<< HEAD
      *
      * @return the maximum number of retries (default: 3)
      */
@@ -89,4 +95,33 @@ public interface Credentials {
      * @return the initial retry delay in milliseconds (default: 1000)
      */
     long getInitialRetryDelayMs();
+=======
+     * <p>
+     * Applies exponential backoff with initial delay from {@link #getInitialRetryDelayMs()}.
+     * </p>
+     *
+     * @return the maximum number of retries (default: 3, valid range: 0-10)
+     */
+    @Override
+    default int getMaxRetries() {
+        return 3;
+    }
+
+    /**
+     * Gets the initial retry delay in milliseconds for exponential backoff.
+     * <p>
+     * Actual delay increases exponentially: delay, 2×delay, 4×delay, etc.
+     * For example, with initialDelay=1000:
+     * - Attempt 1 fails: wait 1000ms
+     * - Attempt 2 fails: wait 2000ms
+     * - Attempt 3 fails: wait 4000ms
+     * </p>
+     *
+     * @return the initial retry delay in milliseconds (default: 1000, valid range: 0-60000)
+     */
+    @Override
+    default long getInitialRetryDelayMs() {
+        return 1000;
+    }
+>>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
 }

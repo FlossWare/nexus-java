@@ -1,8 +1,11 @@
 # JNexus
 
 [![Latest Release](https://img.shields.io/github/v/release/FlossWare/nexus-java)](https://github.com/FlossWare/nexus-java/releases/latest)
-[![Android APK](https://img.shields.io/badge/Android%20APK-Download-green)](https://github.com/FlossWare/nexus-java/releases/latest/download/nexus-java-android-1.2.apk)
-[![Desktop JAR](https://img.shields.io/badge/Desktop%20JAR-Download-blue)](https://github.com/FlossWare/nexus-java/packages)
+[![Unified Release](https://github.com/FlossWare/nexus-java/actions/workflows/release.yml/badge.svg)](https://github.com/FlossWare/nexus-java/actions/workflows/release.yml)
+[![CI](https://github.com/FlossWare/nexus-java/actions/workflows/main.yml/badge.svg)](https://github.com/FlossWare/nexus-java/actions/workflows/main.yml)
+[![Android APK](https://img.shields.io/badge/Android%20APK-Download-green)](https://github.com/FlossWare/nexus-java/releases/latest)
+[![Desktop JAR](https://img.shields.io/badge/Desktop%20JAR-Download-blue)](https://github.com/FlossWare/nexus-java/releases/latest)
+[![Javadoc](https://img.shields.io/badge/Javadoc-API%20Reference-blue)](https://flossware.github.io/nexus-java/javadoc/)
 
 A cross-platform tool for managing Sonatype Nexus repositories - available as CLI, GUI (Swing/AWT/Terminal), Android mobile app, and iOS/iPadOS/macOS native apps.
 
@@ -52,14 +55,14 @@ A cross-platform tool for managing Sonatype Nexus repositories - available as CL
   - Secure Keychain credential storage (AES256 hardware-backed)
   - iPad-optimized layouts (split view, landscape support)
   - SwiftUI with Material Design patterns
-  - See [iOS README](nexus-java-ios/README.md) for installation
+  - See [iOS README](jnexus-ios/README.md) for installation
 - **Android Mobile App** - Native Android app with Jetpack Compose UI (v1.2):
   - List, search, and delete components on Android devices
   - Advanced filters (size, date, extension, regex)
   - Repository statistics with charts
   - Secure credential storage with AES256 encryption
   - Material Design 3 UI
-  - See [Android README](nexus-java-android/README.md) for installation
+  - See [Android README](jnexus-android/README.md) for installation
 
 **Desktop Apps:**
 - **macOS Native App** - Native Swift app with SwiftUI (NEW in v1.0):
@@ -67,7 +70,7 @@ A cross-platform tool for managing Sonatype Nexus repositories - available as CL
   - Menu bar integration
   - Multi-window support
   - Secure Keychain credential storage
-  - See [iOS README](nexus-java-ios/README.md) for installation
+  - See [iOS README](jnexus-ios/README.md) for installation
 - **Swing GUI** - Modern graphical interface:
   - Advanced filters panel (collapsible)
   - Table with 7 metadata columns
@@ -105,6 +108,63 @@ A cross-platform tool for managing Sonatype Nexus repositories - available as CL
 
 ## Installation
 
+### macOS (Homebrew)
+
+```bash
+brew install flossware/tap/jnexus
+```
+
+### Linux (Snap)
+
+```bash
+sudo snap install jnexus
+```
+
+### Linux / macOS / Windows (Direct Download)
+
+Download the latest JAR from [GitHub Releases](https://github.com/FlossWare/nexus-java/releases/latest):
+
+```bash
+# Download latest release
+wget https://github.com/FlossWare/nexus-java/releases/latest/download/jnexus-desktop-*.jar
+
+# Run
+java -jar jnexus-desktop-*.jar --help
+```
+
+### Android
+
+- **Google Play Store**: Coming soon
+- **F-Droid**: Coming soon
+- **GitHub Releases**: [Download APK](https://github.com/FlossWare/nexus-java/releases/latest) (Android 8.0+)
+
+### iOS / iPadOS
+
+- **App Store**: Coming soon
+- **GitHub Releases**: [Download IPA](https://github.com/FlossWare/nexus-java/releases/latest)
+
+### macOS Native
+
+- **App Store**: Coming soon
+- **GitHub Releases**: [Download DMG](https://github.com/FlossWare/nexus-java/releases/latest)
+
+### As a Library (Maven Central)
+
+Use jnexus-core as a dependency in your Java project:
+
+```xml
+<dependency>
+    <groupId>org.flossware</groupId>
+    <artifactId>jnexus-core</artifactId>
+    <version>2.0.0</version>
+</dependency>
+```
+
+Or with Gradle:
+```gradle
+implementation 'org.flossware:jnexus-core:2.0.0'
+```
+
 ### Desktop - Build from source
 
 ```bash
@@ -117,20 +177,20 @@ This creates an executable JAR at `target/nexus-java-1.0-jar-with-dependencies.j
 
 ```bash
 # Build the debug APK
-./gradlew :nexus-java-android:assembleDebug
+./gradlew :jnexus-android:assembleDebug
 
 # Or build the release APK (requires signing configuration)
-./gradlew :nexus-java-android:assembleRelease
+./gradlew :jnexus-android:assembleRelease
 ```
 
-The APK will be at `nexus-java-android/build/outputs/apk/debug/nexus-java-android-debug.apk`.
+The APK will be at `jnexus-android/build/outputs/apk/debug/jnexus-android-debug.apk`.
 
 Install on your Android device:
 ```bash
-adb install nexus-java-android/build/outputs/apk/debug/nexus-java-android-debug.apk
+adb install jnexus-android/build/outputs/apk/debug/jnexus-android-debug.apk
 ```
 
-See the [Android README](nexus-java-android/README.md) for detailed setup instructions.
+See the [Android README](jnexus-android/README.md) for detailed setup instructions.
 
 ## Configuration
 
@@ -277,7 +337,7 @@ The Android app provides full Nexus repository management on mobile devices:
 - Material Design 3 for consistent Android experience
 - EncryptedSharedPreferences for secure credential storage
 
-See the [Android README](nexus-java-android/README.md) for detailed documentation.
+See the [Android README](jnexus-android/README.md) for detailed documentation.
 
 ### Swing GUI (Desktop)
 
@@ -725,7 +785,31 @@ Email: sfloess@redhat.com
 
 See [SECURITY.md](SECURITY.md) for complete security documentation.
 
+## API Documentation
+
+- [Javadoc API Reference](https://flossware.github.io/nexus-java/javadoc/) - Auto-generated from `main` branch
+  - [jnexus-core](https://flossware.github.io/nexus-java/javadoc/core/) - Shared business logic and data models (Java 17)
+  - [Desktop](https://flossware.github.io/nexus-java/javadoc/desktop/) - CLI, Swing, AWT, Terminal UI classes (Java 21)
+
 ## Documentation
+
+### User Guides
+
+- **[Getting Started](docs/getting-started.md)**: Quick start for all platforms
+- **Platform Guides:**
+  - **[CLI Guide](docs/guides/cli-guide.md)**: Command reference, scripting examples, advanced filtering
+  - **[Swing GUI Guide](docs/guides/swing-gui-guide.md)**: Table interface, statistics dialog, keyboard shortcuts
+  - **[AWT GUI Guide](docs/guides/awt-gui-guide.md)**: Classic interface, compatibility notes
+  - **[Terminal UI Guide](docs/guides/terminal-ui-guide.md)**: Keyboard navigation, ncurses setup
+  - **[Android Guide](docs/guides/android-guide.md)**: Installation, screens, gestures
+  - **[iOS/iPadOS Guide](docs/guides/ios-guide.md)**: Installation, tab navigation, iPad layouts
+  - **[macOS Guide](docs/guides/macos-guide.md)**: Sidebar navigation, menu bar, keyboard shortcuts
+- **Advanced Topics:**
+  - **[Configuration Guide](docs/advanced/configuration-guide.md)**: Profiles, environment variables, encryption
+  - **[Filtering Guide](docs/advanced/filtering-guide.md)**: Regex patterns, size/date/extension filters
+  - **[Statistics Guide](docs/advanced/statistics-guide.md)**: Analytics, size distribution, reporting
+  - **[Troubleshooting](docs/advanced/troubleshooting.md)**: Common errors and solutions
+  - **[Best Practices](docs/advanced/best-practices.md)**: Security, automation, performance tips
 
 ### For Developers
 
@@ -740,6 +824,25 @@ See [SECURITY.md](SECURITY.md) for complete security documentation.
 - **[COMPARISON.md](COMPARISON.md)**: Comparison with other Nexus tools
 - **[API_COMPATIBILITY.md](API_COMPATIBILITY.md)**: API versioning and compatibility policy
 - **[QUALITY.md](QUALITY.md)**: Quality assurance and testing strategy
+
+### Video Tutorials
+
+Video scripts and production guides are available in [`docs/video-tutorials/`](docs/video-tutorials/). Planned tutorials include:
+
+| # | Title | Length | Audience |
+|---|-------|--------|----------|
+| 1 | JNexus in 90 Seconds | 1:30 | First-time visitors |
+| 2 | Getting Started with JNexus CLI | 5:00 | CLI users, DevOps engineers |
+| 3 | JNexus Swing GUI Walkthrough | 6:00 | Desktop GUI users |
+| 4 | Safe Deletion with Dry-Run Mode | 3:00 | Anyone doing deletions |
+| 5 | Advanced Filtering and Search | 4:00 | Power users |
+| 6 | Repository Statistics and Analytics | 5:00 | Repository managers |
+| 7 | JNexus on Android | 4:00 | Mobile users |
+| 8 | JNexus on iOS and macOS | 5:00 | Apple ecosystem users |
+| 9 | Multi-Profile Configuration | 3:00 | Multi-environment users |
+| 10 | Troubleshooting Common Issues | 4:00 | Users needing help |
+
+See the [Video Tutorials README](docs/video-tutorials/README.md) for scripts and the [Production Guide](docs/video-tutorials/PRODUCTION_GUIDE.md) for recording details.
 
 ### Operations
 

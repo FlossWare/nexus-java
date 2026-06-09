@@ -1,9 +1,22 @@
+##############################################################################
+# NOTE: This workflow is superseded by the unified release.yml workflow
+# which builds Desktop, Android, iOS, and macOS from a single tag push.
+# This file is retained for backward compatibility but should not be used
+# for new releases. See .github/workflows/release.yml instead.
+##############################################################################
 name: Android Release
 
 on:
-  push:
-    tags:
-      - 'v*'
+  # Disabled -- unified release.yml now handles tag-triggered Android builds.
+  # Uncomment the lines below to re-enable standalone Android releases.
+  # push:
+  #   tags:
+  #     - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Version tag (e.g. v1.2.3)'
+        required: true
 
 jobs:
   release-android:

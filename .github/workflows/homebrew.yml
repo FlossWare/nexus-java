@@ -1,0 +1,107 @@
+name: Update Homebrew Tap
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  update-homebrew:
+    name: Update Homebrew Formula
+    runs-on: ubuntu-latest
+    if: "!github.event.release.prerelease"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get release info
+        id: release
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "tag=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
+
+      - name: Download JAR from release
+        run: |
+          mkdir -p artifacts
+          # Try the versioned desktop JAR first (from unified release workflow)
+          gh release download "${GITHUB_REF_NAME}" \
+            --pattern "jnexus-desktop-*.jar" \
+            --dir artifacts/ || true
+          # Fallback: try the nexus-java- prefix pattern
+          if [ -z "$(ls artifacts/*.jar 2>/dev/null)" ]; then
+            gh release download "${GITHUB_REF_NAME}" \
+              --pattern "nexus-java-*-jar-with-dependencies.jar" \
+              --dir artifacts/ || true
+          fi
+          # Fallback: try the jnexus- prefix pattern
+          if [ -z "$(ls artifacts/*.jar 2>/dev/null)" ]; then
+            gh release download "${GITHUB_REF_NAME}" \
+              --pattern "jnexus-*-jar-with-dependencies.jar" \
+              --dir artifacts/ || true
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Calculate SHA256
+        id: sha
+        run: |
+          JAR_FILE=$(ls artifacts/*.jar 2>/dev/null | head -1)
+          if [ -z "$JAR_FILE" ]; then
+            echo "Error: No JAR file found in release"
+            exit 1
+          fi
+          SHA256=$(sha256sum "$JAR_FILE" | cut -d' ' -f1)
+          JAR_NAME=$(basename "$JAR_FILE")
+          echo "sha256=${SHA256}" >> $GITHUB_OUTPUT
+          echo "jar_name=${JAR_NAME}" >> $GITHUB_OUTPUT
+          echo "SHA256: ${SHA256}"
+          echo "JAR: ${JAR_NAME}"
+
+      - name: Update Homebrew tap
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION=${{ steps.release.outputs.version }}
+          SHA256=${{ steps.sha.outputs.sha256 }}
+          JAR_NAME=${{ steps.sha.outputs.jar_name }}
+          TAG=${{ steps.release.outputs.tag }}
+
+          if [ -z "${{ secrets.HOMEBREW_TAP_TOKEN }}" ]; then
+            echo "Note: HOMEBREW_TAP_TOKEN not configured, skipping Homebrew update"
+            exit 0
+          fi
+
+          git clone https://x-access-token:${{ secrets.HOMEBREW_TAP_TOKEN }}@github.com/FlossWare/homebrew-tap.git tap-repo
+          cd tap-repo
+
+          mkdir -p Formula
+
+          # Generate formula with proper Ruby syntax
+          # Split into static and dynamic parts to avoid shell interpolation issues
+          {
+            echo 'class Jnexus < Formula'
+            echo '  desc "Sonatype Nexus repository management tool"'
+            echo '  homepage "https://github.com/FlossWare/nexus-java"'
+            echo "  url \"https://github.com/FlossWare/nexus-java/releases/download/${TAG}/${JAR_NAME}\""
+            echo "  sha256 \"${SHA256}\""
+            echo '  license "Apache-2.0"'
+            echo ''
+            echo '  depends_on "openjdk@21"'
+            echo ''
+            echo '  def install'
+            echo '    libexec.install Dir["*.jar"].first => "jnexus.jar"'
+            echo '    bin.write_jar_script libexec/"jnexus.jar", "jnexus"'
+            echo '  end'
+            echo ''
+            echo '  test do'
+            echo '    assert_match "JNexus", shell_output("#{bin}/jnexus --version 2>&1", 0)'
+            echo '  end'
+            echo 'end'
+          } > Formula/jnexus.rb
+
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add Formula/jnexus.rb
+          git diff --cached --quiet && echo "No changes to commit" && exit 0
+          git commit -m "Update jnexus to ${VERSION}"
+          git push

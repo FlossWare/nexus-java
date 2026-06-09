@@ -23,8 +23,8 @@ ADRs help new contributors understand the reasoning behind architectural choices
 - [ADR-0002](0002-multi-module-architecture.md) - **Multi-Module Architecture** (2026-05-22, Partially Implemented)  
   Why jnexus-core exists for shared code between desktop and Android
 
-- [ADR-0003](0003-four-ui-approaches.md) - **Four UI Approaches** (2024-Present)  
-  Why we maintain CLI, Swing GUI, AWT GUI, and Terminal UI
+- [ADR-0003](0003-four-ui-approaches.md) - **Seven Distinct User Interfaces** (2024-Present)  
+  Why we maintain CLI, Swing GUI, AWT GUI, Terminal UI, Android, iOS, and macOS apps
 
 - [ADR-0004](0004-java-version-strategy.md) - **Java Version Strategy** (2026-05-22)  
   Why desktop uses Java 21 and core uses Java 11
@@ -34,6 +34,9 @@ ADRs help new contributors understand the reasoning behind architectural choices
 
 - [ADR-0006](0006-interface-based-http-client.md) - **Interface-Based HTTP Client** (2026-05-22, Partially Implemented)  
   Why NexusHttpClient interface abstracts HTTP layer
+
+- [ADR-0007](0007-semantic-versioning-adoption.md) - **Semantic Versioning (X.Y.Z) Adoption** (2026-05-28)  
+  Why we switched from X.Y auto-incrementing to semantic versioning
 
 ### Partially Implemented
 

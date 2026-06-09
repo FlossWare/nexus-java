@@ -1,5 +1,9 @@
 package org.flossware.nexus;
 
+<<<<<<< HEAD
+=======
+import org.flossware.jnexus.RepoRecord;
+>>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -281,6 +285,7 @@ class DeletionHistoryTest {
     }
 
     @Test
+<<<<<<< HEAD
     void testEscapeJson() {
         assertEquals("", DeletionHistory.escapeJson(null));
         assertEquals("simple", DeletionHistory.escapeJson("simple"));
@@ -289,6 +294,25 @@ class DeletionHistoryTest {
         assertEquals("new\\nline", DeletionHistory.escapeJson("new\nline"));
         assertEquals("tab\\there", DeletionHistory.escapeJson("tab\there"));
         assertEquals("carriage\\rreturn", DeletionHistory.escapeJson("carriage\rreturn"));
+=======
+    void testJsonSerializationWithSpecialCharacters() {
+        // Test that Jackson properly escapes special characters
+        history.recordDeletion("id1", "path/with\"quotes.jar", 1000, "repo");
+        history.recordDeletion("id2", "path/with\\backslash.jar", 2000, "repo");
+        history.recordDeletion("id3", "path/with\ttab.jar", 3000, "repo");
+
+        String json = history.toJson();
+
+        // Jackson should produce valid JSON with proper escaping
+        assertNotNull(json);
+        assertTrue(json.contains("\\\""), "Quotes should be escaped");
+        assertTrue(json.contains("\\\\"), "Backslashes should be escaped");
+        assertTrue(json.contains("\\t"), "Tabs should be escaped");
+
+        // Verify it's valid JSON by checking it can be parsed
+        assertTrue(json.startsWith("{"));
+        assertTrue(json.contains("\"components\""));
+>>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
     }
 
     @Test

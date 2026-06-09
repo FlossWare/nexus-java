@@ -25,6 +25,8 @@
 - **[CI-CD.md](CI-CD.md)**: Build and release processes
 - **[SECURITY.md](SECURITY.md)**: Security considerations and best practices
 - **[CONTRIBUTING.md](CONTRIBUTING.md)**: Contribution guidelines
+- **[docs/adr/](docs/adr/README.md)**: Architecture Decision Records (ADRs)
+- **[docs/video-tutorials/](docs/video-tutorials/README.md)**: Video tutorial scripts and production guide
 
 ## Key Architectural Decisions
 

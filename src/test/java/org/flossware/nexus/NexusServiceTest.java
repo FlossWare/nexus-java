@@ -1,5 +1,9 @@
 package org.flossware.nexus;
 
+import org.flossware.jnexus.ComponentMetadata;
+import org.flossware.jnexus.RepoRecord;
+import org.flossware.jnexus.RepositoryStats;
+import org.flossware.jnexus.SearchCriteria;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -388,6 +392,94 @@ class NexusServiceTest {
         assertEquals(0L, stats.totalSize());
         assertEquals(0L, stats.averageSize());
         assertEquals(0L, stats.medianSize());
+    }
+
+    @Test
+    void testOptionalDeletionHistory_NullHistory() throws IOException, InterruptedException {
+        List<RepoRecord> mockRecords = List.of(
+            new RepoRecord("id1", 1000, "path/to/artifact1.jar")
+        );
+
+        when(mockClient.listComponents(eq("test-repo"), anyBoolean())).thenReturn(mockRecords);
+        doNothing().when(mockClient).deleteComponent(anyString());
+
+        // Create service with null deletion history
+        NexusService serviceNoDeletion = new NexusService(mockClient, null);
+
+        // Should handle deletion without NPE even with null deletionHistory
+        serviceNoDeletion.deleteFromRepository("test-repo", null, false);
+
+        verify(mockClient).deleteComponent("id1");
+        assertNull(serviceNoDeletion.getDeletionHistory(), "getDeletionHistory should return null");
+    }
+
+    @Test
+    void testOptionalDeletionHistory_WithHistory() throws IOException, InterruptedException {
+        List<RepoRecord> mockRecords = List.of(
+            new RepoRecord("id1", 1000, "path/to/artifact1.jar"),
+            new RepoRecord("id2", 2000, "path/to/artifact2.jar")
+        );
+
+        when(mockClient.listComponents(eq("test-repo"), anyBoolean())).thenReturn(mockRecords);
+        doNothing().when(mockClient).deleteComponent(anyString());
+
+        DeletionHistory history = new DeletionHistory();
+        NexusService serviceWithHistory = new NexusService(mockClient, history);
+
+        serviceWithHistory.deleteFromRepository("test-repo", null, false);
+
+        verify(mockClient, times(2)).deleteComponent(anyString());
+        assertNotNull(serviceWithHistory.getDeletionHistory(), "getDeletionHistory should not be null");
+        assertEquals(2, serviceWithHistory.getDeletionHistory().size(), "Should record both deletions");
+    }
+
+    @Test
+    void testWithoutDeletionHistory_FactoryMethod() throws IOException, InterruptedException {
+        List<RepoRecord> mockRecords = List.of(
+            new RepoRecord("id1", 1000, "path/to/artifact1.jar")
+        );
+
+        when(mockClient.listComponents(eq("test-repo"), anyBoolean())).thenReturn(mockRecords);
+        doNothing().when(mockClient).deleteComponent(anyString());
+
+        // Use factory method to create service without deletion history
+        NexusService serviceNoDeletion = NexusService.withoutDeletionHistory(mockClient);
+
+        serviceNoDeletion.deleteFromRepository("test-repo", null, false);
+
+        verify(mockClient).deleteComponent("id1");
+        assertNull(serviceNoDeletion.getDeletionHistory(), "Factory method should create service with null history");
+    }
+
+    @Test
+    void testDeletionHistoryRecording_OnlyWhenNotNull() throws IOException, InterruptedException {
+        List<RepoRecord> mockRecords = List.of(
+            new RepoRecord("id1", 1000, "path/to/artifact1.jar"),
+            new RepoRecord("id2", 2000, "path/to/artifact2.jar"),
+            new RepoRecord("id3", 3000, "path/to/artifact3.jar")
+        );
+
+        when(mockClient.listComponents(eq("test-repo"), anyBoolean())).thenReturn(mockRecords);
+        doNothing().when(mockClient).deleteComponent(anyString());
+
+        // Test with history enabled
+        DeletionHistory history = new DeletionHistory();
+        NexusService serviceWith = new NexusService(mockClient, history);
+        serviceWith.deleteFromRepository("test-repo", ".*1$|.*2$", false);
+        assertEquals(2, history.size(), "Should record 2 deletions");
+
+        // Reset mock
+        reset(mockClient);
+        when(mockClient.listComponents(eq("test-repo"), anyBoolean())).thenReturn(mockRecords);
+        doNothing().when(mockClient).deleteComponent(anyString());
+
+        // Test with history disabled
+        NexusService serviceWithout = NexusService.withoutDeletionHistory(mockClient);
+        serviceWithout.deleteFromRepository("test-repo", ".*1$|.*2$", false);
+        assertNull(serviceWithout.getDeletionHistory(), "Should have no history tracking");
+
+        // Both should have deleted same number of components
+        verify(mockClient, times(4)).deleteComponent(anyString()); // 2 from first + 2 from second
     }
 
     @org.junit.jupiter.api.AfterEach

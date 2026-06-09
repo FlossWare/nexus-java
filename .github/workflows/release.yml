@@ -1,0 +1,733 @@
+name: Unified Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Version tag to release (e.g. v2.1.0). Must already exist.'
+        required: true
+
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  # ──────────────────────────────────────────────
+  # Prepare: Extract version, changelog, validate
+  # ──────────────────────────────────────────────
+  prepare:
+    name: Prepare Release
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
+      changelog: ${{ steps.get_changelog.outputs.changelog }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get version from tag
+        id: get_version
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Extract changelog for this version
+        id: get_changelog
+        run: |
+          VERSION="${{ steps.get_version.outputs.version }}"
+          # Extract section from CHANGELOG.md between this version header and the next
+          NOTES=$(sed -n "/## \[${VERSION}\]/,/## \[/p" CHANGELOG.md | head -n -1 2>/dev/null || true)
+          if [ -z "$NOTES" ]; then
+            # Fallback: try Unreleased section
+            NOTES=$(sed -n '/## \[Unreleased\]/,/## \[/p' CHANGELOG.md | head -n -1 2>/dev/null || true)
+          fi
+          if [ -z "$NOTES" ]; then
+            NOTES="Release v${VERSION}"
+          fi
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$NOTES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Verify version consistency
+        run: |
+          VERSION="${{ steps.get_version.outputs.version }}"
+          echo "Verifying version consistency for v${VERSION}..."
+          ERRORS=0
+
+          # Check pom.xml version (desktop) -- look at first <version> under <project>
+          POM_VERSION=$(grep -m1 '<version>' pom.xml | sed 's/.*<version>\(.*\)<\/version>.*/\1/' | tr -d ' ')
+          echo "pom.xml version: ${POM_VERSION}"
+          if [ "${POM_VERSION}" = "${VERSION}" ]; then
+            echo "  ✓ pom.xml version matches tag"
+          else
+            echo "::warning::pom.xml version (${POM_VERSION}) does not match tag (${VERSION}). Modules may use independent versioning."
+          fi
+
+          # Check jnexus-core/build.gradle version
+          CORE_VERSION=$(grep "^version" jnexus-core/build.gradle | sed "s/version = '\(.*\)'/\1/" | tr -d ' ')
+          echo "jnexus-core/build.gradle version: ${CORE_VERSION}"
+          if [ "${CORE_VERSION}" = "${VERSION}" ]; then
+            echo "  ✓ jnexus-core version matches tag"
+          else
+            echo "::warning::jnexus-core version (${CORE_VERSION}) does not match tag (${VERSION}). Modules may use independent versioning."
+          fi
+
+          # Check jnexus-android/build.gradle version
+          ANDROID_VERSION=$(grep "versionName" jnexus-android/build.gradle | sed 's/.*versionName "\(.*\)".*/\1/' | tr -d ' ' | head -1)
+          echo "jnexus-android/build.gradle version: ${ANDROID_VERSION}"
+          if [ "${ANDROID_VERSION}" = "${VERSION}" ]; then
+            echo "  ✓ jnexus-android version matches tag"
+          else
+            echo "::warning::jnexus-android version (${ANDROID_VERSION}) does not match tag (${VERSION}). Modules may use independent versioning."
+          fi
+
+          # Check iOS Info.plist versions (if exists)
+          if [ -f "jnexus-ios/iOS/Info.plist" ]; then
+            IOS_VERSION=$(grep -A1 "CFBundleShortVersionString" jnexus-ios/iOS/Info.plist | grep string | sed 's/.*<string>\(.*\)<\/string>.*/\1/' | tr -d ' ')
+            echo "jnexus-ios/iOS/Info.plist version: ${IOS_VERSION}"
+            if [ "${IOS_VERSION}" = "${VERSION}" ]; then
+              echo "  ✓ iOS version matches tag"
+            else
+              echo "::warning::iOS version (${IOS_VERSION}) does not match tag (${VERSION})."
+            fi
+          fi
+
+          # Check macOS Info.plist versions (if exists)
+          if [ -f "jnexus-ios/macOS/Info.plist" ]; then
+            MACOS_VERSION=$(grep -A1 "CFBundleShortVersionString" jnexus-ios/macOS/Info.plist | grep string | sed 's/.*<string>\(.*\)<\/string>.*/\1/' | tr -d ' ')
+            echo "jnexus-ios/macOS/Info.plist version: ${MACOS_VERSION}"
+            if [ "${MACOS_VERSION}" = "${VERSION}" ]; then
+              echo "  ✓ macOS version matches tag"
+            else
+              echo "::warning::macOS version (${MACOS_VERSION}) does not match tag (${VERSION})."
+            fi
+          fi
+
+      - name: Version summary
+        run: |
+          echo "## Release Preparation" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${{ steps.get_version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Changelog" >> $GITHUB_STEP_SUMMARY
+          echo "${{ steps.get_changelog.outputs.changelog }}" >> $GITHUB_STEP_SUMMARY
+
+  # ──────────────────────────────────────────────
+  # Build Desktop JAR (Ubuntu, Maven, Java 21)
+  # ──────────────────────────────────────────────
+  build-desktop:
+    name: Build Desktop JAR
+    needs: prepare
+    runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          cache: maven
+
+      - name: Cache Maven dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2/repository
+          key: ${{ runner.os }}-maven-release-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven-release-
+            ${{ runner.os }}-maven-
+
+      - name: Build and test JAR
+        run: mvn -B clean package
+
+      - name: Rename JAR with version
+        run: |
+          VERSION="${{ needs.prepare.outputs.version }}"
+          JAR_FILE=$(ls target/*-jar-with-dependencies.jar 2>/dev/null | head -1)
+          if [ -n "$JAR_FILE" ]; then
+            cp "$JAR_FILE" "target/jnexus-desktop-${VERSION}.jar"
+            echo "Created: target/jnexus-desktop-${VERSION}.jar"
+          else
+            echo "::error::No fat JAR found in target/"
+            exit 1
+          fi
+
+      - name: Generate SBOM
+        continue-on-error: true
+        run: mvn -B cyclonedx:makeAggregateBom -DskipTests
+
+      - name: Upload Desktop JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: jnexus-desktop-${{ needs.prepare.outputs.version }}
+          path: target/jnexus-desktop-${{ needs.prepare.outputs.version }}.jar
+          retention-days: 90
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ needs.prepare.outputs.version }}
+          path: |
+            target/jnexus-sbom.json
+            target/jnexus-sbom.xml
+          if-no-files-found: ignore
+          retention-days: 90
+
+  # ──────────────────────────────────────────────
+  # Build Android APK (Ubuntu, Gradle, Java 21)
+  # ──────────────────────────────────────────────
+  build-android:
+    name: Build Android APK
+    needs: prepare
+    runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          cache: gradle
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Build jnexus-core
+        run: gradle :jnexus-core:build
+
+      - name: Run jnexus-core tests
+        run: gradle :jnexus-core:test
+
+      - name: Build Android Debug APK
+        run: gradle :jnexus-android:assembleDebug
+
+      - name: Build Android Release APK
+        continue-on-error: true
+        run: gradle :jnexus-android:assembleRelease
+
+      - name: Run Android unit tests
+        continue-on-error: true
+        run: gradle :jnexus-android:testDebugUnitTest
+
+      - name: Sign Release APK
+        id: sign_apk
+        if: env.ANDROID_SIGNING_KEY != ''
+        continue-on-error: true
+        uses: r0adkll/sign-android-release@v1
+        with:
+          releaseDirectory: jnexus-android/build/outputs/apk/release
+          signingKeyBase64: ${{ secrets.ANDROID_SIGNING_KEY }}
+          alias: ${{ secrets.ANDROID_KEY_ALIAS }}
+          keyStorePassword: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          keyPassword: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        env:
+          ANDROID_SIGNING_KEY: ${{ secrets.ANDROID_SIGNING_KEY }}
+
+      - name: Rename APKs with version
+        run: |
+          VERSION="${{ needs.prepare.outputs.version }}"
+
+          # Debug APK (always available, signed with debug keystore)
+          if [ -f jnexus-android/build/outputs/apk/debug/jnexus-android-debug.apk ]; then
+            cp jnexus-android/build/outputs/apk/debug/jnexus-android-debug.apk \
+               "jnexus-android-${VERSION}.apk"
+            echo "Created: jnexus-android-${VERSION}.apk"
+          fi
+
+          # Signed release APK (if signing secrets are configured)
+          SIGNED_APK=$(find jnexus-android/build/outputs/apk/release -name "*-signed.apk" 2>/dev/null | head -1)
+          if [ -n "$SIGNED_APK" ]; then
+            cp "$SIGNED_APK" "jnexus-android-${VERSION}-release-signed.apk"
+            echo "Created: jnexus-android-${VERSION}-release-signed.apk"
+          fi
+
+      - name: Upload Android APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: jnexus-android-${{ needs.prepare.outputs.version }}
+          path: jnexus-android-${{ needs.prepare.outputs.version }}*.apk
+          retention-days: 90
+
+  # ──────────────────────────────────────────────
+  # Build iOS IPA (macOS, Xcode)
+  # ──────────────────────────────────────────────
+  build-ios:
+    name: Build iOS IPA
+    needs: prepare
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Xcode
+        run: |
+          sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
+          xcodebuild -version
+
+      - name: Install Apple Certificate
+        id: install_cert
+        if: env.IOS_BUILD_CERTIFICATE != ''
+        env:
+          BUILD_CERTIFICATE_BASE64: ${{ secrets.IOS_BUILD_CERTIFICATE }}
+          P12_PASSWORD: ${{ secrets.IOS_P12_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.IOS_KEYCHAIN_PASSWORD }}
+          IOS_BUILD_CERTIFICATE: ${{ secrets.IOS_BUILD_CERTIFICATE }}
+        run: |
+          # Decode certificate
+          echo -n "$BUILD_CERTIFICATE_BASE64" | base64 --decode -o certificate.p12
+
+          # Create temporary keychain
+          KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain-db
+          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+
+          # Import certificate
+          security import certificate.p12 -k $KEYCHAIN_PATH -P "$P12_PASSWORD" \
+            -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple:,codesign: \
+            -s -k "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security list-keychain -d user -s $KEYCHAIN_PATH
+
+          echo "cert_installed=true" >> $GITHUB_OUTPUT
+
+      - name: Install Provisioning Profile
+        if: env.IOS_PROVISIONING_PROFILE != ''
+        env:
+          PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE }}
+          IOS_PROVISIONING_PROFILE: ${{ secrets.IOS_PROVISIONING_PROFILE }}
+        run: |
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo -n "$PROVISIONING_PROFILE_BASE64" | base64 --decode \
+            -o ~/Library/MobileDevice/Provisioning\ Profiles/profile.mobileprovision
+
+      - name: Build iOS (Simulator - always runs)
+        continue-on-error: true
+        run: |
+          cd jnexus-ios
+          SIMULATOR=$(xcrun simctl list devices available iPhone | grep -oE 'iPhone [0-9]+' | tail -1)
+          echo "Using simulator: ${SIMULATOR:-iPhone 16}"
+          xcodebuild -scheme JNexus \
+            -sdk iphonesimulator \
+            -configuration Release \
+            -destination "platform=iOS Simulator,name=${SIMULATOR:-iPhone 16}" \
+            -skipPackagePluginValidation \
+            CODE_SIGNING_ALLOWED=NO \
+            build 2>&1 | tail -30
+
+      - name: Archive iOS App (requires signing)
+        if: steps.install_cert.outputs.cert_installed == 'true'
+        continue-on-error: true
+        run: |
+          cd jnexus-ios
+          xcodebuild -scheme JNexus \
+            -configuration Release \
+            -archivePath build/JNexus.xcarchive \
+            archive 2>&1 | tail -30
+
+      - name: Export iOS IPA
+        if: steps.install_cert.outputs.cert_installed == 'true'
+        continue-on-error: true
+        run: |
+          if [ -d "jnexus-ios/build/JNexus.xcarchive" ]; then
+            cd jnexus-ios
+            printf '%s\n' \
+              '<?xml version="1.0" encoding="UTF-8"?>' \
+              '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">' \
+              '<plist version="1.0">' \
+              '<dict>' \
+              '  <key>method</key>' \
+              '  <string>ad-hoc</string>' \
+              '  <key>signingStyle</key>' \
+              '  <string>automatic</string>' \
+              '  <key>stripSwiftSymbols</key>' \
+              '  <true/>' \
+              '</dict>' \
+              '</plist>' > ExportOptions.plist
+
+            xcodebuild -exportArchive \
+              -archivePath build/JNexus.xcarchive \
+              -exportPath build \
+              -exportOptionsPlist ExportOptions.plist 2>&1 | tail -30
+          else
+            echo "No archive found -- skipping IPA export"
+          fi
+
+      - name: Rename IPA with version
+        continue-on-error: true
+        run: |
+          VERSION="${{ needs.prepare.outputs.version }}"
+          IPA_FILE=$(find jnexus-ios/build -name "*.ipa" 2>/dev/null | head -1)
+          if [ -n "$IPA_FILE" ]; then
+            cp "$IPA_FILE" "jnexus-ios-${VERSION}.ipa"
+            echo "Created: jnexus-ios-${VERSION}.ipa"
+          else
+            echo "No IPA created (signing certificates required)"
+          fi
+
+      - name: Cleanup keychain
+        if: always() && steps.install_cert.outputs.cert_installed == 'true'
+        run: |
+          KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain-db
+          security delete-keychain $KEYCHAIN_PATH 2>/dev/null || true
+
+      - name: Upload iOS IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: jnexus-ios-${{ needs.prepare.outputs.version }}
+          path: jnexus-ios-${{ needs.prepare.outputs.version }}.ipa
+          if-no-files-found: ignore
+          retention-days: 90
+
+  # ──────────────────────────────────────────────
+  # Build macOS DMG (macOS, Xcode)
+  # ──────────────────────────────────────────────
+  build-macos:
+    name: Build macOS DMG
+    needs: prepare
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Xcode
+        run: |
+          sudo xcode-select --switch /Applications/Xcode.app/Contents/Developer
+          xcodebuild -version
+
+      - name: Build macOS App
+        continue-on-error: true
+        run: |
+          cd jnexus-ios
+          xcodebuild -scheme JNexus \
+            -sdk macosx \
+            -configuration Release \
+            -archivePath build/JNexus-macOS.xcarchive \
+            -skipPackagePluginValidation \
+            CODE_SIGNING_ALLOWED=NO \
+            archive 2>&1 | tail -30
+
+      - name: Create DMG
+        continue-on-error: true
+        run: |
+          VERSION="${{ needs.prepare.outputs.version }}"
+
+          # Try archive path first, then build products
+          APP_PATH=""
+          if [ -d "jnexus-ios/build/JNexus-macOS.xcarchive/Products/Applications" ]; then
+            APP_PATH=$(find jnexus-ios/build/JNexus-macOS.xcarchive/Products/Applications -name "*.app" -type d | head -1)
+          fi
+          if [ -z "$APP_PATH" ]; then
+            APP_PATH=$(find jnexus-ios/build -name "*.app" -type d 2>/dev/null | head -1)
+          fi
+
+          if [ -n "$APP_PATH" ]; then
+            echo "Found app at: $APP_PATH"
+            # Create DMG using hdiutil (available on all macOS runners)
+            hdiutil create -volname "JNexus" \
+              -srcfolder "$APP_PATH" \
+              -ov -format UDZO \
+              "jnexus-macos-${VERSION}.dmg"
+            echo "Created: jnexus-macos-${VERSION}.dmg"
+          else
+            echo "No .app bundle found -- skipping DMG creation"
+          fi
+
+      - name: Upload macOS DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: jnexus-macos-${{ needs.prepare.outputs.version }}
+          path: jnexus-macos-${{ needs.prepare.outputs.version }}.dmg
+          if-no-files-found: ignore
+          retention-days: 90
+
+  # ──────────────────────────────────────────────
+  # Create GitHub Release with all artifacts
+  # ──────────────────────────────────────────────
+  create-release:
+    name: Create GitHub Release
+    needs: [prepare, build-desktop, build-android, build-ios, build-macos]
+    # Run if prepare succeeded and at least desktop or android built
+    if: |
+      always() &&
+      needs.prepare.result == 'success' &&
+      (needs.build-desktop.result == 'success' || needs.build-android.result == 'success')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+
+      - name: Collect release files
+        run: |
+          mkdir -p release-files
+          VERSION="${{ needs.prepare.outputs.version }}"
+
+          echo "=== Available artifacts ==="
+          find release-artifacts -type f | sort
+          echo ""
+
+          # Copy all platform artifacts into release-files/
+          find release-artifacts -name "*.jar" -exec cp {} release-files/ \;
+          find release-artifacts -name "*.apk" -exec cp {} release-files/ \;
+          find release-artifacts -name "*.ipa" -exec cp {} release-files/ \;
+          find release-artifacts -name "*.dmg" -exec cp {} release-files/ \;
+          find release-artifacts -name "jnexus-sbom.*" -exec cp {} release-files/ \;
+
+          echo "=== Release files ==="
+          ls -lh release-files/
+
+      - name: Determine platform availability
+        id: platforms
+        run: |
+          echo "desktop=${{ needs.build-desktop.result == 'success' && 'Included' || 'Not available' }}" >> $GITHUB_OUTPUT
+          echo "android=${{ needs.build-android.result == 'success' && 'Included' || 'Not available' }}" >> $GITHUB_OUTPUT
+
+          # iOS and macOS depend on signing secrets; check if artifacts exist
+          if ls release-files/*.ipa 1>/dev/null 2>&1; then
+            echo "ios=Included" >> $GITHUB_OUTPUT
+          else
+            echo "ios=Not available (requires Apple signing certificates)" >> $GITHUB_OUTPUT
+          fi
+
+          if ls release-files/*.dmg 1>/dev/null 2>&1; then
+            echo "macos=Included" >> $GITHUB_OUTPUT
+          else
+            echo "macos=Not available (requires Apple signing certificates)" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: JNexus v${{ needs.prepare.outputs.version }}
+          body: |
+            ${{ needs.prepare.outputs.changelog }}
+
+            ## Platform Artifacts
+
+            | Platform | Artifact | Status |
+            |----------|----------|--------|
+            | Desktop (Java 21) | JAR | ${{ steps.platforms.outputs.desktop }} |
+            | Android (8.0+) | APK | ${{ steps.platforms.outputs.android }} |
+            | iOS/iPadOS | IPA | ${{ steps.platforms.outputs.ios }} |
+            | macOS | DMG | ${{ steps.platforms.outputs.macos }} |
+
+            ## Installation
+
+            ### Desktop (Homebrew)
+            ```bash
+            brew install flossware/tap/jnexus
+            ```
+
+            ### Desktop (Snap)
+            ```bash
+            sudo snap install jnexus
+            ```
+
+            ### Desktop (Direct Download)
+            ```bash
+            java -jar jnexus-desktop-${{ needs.prepare.outputs.version }}.jar --help
+            ```
+
+            ### As a Library (Maven Central)
+            ```xml
+            <dependency>
+                <groupId>org.flossware</groupId>
+                <artifactId>jnexus-core</artifactId>
+                <version>${{ needs.prepare.outputs.version }}</version>
+            </dependency>
+            ```
+
+            ### Android
+            1. Download the APK below
+            2. Enable "Install from unknown sources" in Android settings
+            3. Install the APK on your Android device (Android 8.0+)
+            4. Open app and configure credentials in Settings
+
+            ### iOS / macOS
+            Requires Apple signing certificates. See [iOS documentation](https://github.com/${{ github.repository }}/blob/main/CLAUDE_IOS.md) for details.
+
+            ## Requirements
+            - **Desktop**: Java 21+
+            - **Android**: Android 8.0+ (API 26)
+            - **iOS**: iOS 15.0+ / iPadOS 15.0+
+            - **macOS**: macOS 12.0+
+          draft: false
+          prerelease: false
+          files: release-files/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ──────────────────────────────────────────────
+  # Deploy Desktop JAR to PackageCloud
+  # ──────────────────────────────────────────────
+  deploy-packagecloud:
+    name: Deploy to PackageCloud
+    needs: [prepare, build-desktop]
+    runs-on: ubuntu-latest
+    if: needs.build-desktop.result == 'success'
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          cache: maven
+
+      - name: Preparing settings.xml for packagecloud
+        uses: s4u/maven-settings-action@v3.1.0
+        with:
+          githubServer: false
+          servers: |
+            [
+              {
+                "id": "packagecloud-flossware",
+                "configuration": {
+                  "httpHeaders": {
+                    "property": {
+                      "name": "Authorization",
+                      "value": "Bearer ${{ secrets.PACKAGECLOUD_TOKEN }}"
+                    }
+                  }
+                }
+              }
+            ]
+
+      - name: Deploy to packagecloud.io
+        continue-on-error: true
+        run: mvn -B -DskipTests deploy
+
+  # ──────────────────────────────────────────────
+  # Update Homebrew Tap
+  # ──────────────────────────────────────────────
+  deploy-homebrew:
+    name: Update Homebrew Tap
+    needs: [prepare, build-desktop, create-release]
+    runs-on: ubuntu-latest
+    if: needs.build-desktop.result == 'success' && needs.create-release.result == 'success'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download Desktop JAR
+        uses: actions/download-artifact@v4
+        with:
+          name: jnexus-desktop-${{ needs.prepare.outputs.version }}
+          path: artifacts/desktop
+
+      - name: Calculate SHA256 and update tap
+        continue-on-error: true
+        run: |
+          VERSION=${{ needs.prepare.outputs.version }}
+          TAG="${{ github.ref_name }}"
+          JAR_FILE=$(ls artifacts/desktop/*jar* 2>/dev/null | head -1)
+
+          if [ -z "$JAR_FILE" ]; then
+            echo "Warning: No JAR file found, skipping Homebrew update"
+            exit 0
+          fi
+
+          SHA256=$(sha256sum "$JAR_FILE" | cut -d' ' -f1)
+          JAR_NAME=$(basename "$JAR_FILE")
+
+          echo "Updating Homebrew tap for version ${VERSION}"
+          echo "JAR: ${JAR_NAME}"
+          echo "SHA256: ${SHA256}"
+
+          if [ -z "${{ secrets.HOMEBREW_TAP_TOKEN }}" ]; then
+            echo "Note: HOMEBREW_TAP_TOKEN not configured, skipping Homebrew update"
+            exit 0
+          fi
+
+          git clone https://x-access-token:${{ secrets.HOMEBREW_TAP_TOKEN }}@github.com/FlossWare/homebrew-tap.git tap-repo
+          cd tap-repo
+          mkdir -p Formula
+
+          {
+            echo 'class Jnexus < Formula'
+            echo '  desc "Sonatype Nexus repository management tool"'
+            echo '  homepage "https://github.com/FlossWare/nexus-java"'
+            echo "  url \"https://github.com/FlossWare/nexus-java/releases/download/${TAG}/${JAR_NAME}\""
+            echo "  sha256 \"${SHA256}\""
+            echo '  license "Apache-2.0"'
+            echo ''
+            echo '  depends_on "openjdk@21"'
+            echo ''
+            echo '  def install'
+            echo '    libexec.install Dir["*.jar"].first => "jnexus.jar"'
+            echo '    bin.write_jar_script libexec/"jnexus.jar", "jnexus"'
+            echo '  end'
+            echo ''
+            echo '  test do'
+            echo '    assert_match "JNexus", shell_output("#{bin}/jnexus --version 2>&1", 0)'
+            echo '  end'
+            echo 'end'
+          } > Formula/jnexus.rb
+
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add Formula/jnexus.rb
+          git diff --cached --quiet && echo "No changes to commit" && exit 0
+          git commit -m "Update jnexus to ${VERSION}"
+          git push
+
+  # ──────────────────────────────────────────────
+  # Release summary and notification
+  # ──────────────────────────────────────────────
+  notify:
+    name: Release Notification
+    needs: [prepare, build-desktop, build-android, build-ios, build-macos, create-release, deploy-packagecloud, deploy-homebrew]
+    runs-on: ubuntu-latest
+    if: always() && needs.prepare.result == 'success'
+    steps:
+      - name: Release summary
+        run: |
+          VERSION="${{ needs.prepare.outputs.version }}"
+
+          echo "## Release v${VERSION} Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Build Results" >> $GITHUB_STEP_SUMMARY
+          echo "| Platform | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Desktop JAR | ${{ needs.build-desktop.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Android APK | ${{ needs.build-android.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| iOS IPA | ${{ needs.build-ios.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| macOS DMG | ${{ needs.build-macos.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "| Target | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| GitHub Release | ${{ needs.create-release.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| PackageCloud | ${{ needs.deploy-packagecloud.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Homebrew Tap | ${{ needs.deploy-homebrew.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Maven Central | Triggered via maven-central.yml |" >> $GITHUB_STEP_SUMMARY
+          echo "| Snap Store | Triggered via snap.yml |" >> $GITHUB_STEP_SUMMARY
+          echo "| Google Play | Triggered via google-play.yml |" >> $GITHUB_STEP_SUMMARY
+          echo "| App Store | Triggered via app-store.yml |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Installation" >> $GITHUB_STEP_SUMMARY
+          echo "- **Homebrew**: \`brew install flossware/tap/jnexus\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Snap**: \`sudo snap install jnexus\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Maven**: \`org.flossware:jnexus-core:${VERSION}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Direct**: [GitHub Release](https://github.com/${{ github.repository }}/releases/tag/v${VERSION})" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Release: https://github.com/${{ github.repository }}/releases/tag/v${VERSION}" >> $GITHUB_STEP_SUMMARY

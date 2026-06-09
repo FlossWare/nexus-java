@@ -1,9 +1,19 @@
 package org.flossware.nexus;
 
+<<<<<<< HEAD
+=======
+import org.flossware.jnexus.ComponentMetadata;
+import org.flossware.jnexus.RepoRecord;
+import org.flossware.jnexus.RepositoryStats;
+>>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+<<<<<<< HEAD
+=======
+import org.junit.jupiter.api.Timeout;
+>>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -15,6 +25,10 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+<<<<<<< HEAD
+=======
+import java.util.concurrent.TimeUnit;
+>>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -58,6 +72,10 @@ class NexusClientLoadTest {
 
     @Test
     @DisplayName("100 concurrent list operations should complete in <10 seconds")
+<<<<<<< HEAD
+=======
+    @Timeout(value = 15, unit = TimeUnit.SECONDS)
+>>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
     void testConcurrent100ListOperations() throws Exception {
         int operationCount = 100;
         int threadCount = 10;
@@ -100,12 +118,20 @@ class NexusClientLoadTest {
 
     @Test
     @DisplayName("50 concurrent delete operations should complete in <60 seconds")
+<<<<<<< HEAD
+=======
+    @Timeout(value = 70, unit = TimeUnit.SECONDS)
+>>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
     void testConcurrent50DeleteOperations() throws Exception {
         int operationCount = 50;
         int threadCount = 5;
 
         // Setup: Mock successful deletions
+<<<<<<< HEAD
         doNothing().when(mockClient).deleteComponent(anyString(), anyString());
+=======
+        doNothing().when(mockClient).deleteComponent(anyString());
+>>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
         when(mockClient.listComponents(anyString(), anyBoolean()))
             .thenReturn(generateRepoRecords(100));
 
@@ -116,12 +142,20 @@ class NexusClientLoadTest {
 
         long start = System.currentTimeMillis();
 
+<<<<<<< HEAD
         // Submit 50 concurrent delete operations
         for (int i = 0; i < operationCount; i++) {
             final int index = i;
             futures.add(executor.submit(() -> {
                 try {
                     service.deleteComponent("test-repo", "component-" + index, false, null);
+=======
+        // Submit 50 concurrent delete operations (each deletes all matching components)
+        for (int i = 0; i < operationCount; i++) {
+            futures.add(executor.submit(() -> {
+                try {
+                    service.deleteFromRepository("test-repo", null, false, null);
+>>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
                     successCount.incrementAndGet();
                 } catch (Exception e) {
                     errorCount.incrementAndGet();
@@ -149,6 +183,10 @@ class NexusClientLoadTest {
 
     @Test
     @DisplayName("10 concurrent cache operations with invalidation should be consistent")
+<<<<<<< HEAD
+=======
+    @Timeout(value = 30, unit = TimeUnit.SECONDS)
+>>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
     void testConcurrentCacheOperationsConsistency() throws Exception {
         int threadCount = 10;
         int operations = 50;
@@ -167,7 +205,18 @@ class NexusClientLoadTest {
 
             if (opIndex % 5 == 0) {
                 // Every 5th operation, clear cache
+<<<<<<< HEAD
                 futures.add(executor.submit(service::clearAllCaches));
+=======
+                futures.add(executor.submit(() -> {
+                    try {
+                        service.clearAllCache();
+                    } catch (Exception e) {
+                        // Expected during concurrent clearing
+                        inconsistencyCount.incrementAndGet();
+                    }
+                }));
+>>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
             } else {
                 // List operation
                 futures.add(executor.submit(() -> {
@@ -204,6 +253,10 @@ class NexusClientLoadTest {
 
     @Test
     @DisplayName("Loading 10K components should use <300MB memory")
+<<<<<<< HEAD
+=======
+    @Timeout(value = 20, unit = TimeUnit.SECONDS)
+>>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
     void testMemoryUsageWith10000Components() {
         List<RepoRecord> largeDataset = generateRepoRecords(10000);
         when(mockClient.listComponents("huge-repo", false))
@@ -232,6 +285,10 @@ class NexusClientLoadTest {
 
     @Test
     @DisplayName("Loading 100K components should use <500MB memory")
+<<<<<<< HEAD
+=======
+    @Timeout(value = 30, unit = TimeUnit.SECONDS)
+>>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
     void testMemoryUsageWith100000Components() {
         List<RepoRecord> veryLargeDataset = generateRepoRecords(100000);
         when(mockClient.listComponents("massive-repo", false))
@@ -260,16 +317,26 @@ class NexusClientLoadTest {
 
     @Test
     @DisplayName("Calculating statistics on 10K components should use reasonable memory")
+<<<<<<< HEAD
     void testMemoryUsageForStatistics10K() throws IOException, InterruptedException {
         List<RepoRecord> largeDataset = generateRepoRecords(10000);
         when(mockClient.listComponents("stats-repo", false))
             .thenReturn(new ArrayList<>(largeDataset));
+=======
+    @Timeout(value = 20, unit = TimeUnit.SECONDS)
+    void testMemoryUsageForStatistics10K() throws IOException, InterruptedException {
+        List<ComponentMetadata> largeMetadataDataset = generateComponentMetadata(10000);
+>>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
 
         Runtime runtime = Runtime.getRuntime();
         runtime.gc();
         long beforeMemory = runtime.totalMemory() - runtime.freeMemory();
 
+<<<<<<< HEAD
         RepositoryStats stats = service.calculateStatistics("stats-repo");
+=======
+        RepositoryStats stats = service.calculateStatistics("stats-repo", largeMetadataDataset);
+>>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
         assertNotNull(stats, "Statistics should be calculated");
 
         runtime.gc();
@@ -278,7 +345,11 @@ class NexusClientLoadTest {
 
         // Statistics calculation should add minimal memory overhead
         // Conservative estimate: 2x the dataset size
+<<<<<<< HEAD
         long allowableOverhead = largeDataset.size() * 100; // Rough estimate per record
+=======
+        long allowableOverhead = largeMetadataDataset.size() * 100L; // Rough estimate per record
+>>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
         assertTrue(memoryUsed < allowableOverhead * 2,
             "Statistics calculation used excessive memory: "
                 + (memoryUsed / 1024 / 1024) + "MB");
@@ -288,6 +359,10 @@ class NexusClientLoadTest {
 
     @Test
     @DisplayName("Should achieve 10+ list operations per second with caching")
+<<<<<<< HEAD
+=======
+    @Timeout(value = 15, unit = TimeUnit.SECONDS)
+>>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
     void testThroughputWithCaching() throws Exception {
         List<RepoRecord> mockRecords = generateRepoRecords(100);
         when(mockClient.listComponents(anyString(), eq(false)))
@@ -312,6 +387,10 @@ class NexusClientLoadTest {
 
     @Test
     @DisplayName("Should maintain performance with cache misses")
+<<<<<<< HEAD
+=======
+    @Timeout(value = 45, unit = TimeUnit.SECONDS)
+>>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
     void testThroughputWithCacheMisses() throws Exception {
         List<RepoRecord> mockRecords = generateRepoRecords(100);
         when(mockClient.listComponents(anyString(), eq(false)))
@@ -337,6 +416,10 @@ class NexusClientLoadTest {
 
     @Test
     @DisplayName("Should handle timeout gracefully during concurrent operations")
+<<<<<<< HEAD
+=======
+    @Timeout(value = 30, unit = TimeUnit.SECONDS)
+>>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
     void testTimeoutHandlingConcurrent() throws Exception {
         int threadCount = 5;
         int operationCount = 10;
@@ -401,4 +484,31 @@ class NexusClientLoadTest {
         }
         return records;
     }
+<<<<<<< HEAD
+=======
+
+    /**
+     * Generate mock component metadata for load testing.
+     */
+    private List<ComponentMetadata> generateComponentMetadata(int count) {
+        List<ComponentMetadata> metadata = new ArrayList<>(count);
+        Instant baseTime = Instant.parse("2024-01-01T00:00:00Z");
+
+        for (int i = 0; i < count; i++) {
+            String id = "artifact-" + i;
+            long size = (long) (Math.random() * 100_000_000);
+            String path = "com/example/artifact-" + i + "/1.0.0/artifact-" + i + "-1.0.0.jar";
+            String contentType = i % 2 == 0 ? "application/java-archive" : "application/octet-stream";
+            String format = "maven2";
+            Instant created = baseTime.plusSeconds(i * 3600L);
+            Instant modified = created.plusSeconds(86400);
+            String checksum = "sha256-" + i;
+
+            metadata.add(new ComponentMetadata(
+                id, path, size, contentType, format, created, modified, checksum
+            ));
+        }
+        return metadata;
+    }
+>>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
 }

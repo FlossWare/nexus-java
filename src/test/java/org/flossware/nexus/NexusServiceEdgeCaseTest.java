@@ -1,5 +1,9 @@
 package org.flossware.nexus;
 
+import org.flossware.jnexus.ComponentMetadata;
+import org.flossware.jnexus.RepoRecord;
+import org.flossware.jnexus.RepositoryStats;
+import org.flossware.jnexus.SearchCriteria;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
@@ -104,6 +108,22 @@ class NexusServiceEdgeCaseTest {
         service.deleteFromRepository("test-repo", "", true, null);
 
         verify(mockClient, never()).deleteComponent(anyString());
+    }
+
+    @Test
+    void testValidComplexRegexPassesReDoSCheck() throws Exception {
+        // A complex but safe regex should pass the ReDoS validation
+        List<RepoRecord> mockRecords = List.of(
+            new RepoRecord("id1", 1000, "com/example/test-1.0.0.jar")
+        );
+
+        when(mockClient.listComponents(anyString(), anyBoolean())).thenReturn(mockRecords);
+
+        // Complex but safe pattern - should pass validation
+        assertDoesNotThrow(() ->
+            service.listRepository("test-repo", "^com/[a-z]+/[a-z0-9.-]+\\.jar$"),
+            "Valid complex regex should pass ReDoS check"
+        );
     }
 
     // ========== Size Filter Edge Cases ==========

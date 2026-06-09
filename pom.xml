@@ -318,7 +318,7 @@
         <configuration>
           <archive>
             <manifest>
-              <mainClass>org.flossware.jnexus.JNexus</mainClass>
+              <mainClass>org.flossware.nexus.Nexus</mainClass>
             </manifest>
           </archive>
         </configuration>
@@ -334,7 +334,7 @@
           </descriptorRefs>
           <archive>
             <manifest>
-              <mainClass>org.flossware.jnexus.JNexus</mainClass>
+              <mainClass>org.flossware.nexus.Nexus</mainClass>
             </manifest>
           </archive>
         </configuration>
@@ -431,6 +431,36 @@
         <executions>
           <execution>
             <id>spotbugs-check</id>
+            <phase>verify</phase>
+            <goals>
+              <goal>check</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <!-- OWASP Dependency-Check Plugin (Vulnerability Scanning) -->
+      <plugin>
+        <groupId>org.owasp</groupId>
+        <artifactId>dependency-check-maven</artifactId>
+        <version>12.1.1</version>
+        <configuration>
+          <failBuildOnCVSS>9</failBuildOnCVSS>
+          <suppressionFiles>
+            <suppressionFile>dependency-check-suppressions.xml</suppressionFile>
+          </suppressionFiles>
+          <formats>
+            <format>HTML</format>
+            <format>XML</format>
+            <format>JSON</format>
+          </formats>
+          <!-- Skip test-scoped dependencies -->
+          <skipTestScope>true</skipTestScope>
+          <!-- NVD API key for faster downloads (optional, set via env var) -->
+          <nvdApiKey>${env.NVD_API_KEY}</nvdApiKey>
+        </configuration>
+        <executions>
+          <execution>
+            <id>dependency-check</id>
             <phase>verify</phase>
             <goals>
               <goal>check</goal>

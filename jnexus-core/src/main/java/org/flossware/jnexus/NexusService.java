@@ -28,13 +28,15 @@ public class NexusService {
     /**
      * Shared executor for regex validation with timeout (ReDoS prevention).
      * <p>
-     * Using a static executor avoids creating a new thread pool for each validation.
-     * Daemon thread ensures it doesn't block JVM shutdown.
+     * Using a static executor avoids creating a new thread pool for each NexusService instance.
+     * This fixes a resource leak where every NexusService constructor allocated a dedicated
+     * ExecutorService that was never shut down. Daemon thread ensures it does not block
+     * JVM shutdown.
      * </p>
      */
     private static final java.util.concurrent.ExecutorService REGEX_VALIDATOR =
         java.util.concurrent.Executors.newSingleThreadExecutor(r -> {
-            Thread t = new Thread(r, "jnexus-regex-validator");
+            Thread t = new Thread(r, "jnexus-core-regex-validator");
             t.setDaemon(true);
             return t;
         });
@@ -51,10 +53,22 @@ public class NexusService {
     }
 
     /**
+     * Safely gets an exception message, using class name as fallback if message is null.
+     *
+     * @param e the exception
+     * @return the exception message or class name if message is null
+     */
+    private String safeExceptionMessage(Exception e) {
+        String message = e.getMessage();
+        return message != null ? message : e.getClass().getSimpleName();
+    }
+
+    /**
      * Validates a regex pattern for both syntax and safety (ReDoS prevention).
      * <p>
-     * Tests the pattern against a long string with a timeout to detect catastrophic backtracking.
+     * Validates pattern syntax and tests against a long string to detect catastrophic backtracking.
      * Patterns that take too long to match are rejected to prevent Regular Expression Denial of Service (ReDoS) attacks.
+     * Uses a shared static executor to avoid creating a new thread pool for each validation.
      * </p>
      *
      * @param regex the regex pattern to validate
@@ -70,7 +84,7 @@ public class NexusService {
         try {
             pattern = Pattern.compile(regex);
         } catch (PatternSyntaxException e) {
-            throw new IllegalArgumentException("Invalid regex pattern: " + e.getMessage(), e);
+            throw new IllegalArgumentException("Invalid regex pattern: " + safeExceptionMessage(e), e);
         }
 
         // Test for catastrophic backtracking (ReDoS prevention)
@@ -87,6 +101,8 @@ public class NexusService {
 
         try {
             // Wait up to 1 second for the regex to execute
+            // Most patterns complete in < 100ms
+            // Rejects patterns with catastrophic backtracking (nested quantifiers)
             future.get(1, java.util.concurrent.TimeUnit.SECONDS);
         } catch (java.util.concurrent.TimeoutException e) {
             future.cancel(true);
@@ -95,7 +111,7 @@ public class NexusService {
                 "Avoid nested quantifiers like (a+)+ or (a*)* which can cause exponential backtracking."
             );
         } catch (Exception e) {
-            throw new IllegalArgumentException("Error testing regex pattern: " + e.getMessage(), e);
+            throw new IllegalArgumentException("Error testing regex pattern: " + safeExceptionMessage(e), e);
         }
     }
 

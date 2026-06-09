@@ -54,6 +54,16 @@ class CredentialsKeychain: Credentials {
         return value > 0 ? value : 30  // default 30 seconds
     }
 
+    var maxRetries: Int {
+        let value = defaults.integer(forKey: "nexus.max.retries")
+        return value > 0 ? value : 3  // default 3 retries
+    }
+
+    var initialRetryDelayMs: Int {
+        let value = defaults.integer(forKey: "nexus.initial.retry.delay.ms")
+        return value > 0 ? value : 1000  // default 1000ms
+    }
+
     // MARK: - Methods
 
     func hasCredentials() -> Bool {

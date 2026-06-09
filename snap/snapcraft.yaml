@@ -1,0 +1,68 @@
+name: jnexus
+base: core22
+version: '1.0'
+summary: Sonatype Nexus repository management tool
+description: |
+  JNexus is a cross-platform tool for managing components in Sonatype Nexus
+  Repository Manager. It provides list, delete, search, and statistics
+  operations with advanced filtering, safety features, and minimal dependencies.
+
+  Features:
+  - List and search components with regex filtering
+  - Advanced filters (size range, date range, file extension, name pattern)
+  - Delete components with dry-run and confirmation safety
+  - Repository statistics (size distribution, file types, age analysis)
+  - Multiple UIs: CLI, Swing GUI, AWT GUI, Terminal (ncurses)
+  - Intelligent caching with configurable TTL
+  - Profile-based configuration for multiple environments
+
+grade: stable
+confinement: strict
+license: Apache-2.0
+
+architectures:
+  - build-on: amd64
+
+apps:
+  jnexus:
+    command: bin/jnexus-wrapper
+    plugs:
+      - network
+      - home
+    environment:
+      JAVA_HOME: $SNAP/usr/lib/jvm/java-21-openjdk-amd64
+
+  jnexus-swing:
+    command: bin/jnexus-swing-wrapper
+    plugs:
+      - network
+      - home
+      - desktop
+      - x11
+      - wayland
+    environment:
+      JAVA_HOME: $SNAP/usr/lib/jvm/java-21-openjdk-amd64
+
+parts:
+  jnexus:
+    plugin: maven
+    source: .
+    maven-parameters:
+      - -DskipTests
+      - package
+    build-packages:
+      - openjdk-21-jdk-headless
+    stage-packages:
+      - openjdk-21-jre-headless
+    override-build: |
+      craftctl default
+      # Copy the fat JAR to a known location
+      mkdir -p $CRAFT_PART_INSTALL/jar
+      cp target/*-jar-with-dependencies.jar $CRAFT_PART_INSTALL/jar/jnexus.jar
+
+  wrappers:
+    plugin: dump
+    source: snap/local/
+    organize:
+      jnexus-wrapper: bin/jnexus-wrapper
+      jnexus-swing-wrapper: bin/jnexus-swing-wrapper

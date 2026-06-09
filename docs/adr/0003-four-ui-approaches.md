@@ -1,4 +1,4 @@
-# 3. Four UI Approaches for Desktop
+# 3. Seven Distinct User Interfaces
 
 **Status:** Accepted
 
@@ -8,18 +8,20 @@
 
 ## Context
 
-JNexus desktop application (Java 21) serves diverse user bases with different requirements:
+JNexus serves diverse user bases across multiple platforms with different requirements:
 
 - **DevOps engineers**: Need CLI for scripting and CI/CD automation
 - **Desktop users**: Prefer graphical interfaces for interactive work
 - **Remote administrators**: SSH sessions without X11 forwarding
 - **Legacy systems**: Older Java installations or constrained environments
+- **Mobile users (Android)**: On-the-go repository management from phones and tablets
+- **Apple ecosystem users**: Native experience on iPhone, iPad, and Mac
 
-A single UI approach cannot satisfy all these use cases. Each user group has different priorities for usability, compatibility, and deployment scenarios.
+A single UI approach cannot satisfy all these use cases. Each user group has different priorities for usability, compatibility, deployment scenarios, and platform expectations.
 
 ## Decision
 
-Implement **four distinct user interfaces** sharing the same backend:
+Implement **seven distinct user interfaces** across three platforms, each sharing the same core business logic:
 
 ### 1. CLI (JNexus.java) - Picocli-based Command Line
 **Use case**: Scripting, automation, CI/CD pipelines
@@ -96,31 +98,95 @@ Implement **four distinct user interfaces** sharing the same backend:
 
 **Launcher:** `./jnexus-ui.sh`
 
+### 5. Android App (JNexus Android) - Jetpack Compose
+**Use case**: Mobile repository management on Android phones and tablets
+
+**Features:**
+- Material Design 3 UI with Jetpack Compose
+- Repository browsing with search and filtering
+- Component details with metadata display
+- Statistics dashboard with visual charts
+- Delete operations with confirmation dialogs
+- Profile management for multiple Nexus instances
+- Offline-capable with local caching
+
+**Advantages:**
+- Native Android experience (Material Design, gestures, notifications)
+- On-the-go repository management
+- Push notification potential for monitoring
+- Touch-optimized interface
+
+**Distribution:** APK (sideload), planned Google Play Store and F-Droid
+
+### 6. iOS App (JNexus iOS) - SwiftUI
+**Use case**: Mobile repository management on iPhone and iPad
+
+**Features:**
+- Native SwiftUI interface with iOS design language
+- Repository browsing and search
+- Component metadata display
+- Statistics views
+- Secure credential storage via Keychain Services
+- Profile-based configuration
+
+**Advantages:**
+- Native iOS experience (haptics, gestures, system integration)
+- Keychain-based credential security (hardware-backed)
+- iPad multitasking support
+- System-level dark mode and accessibility
+
+**Distribution:** Xcode build (direct install)
+
+### 7. macOS App (JNexus macOS) - SwiftUI
+**Use case**: Native desktop experience on Mac
+
+**Features:**
+- Native macOS SwiftUI interface with menu bar
+- Shares 95% code with iOS app (Shared/ directory)
+- Keyboard shortcuts and macOS conventions
+- Touch Bar support (where available)
+- Keychain Services for credential storage
+- Multi-window support
+
+**Advantages:**
+- Native Mac experience (menu bar, keyboard shortcuts, Dock integration)
+- Seamless Apple ecosystem integration
+- Code reuse with iOS app
+- macOS Keychain security
+
+**Distribution:** Xcode build (direct install)
+
 ## Consequences
 
 ### Positive
 
 - **User choice**: Each user group gets optimal interface for their workflow
 - **Flexibility**: Same backend, multiple frontends - choose based on environment
-- **Compatibility spectrum**: From modern desktop to pure terminal
+- **Compatibility spectrum**: From modern desktop to pure terminal to mobile
 - **Learning path**: CLI users can try GUI, GUI users can automate with CLI
 - **Fallback options**: If one UI doesn't work, try another
+- **Platform coverage**: Desktop, mobile, and tablet all supported
+- **Native experiences**: Each platform uses its native UI toolkit
 
 ### Negative
 
-- **Maintenance burden**: Four UIs to maintain and test
-- **Feature parity**: New features must be added to all UIs
+- **Maintenance burden**: Seven UIs to maintain and test across three platforms
+- **Feature parity**: New features must be added to all UIs (or documented as platform-specific)
 - **Code duplication**: Some UI logic duplicated across implementations
 - **Documentation overhead**: Each UI needs separate usage instructions
-- **Testing complexity**: Must test each UI separately
+- **Testing complexity**: Must test each UI separately, across platforms
+- **Three programming languages**: Java (desktop), Kotlin (Android), Swift (iOS/macOS)
+- **Three build systems**: Maven (desktop), Gradle (Android/core), Xcode (iOS/macOS)
 
 ### Accepted Tradeoffs
 
 The maintenance burden is acceptable because:
-1. All UIs share the same backend (NexusClient, NexusService)
+1. All UIs share the same backend logic (NexusService, NexusHttpClient)
 2. UI code is relatively simple (thin presentation layer)
 3. Each UI serves distinct, non-overlapping use cases
 4. Users strongly prefer their chosen interaction model
+5. iOS and macOS share 95% of code (only 5% platform-specific)
+6. Android and desktop share jnexus-core business logic
 
 ## Design Patterns
 
@@ -187,11 +253,14 @@ service.calculateStatistics(repository);
 
 ## Usage Distribution
 
-Based on launcher scripts and documentation:
-- **CLI**: Estimated 40% (automation, scripts, power users)
-- **Swing GUI**: Estimated 35% (interactive desktop users)
-- **AWT GUI**: Estimated 15% (remote desktop, VNC, legacy systems)
-- **Terminal UI**: Estimated 10% (SSH users, terminal enthusiasts)
+Based on launcher scripts, app availability, and documentation:
+- **CLI**: Estimated 30% (automation, scripts, power users)
+- **Swing GUI**: Estimated 25% (interactive desktop users)
+- **Android App**: Estimated 15% (mobile users, on-the-go management)
+- **AWT GUI**: Estimated 10% (remote desktop, VNC, legacy systems)
+- **iOS App**: Estimated 8% (iPhone/iPad users)
+- **macOS App**: Estimated 7% (Mac-native users)
+- **Terminal UI**: Estimated 5% (SSH users, terminal enthusiasts)
 
 ## References
 
@@ -202,29 +271,33 @@ Based on launcher scripts and documentation:
 ## Impact
 
 **Positive:**
-- Broad user base adoption across different environments
-- Users can choose based on preference and constraints
+- Broad user base adoption across different environments and platforms
+- Users can choose based on preference, platform, and constraints
 - Demonstrates flexibility of layered architecture
+- Native experiences on every major platform
 
 **Negative:**
-- ~4x maintenance work for UI updates
+- ~7x maintenance work for UI updates (across three languages)
 - Occasional feature parity gaps (e.g., Swing got statistics dialog first)
-- Documentation must cover all four UIs
+- Documentation must cover all seven UIs across three platforms
+- Three different build systems to maintain
 
 ## Future Considerations
 
-**Possible 5th option: Web UI**
+**Possible 8th option: Web UI**
 - Could add embedded web server for browser-based interface
 - Would enable remote management via HTTP
 - Mobile-friendly responsive design
 - Not mutually exclusive with existing UIs
 
-**Possible mobile apps:**
-- Android app added in v1.2 ✅
-- iOS app added in v1.0 ✅
-- Native mobile apps complement desktop UIs
+**Platform coverage achieved:**
+- Desktop: CLI, Swing, AWT, Terminal UI ✅
+- Android: Native Jetpack Compose app ✅
+- iOS/iPadOS: Native SwiftUI app ✅
+- macOS: Native SwiftUI app ✅
 
 ## Related Decisions
 
 - ADR-0001: Picocli over Spring Boot (enabled lightweight multi-UI architecture)
 - ADR-0002: Multi-module architecture (same backend for all UIs)
+- ADR-0006: Interface-based HTTP client (enables platform-specific HTTP implementations)

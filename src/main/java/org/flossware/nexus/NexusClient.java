@@ -2,6 +2,9 @@ package org.flossware.nexus;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.flossware.jnexus.ComponentMetadata;
+import org.flossware.jnexus.NexusHttpClient;
+import org.flossware.jnexus.RepoRecord;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -21,7 +24,11 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+<<<<<<< HEAD
 import java.util.concurrent.CountDownLatch;
+=======
+import java.util.concurrent.ExecutorService;
+>>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -38,7 +45,11 @@ import java.util.concurrent.TimeUnit;
  * <ul>
  *   <li><strong>Automatic Pagination</strong> - Transparently follows continuation tokens to retrieve all results</li>
  *   <li><strong>Smart Caching</strong> - 5-minute TTL cache with configurable duration and manual control</li>
+<<<<<<< HEAD
  *   <li><strong>Non-Blocking Retry Logic</strong> - Exponential backoff with ScheduledExecutorService (GUI-safe)</li>
+=======
+ *   <li><strong>Exponential Backoff Retry Logic</strong> - Automatic retries with exponential backoff for transient errors</li>
+>>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
  *   <li><strong>Type Safety</strong> - Exception type checking before message parsing for robust error handling</li>
  *   <li><strong>Metadata Support</strong> - Full component metadata extraction including dates and checksums</li>
  * </ul>
@@ -95,12 +106,12 @@ import java.util.concurrent.TimeUnit;
  *
  * <h2>Configuration:</h2>
  * <p>
- * Client behavior is configured via {@link Credentials}:
+ * Client behavior is configured via {@link Credentials} (which extends {@link HttpConfig}):
  * </p>
  * <ul>
- *   <li><strong>HTTP Timeout</strong> - Connection timeout in seconds (default: 30)</li>
- *   <li><strong>Max Retries</strong> - Maximum retry attempts for failed requests (default: 3)</li>
- *   <li><strong>Retry Delay</strong> - Initial retry delay with exponential backoff (default: 1000ms)</li>
+ *   <li><strong>HTTP Timeout</strong> - Connection timeout in seconds (via {@link HttpConfig#getHttpTimeoutSeconds()}, default: 30)</li>
+ *   <li><strong>Max Retries</strong> - Maximum retry attempts for failed requests (via {@link HttpConfig#getMaxRetries()}, default: 3)</li>
+ *   <li><strong>Retry Delay</strong> - Initial retry delay with exponential backoff (via {@link HttpConfig#getInitialRetryDelayMs()}, default: 1000ms)</li>
  *   <li><strong>Cache TTL</strong> - Time-to-live for cached results (default: 300s)</li>
  * </ul>
  *
@@ -122,6 +133,7 @@ public class NexusClient implements NexusHttpClient, AutoCloseable {
 
     private final String baseUrl;
     private final HttpClient httpClient;
+    private final ExecutorService httpExecutor;
     private final String authHeader;
     private final ObjectMapper objectMapper;
 
@@ -195,6 +207,7 @@ public class NexusClient implements NexusHttpClient, AutoCloseable {
         this.initialRetryDelayMs = credentials.getInitialRetryDelayMs();
 
         // Build optimized HTTP client with connection pooling and HTTP/2
+<<<<<<< HEAD
         this.httpClient = buildOptimizedHttpClient(credentials.getHttpTimeoutSeconds());
 
         // Create a single-threaded scheduler for non-blocking retry delays
@@ -204,6 +217,11 @@ public class NexusClient implements NexusHttpClient, AutoCloseable {
             t.setDaemon(true);
             return t;
         });
+=======
+        // Store executor so it can be properly shut down in close()
+        this.httpExecutor = Executors.newVirtualThreadPerTaskExecutor();
+        this.httpClient = buildOptimizedHttpClient(credentials.getHttpTimeoutSeconds(), this.httpExecutor);
+>>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
     }
 
     /**
@@ -213,18 +231,24 @@ public class NexusClient implements NexusHttpClient, AutoCloseable {
      * </p>
      * <ul>
      *   <li><strong>HTTP/2</strong> - Enables multiplexing (multiple requests over one connection)</li>
-     *   <li><strong>Connection Pooling</strong> - Shared thread pool for connection reuse</li>
+     *   <li><strong>Virtual Threads</strong> - Lightweight threads for efficient I/O-bound operations (Java 21)</li>
      *   <li><strong>Compression</strong> - Automatically handles gzip/deflate responses</li>
      * </ul>
+     * <p>
+     * Uses virtual threads instead of a fixed thread pool. Virtual threads are ideal for
+     * I/O-bound HTTP operations: they are lightweight (no platform thread per request),
+     * scale automatically, and do not require pool sizing decisions.
+     * </p>
      *
      * @param timeoutSeconds connection timeout in seconds
+     * @param executor the executor service to use for async operations
      * @return configured HttpClient instance
      */
-    private static HttpClient buildOptimizedHttpClient(int timeoutSeconds) {
+    private static HttpClient buildOptimizedHttpClient(int timeoutSeconds, ExecutorService executor) {
         return HttpClient.newBuilder()
             .version(HttpClient.Version.HTTP_2)  // Prefer HTTP/2 for multiplexing
             .connectTimeout(Duration.ofSeconds(timeoutSeconds))
-            .executor(Executors.newFixedThreadPool(4))  // Shared pool for connection reuse
+            .executor(executor)  // Virtual threads for efficient I/O-bound operations
             .build();
     }
 
@@ -393,6 +417,11 @@ public class NexusClient implements NexusHttpClient, AutoCloseable {
 
         IOException lastException = null;
         for (int attempt = 1; attempt <= maxRetries; attempt++) {
+            // Check for thread interruption at the start of each attempt
+            if (Thread.interrupted()) {
+                throw new InterruptedException("Retry loop interrupted");
+            }
+
             try {
                 HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
@@ -407,7 +436,7 @@ public class NexusClient implements NexusHttpClient, AutoCloseable {
                     long delay = initialRetryDelayMs * (1L << (attempt - 1));
                     logger.warn("Request failed (attempt {}/{}): {}. Retrying in {}ms...",
                         attempt, maxRetries, safeExceptionMessage(e), delay);
-                    sleepWithExponentialBackoff(attempt);
+                    delayWithExponentialBackoff(delay);
                 } else {
                     break;
                 }
@@ -438,6 +467,11 @@ public class NexusClient implements NexusHttpClient, AutoCloseable {
 
         IOException lastException = null;
         for (int attempt = 1; attempt <= maxRetries; attempt++) {
+            // Check for thread interruption at the start of each attempt
+            if (Thread.interrupted()) {
+                throw new InterruptedException("Retry loop interrupted");
+            }
+
             try {
                 HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
@@ -452,7 +486,7 @@ public class NexusClient implements NexusHttpClient, AutoCloseable {
                     long delay = initialRetryDelayMs * (1L << (attempt - 1));
                     logger.warn("Request failed (attempt {}/{}): {}. Retrying in {}ms...",
                         attempt, maxRetries, safeExceptionMessage(e), delay);
-                    sleepWithExponentialBackoff(attempt);
+                    delayWithExponentialBackoff(delay);
                 } else {
                     break;
                 }
@@ -474,6 +508,7 @@ public class NexusClient implements NexusHttpClient, AutoCloseable {
     }
 
     /**
+<<<<<<< HEAD
      * Implements non-blocking exponential backoff using ScheduledExecutorService.
      * <p>
      * This method schedules a delay on a background scheduler rather than blocking
@@ -525,6 +560,24 @@ public class NexusClient implements NexusHttpClient, AutoCloseable {
             // Restore interrupt status for the calling thread
             Thread.currentThread().interrupt();
             logger.debug("Retry delay interrupted");
+=======
+     * Implements exponential backoff delay using Thread.sleep().
+     * <p>
+     * This is a simple, standard approach appropriate for a CLI tool where blocking
+     * is normal and expected. The delay can be interrupted via Thread.interrupt(),
+     * allowing proper cancellation if needed.
+     * </p>
+     *
+     * @param delayMs the delay in milliseconds to wait before the next retry attempt
+     * @throws InterruptedException if the delay is interrupted
+     */
+    private void delayWithExponentialBackoff(long delayMs) throws InterruptedException {
+        try {
+            Thread.sleep(delayMs);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw e;
+>>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
         }
     }
 
@@ -741,6 +794,11 @@ public class NexusClient implements NexusHttpClient, AutoCloseable {
 
         IOException lastException = null;
         for (int attempt = 1; attempt <= maxRetries; attempt++) {
+            // Check for thread interruption at the start of each attempt
+            if (Thread.interrupted()) {
+                throw new InterruptedException("Retry loop interrupted");
+            }
+
             try {
                 HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
 
@@ -755,7 +813,11 @@ public class NexusClient implements NexusHttpClient, AutoCloseable {
                     long delay = initialRetryDelayMs * (1L << (attempt - 1)); // Exponential backoff
                     logger.warn("Delete failed for {} (attempt {}/{}): {}. Retrying in {}ms...",
                         componentId, attempt, maxRetries, safeExceptionMessage(e), delay);
+<<<<<<< HEAD
                     sleepWithExponentialBackoff(attempt);
+=======
+                    delayWithExponentialBackoff(delay);
+>>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
                 } else {
                     break;
                 }
@@ -823,6 +885,7 @@ public class NexusClient implements NexusHttpClient, AutoCloseable {
         return Duration.between(entry.timestamp(), Instant.now()).getSeconds();
     }
 
+
     /**
      * Gets the retry scheduler for advanced use cases requiring non-blocking retry logic.
      * <p>
@@ -857,9 +920,15 @@ public class NexusClient implements NexusHttpClient, AutoCloseable {
     /**
      * Closes this client and releases any resources held by it.
      * <p>
+<<<<<<< HEAD
      * This method clears all caches and shuts down the retry scheduler.
      * The underlying {@link HttpClient} doesn't have an explicit close() method in Java 21,
      * but clearing our references helps with resource cleanup in long-running applications.
+=======
+     * This method clears all caches. The underlying {@link HttpClient} doesn't have an explicit
+     * close() method in Java 21, but clearing our references helps with resource cleanup in
+     * long-running applications.
+>>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
      * </p>
      * <p>
      * This client should be used with try-with-resources for proper lifecycle management:
@@ -877,10 +946,14 @@ public class NexusClient implements NexusHttpClient, AutoCloseable {
      */
     @Override
     public void close() {
+        // Shut down the HTTP executor to release thread resources
+        httpExecutor.shutdownNow();
+
         // Clear caches to free memory
         cache.clear();
         metadataCache.clear();
 
+<<<<<<< HEAD
         // Shutdown the retry scheduler gracefully
         try {
             retryScheduler.shutdown();
@@ -893,6 +966,9 @@ public class NexusClient implements NexusHttpClient, AutoCloseable {
         }
 
         logger.debug("NexusClient closed - caches cleared, scheduler shutdown, and resources will be freed by GC");
+=======
+        logger.debug("NexusClient closed - executor shut down, caches cleared");
+>>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
     }
 
     /**
