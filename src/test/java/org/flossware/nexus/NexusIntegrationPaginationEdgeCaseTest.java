@@ -51,7 +51,7 @@ class NexusIntegrationPaginationEdgeCaseTest {
     @Test
     @DisplayName("Pagination with 1000 pages")
     @Timeout(value = 60, unit = TimeUnit.SECONDS)
-    void testPaginationWith1000Pages() throws IOException {
+    void testPaginationWith1000Pages() throws Exception {
         AtomicInteger pageCount = new AtomicInteger(0);
 
         server.createContext("/service/rest/v1/components", exchange -> {
@@ -96,7 +96,7 @@ class NexusIntegrationPaginationEdgeCaseTest {
 
     @Test
     @DisplayName("Server returns empty page with continuation token")
-    void testEmptyPageWithContinuationToken() throws IOException {
+    void testEmptyPageWithContinuationToken() throws Exception {
         AtomicInteger pageCount = new AtomicInteger(0);
 
         server.createContext("/service/rest/v1/components", exchange -> {
@@ -142,7 +142,7 @@ class NexusIntegrationPaginationEdgeCaseTest {
     @Test
     @DisplayName("Server returns duplicate continuation token")
     @Timeout(value = 10, unit = TimeUnit.SECONDS)
-    void testDuplicateContinuationToken() throws IOException {
+    void testDuplicateContinuationToken() throws Exception {
         AtomicInteger pageCount = new AtomicInteger(0);
 
         server.createContext("/service/rest/v1/components", exchange -> {
@@ -180,7 +180,7 @@ class NexusIntegrationPaginationEdgeCaseTest {
 
     @Test
     @DisplayName("Continuation token expires mid-pagination")
-    void testTokenExpirationMidPagination() throws IOException {
+    void testTokenExpirationMidPagination() throws Exception {
         AtomicInteger pageCount = new AtomicInteger(0);
 
         server.createContext("/service/rest/v1/components", exchange -> {
@@ -222,7 +222,7 @@ class NexusIntegrationPaginationEdgeCaseTest {
     @Test
     @DisplayName("Single item per page (extreme pagination)")
     @Timeout(value = 30, unit = TimeUnit.SECONDS)
-    void testSingleItemPerPage() throws IOException {
+    void testSingleItemPerPage() throws Exception {
         AtomicInteger pageCount = new AtomicInteger(0);
         final int TOTAL_ITEMS = 50;
 
@@ -260,7 +260,7 @@ class NexusIntegrationPaginationEdgeCaseTest {
 
     @Test
     @DisplayName("No continuation token in response")
-    void testNoContinuationToken() throws IOException {
+    void testNoContinuationToken() throws Exception {
         server.createContext("/service/rest/v1/components", exchange -> {
             String json = "{\"items\":[{\"id\":\"item1\",\"assets\":[{\"path\":\"file1.jar\",\"fileSize\":1024}]}]}";
             byte[] bytes = json.getBytes();
@@ -279,7 +279,7 @@ class NexusIntegrationPaginationEdgeCaseTest {
 
     @Test
     @DisplayName("Continuation token with special characters")
-    void testSpecialCharactersInToken() throws IOException {
+    void testSpecialCharactersInToken() throws Exception {
         AtomicInteger pageCount = new AtomicInteger(0);
         final String SPECIAL_TOKEN = "token%2B%2F%3D%26special%3Dchars";
 
@@ -315,7 +315,7 @@ class NexusIntegrationPaginationEdgeCaseTest {
 
     @Test
     @DisplayName("Very long continuation token (1000+ characters)")
-    void testVeryLongContinuationToken() throws IOException {
+    void testVeryLongContinuationToken() throws Exception {
         AtomicInteger pageCount = new AtomicInteger(0);
         String longToken = "x".repeat(1000);
 

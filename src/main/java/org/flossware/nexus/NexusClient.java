@@ -24,14 +24,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-<<<<<<< HEAD
-import java.util.concurrent.CountDownLatch;
-=======
 import java.util.concurrent.ExecutorService;
->>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
 import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
 /**
  * HTTP client for interacting with the Nexus Repository Manager REST API.
@@ -45,11 +39,7 @@ import java.util.concurrent.TimeUnit;
  * <ul>
  *   <li><strong>Automatic Pagination</strong> - Transparently follows continuation tokens to retrieve all results</li>
  *   <li><strong>Smart Caching</strong> - 5-minute TTL cache with configurable duration and manual control</li>
-<<<<<<< HEAD
- *   <li><strong>Non-Blocking Retry Logic</strong> - Exponential backoff with ScheduledExecutorService (GUI-safe)</li>
-=======
  *   <li><strong>Exponential Backoff Retry Logic</strong> - Automatic retries with exponential backoff for transient errors</li>
->>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
  *   <li><strong>Type Safety</strong> - Exception type checking before message parsing for robust error handling</li>
  *   <li><strong>Metadata Support</strong> - Full component metadata extraction including dates and checksums</li>
  * </ul>
@@ -145,10 +135,6 @@ public class NexusClient implements NexusHttpClient, AutoCloseable {
     private final int maxRetries;
     private final long initialRetryDelayMs;
 
-    // Non-blocking retry scheduler for GUI-safe operations
-    // Single thread is sufficient for delay scheduling (doesn't execute HTTP requests)
-    private final ScheduledExecutorService retryScheduler;
-
     // Cache storage: repository -> CacheEntry
     private final Map<String, CacheEntry> cache = new ConcurrentHashMap<>();
     private final Map<String, MetadataCacheEntry> metadataCache = new ConcurrentHashMap<>();
@@ -207,21 +193,9 @@ public class NexusClient implements NexusHttpClient, AutoCloseable {
         this.initialRetryDelayMs = credentials.getInitialRetryDelayMs();
 
         // Build optimized HTTP client with connection pooling and HTTP/2
-<<<<<<< HEAD
-        this.httpClient = buildOptimizedHttpClient(credentials.getHttpTimeoutSeconds());
-
-        // Create a single-threaded scheduler for non-blocking retry delays
-        // This allows GUI applications to remain responsive during retries
-        this.retryScheduler = Executors.newScheduledThreadPool(1, runnable -> {
-            Thread t = new Thread(runnable, "Nexus-Retry-Scheduler");
-            t.setDaemon(true);
-            return t;
-        });
-=======
         // Store executor so it can be properly shut down in close()
         this.httpExecutor = Executors.newVirtualThreadPerTaskExecutor();
         this.httpClient = buildOptimizedHttpClient(credentials.getHttpTimeoutSeconds(), this.httpExecutor);
->>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
     }
 
     /**
@@ -508,59 +482,6 @@ public class NexusClient implements NexusHttpClient, AutoCloseable {
     }
 
     /**
-<<<<<<< HEAD
-     * Implements non-blocking exponential backoff using ScheduledExecutorService.
-     * <p>
-     * This method schedules a delay on a background scheduler rather than blocking
-     * the calling thread with Thread.sleep(). The delay doubles with each retry attempt:
-     * initialDelay, 2×initialDelay, 4×initialDelay, etc.
-     * </p>
-     * <p>
-     * <strong>Why non-blocking?</strong>
-     * Blocking the calling thread with Thread.sleep() prevents GUI event dispatch threads
-     * (Swing/AWT) from remaining responsive. By delegating the delay to a background scheduler
-     * via CountDownLatch, the UI can continue processing events while waiting for the retry.
-     * </p>
-     * <p>
-     * <strong>Implementation Details:</strong>
-     * Uses a CountDownLatch to wait for the scheduled delay, which allows the delay to complete
-     * on a background thread while the calling thread waits. This is interruptible, allowing
-     * operations to be cancelled if needed.
-     * </p>
-     *
-     * @param attempt the current retry attempt number (1-based), used to calculate exponential delay
-     */
-    private void sleepWithExponentialBackoff(int attempt) {
-        long delay = initialRetryDelayMs * (1L << (attempt - 1)); // Exponential backoff: delay * 2^(attempt-1)
-        delayWithExponentialBackoffNonBlocking(delay);
-    }
-
-    /**
-     * Performs non-blocking delay using ScheduledExecutorService and CountDownLatch.
-     * <p>
-     * The delay is executed on the retryScheduler thread pool while the calling thread
-     * waits on a CountDownLatch. This keeps the delay non-blocking from the perspective
-     * of event loops while maintaining the blocking semantics needed for the retry loop.
-     * </p>
-     *
-     * @param delayMs the delay in milliseconds
-     */
-    private void delayWithExponentialBackoffNonBlocking(long delayMs) {
-        try {
-            // Use CountDownLatch to coordinate the delay
-            CountDownLatch latch = new CountDownLatch(1);
-            // Schedule the latch countdown to happen after the delay
-            retryScheduler.schedule(latch::countDown, delayMs, TimeUnit.MILLISECONDS);
-            // Wait for the latch with timeout to prevent indefinite hang if scheduler shuts down
-            // Add 1 second buffer to detect scheduler shutdown
-            if (!latch.await(delayMs + 1000, TimeUnit.MILLISECONDS)) {
-                logger.warn("Retry delay timeout - scheduler may be shutting down");
-            }
-        } catch (InterruptedException e) {
-            // Restore interrupt status for the calling thread
-            Thread.currentThread().interrupt();
-            logger.debug("Retry delay interrupted");
-=======
      * Implements exponential backoff delay using Thread.sleep().
      * <p>
      * This is a simple, standard approach appropriate for a CLI tool where blocking
@@ -577,7 +498,6 @@ public class NexusClient implements NexusHttpClient, AutoCloseable {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw e;
->>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
         }
     }
 
@@ -813,11 +733,7 @@ public class NexusClient implements NexusHttpClient, AutoCloseable {
                     long delay = initialRetryDelayMs * (1L << (attempt - 1)); // Exponential backoff
                     logger.warn("Delete failed for {} (attempt {}/{}): {}. Retrying in {}ms...",
                         componentId, attempt, maxRetries, safeExceptionMessage(e), delay);
-<<<<<<< HEAD
-                    sleepWithExponentialBackoff(attempt);
-=======
                     delayWithExponentialBackoff(delay);
->>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
                 } else {
                     break;
                 }
@@ -887,48 +803,11 @@ public class NexusClient implements NexusHttpClient, AutoCloseable {
 
 
     /**
-     * Gets the retry scheduler for advanced use cases requiring non-blocking retry logic.
-     * <p>
-     * <strong>Advanced API - Use with caution.</strong>
-     * </p>
-     * <p>
-     * This method is intended for GUI frameworks that need non-blocking retry delays.
-     * The scheduler is a single-threaded ScheduledExecutorService suitable for scheduling
-     * retry callbacks without blocking the calling thread.
-     * </p>
-     * <p>
-     * Example usage in Swing:
-     * </p>
-     * <pre>
-     * ScheduledExecutorService scheduler = client.getRetryScheduler();
-     * scheduler.schedule(
-     *     () -> SwingUtilities.invokeLater(() -> {
-     *         // Retry logic here - will run on EDT
-     *     }),
-     *     1000,  // delay in ms
-     *     TimeUnit.MILLISECONDS
-     * );
-     * </pre>
-     *
-     * @return the ScheduledExecutorService used for retry delays
-     * @since 1.0
-     */
-    public ScheduledExecutorService getRetryScheduler() {
-        return retryScheduler;
-    }
-
-    /**
      * Closes this client and releases any resources held by it.
      * <p>
-<<<<<<< HEAD
-     * This method clears all caches and shuts down the retry scheduler.
-     * The underlying {@link HttpClient} doesn't have an explicit close() method in Java 21,
-     * but clearing our references helps with resource cleanup in long-running applications.
-=======
      * This method clears all caches. The underlying {@link HttpClient} doesn't have an explicit
      * close() method in Java 21, but clearing our references helps with resource cleanup in
      * long-running applications.
->>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
      * </p>
      * <p>
      * This client should be used with try-with-resources for proper lifecycle management:
@@ -941,7 +820,7 @@ public class NexusClient implements NexusHttpClient, AutoCloseable {
      * </pre>
      * <p>
      * <strong>Note:</strong> After calling close(), this client should not be used for further operations.
-     * Any pending retry delays scheduled via {@link #getRetryScheduler()} will be cancelled.
+     * Any pending operations will be cancelled when the executor shuts down.
      * </p>
      */
     @Override
@@ -953,22 +832,7 @@ public class NexusClient implements NexusHttpClient, AutoCloseable {
         cache.clear();
         metadataCache.clear();
 
-<<<<<<< HEAD
-        // Shutdown the retry scheduler gracefully
-        try {
-            retryScheduler.shutdown();
-            if (!retryScheduler.awaitTermination(5, TimeUnit.SECONDS)) {
-                retryScheduler.shutdownNow();
-            }
-        } catch (InterruptedException e) {
-            retryScheduler.shutdownNow();
-            Thread.currentThread().interrupt();
-        }
-
-        logger.debug("NexusClient closed - caches cleared, scheduler shutdown, and resources will be freed by GC");
-=======
         logger.debug("NexusClient closed - executor shut down, caches cleared");
->>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
     }
 
     /**

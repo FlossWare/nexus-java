@@ -163,11 +163,7 @@ jobs:
         continue-on-error: true
         run: |
           mvn clean test \
-<<<<<<< HEAD
-            -Dtest=NexusClientLoadTest \
-=======
             -Dtest=NexusClientLoadTest,NexusStressTest \
->>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
             -B 2>&1 | tee load-test-output.log
           echo "exit_code=${PIPESTATUS[0]}" >> $GITHUB_OUTPUT
 
@@ -175,11 +171,7 @@ jobs:
         if: always()
         id: parse-load-tests
         run: |
-<<<<<<< HEAD
-          echo "## Load Test Results" >> $GITHUB_STEP_SUMMARY
-=======
           echo "## Load Test & Stress Test Results" >> $GITHUB_STEP_SUMMARY
->>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
 
           # Extract test results
           if grep -q "Tests run:" load-test-output.log; then
@@ -195,14 +187,6 @@ jobs:
             echo "" >> $GITHUB_STEP_SUMMARY
           fi
 
-<<<<<<< HEAD
-          # Check for performance assertions
-          if grep -i "concurrent" load-test-output.log > /dev/null; then
-            echo "✓ Concurrent operation tests passed" >> $GITHUB_STEP_SUMMARY
-          fi
-
-          if grep -i "memory" load-test-output.log > /dev/null; then
-=======
           # Check for load test assertions
           echo "### Load Tests" >> $GITHUB_STEP_SUMMARY
           if grep -i "concurrent.*operations" load-test-output.log > /dev/null; then
@@ -210,7 +194,6 @@ jobs:
           fi
 
           if grep -i "memory.*usage" load-test-output.log > /dev/null; then
->>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
             echo "✓ Memory usage tests passed" >> $GITHUB_STEP_SUMMARY
           fi
 
@@ -218,8 +201,6 @@ jobs:
             echo "✓ Throughput tests passed" >> $GITHUB_STEP_SUMMARY
           fi
 
-<<<<<<< HEAD
-=======
           # Check for stress test assertions
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Stress Tests" >> $GITHUB_STEP_SUMMARY
@@ -235,7 +216,7 @@ jobs:
             echo "✓ Bulk delete stress tests passed" >> $GITHUB_STEP_SUMMARY
           fi
 
->>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
+
       - name: Upload Load Test Results
         if: always()
         uses: actions/upload-artifact@v4
@@ -254,24 +235,6 @@ jobs:
         run: |
           echo "## Performance Test Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-<<<<<<< HEAD
-          echo "### Benchmarks" >> $GITHUB_STEP_SUMMARY
-          echo "- Status: ${{ needs.performance-benchmarks.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Load Tests" >> $GITHUB_STEP_SUMMARY
-          echo "- Status: ${{ needs.performance-load-tests.result }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Performance Targets (SLA)" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Operation | Target | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|-----------|--------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| List (1K, cached) | <100ms | ✓ |" >> $GITHUB_STEP_SUMMARY
-          echo "| Statistics (1K) | <500ms | ✓ |" >> $GITHUB_STEP_SUMMARY
-          echo "| Concurrent (100 ops) | <10s | ✓ |" >> $GITHUB_STEP_SUMMARY
-          echo "| Memory (10K) | <300MB | ✓ |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "See [PERFORMANCE.md](../PERFORMANCE.md) for detailed metrics and optimization tips." >> $GITHUB_STEP_SUMMARY
-=======
           echo "### Test Suites" >> $GITHUB_STEP_SUMMARY
           echo "- **JMH Benchmarks**: ${{ needs.performance-benchmarks.result }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Load Tests**: ${{ needs.performance-load-tests.result }}" >> $GITHUB_STEP_SUMMARY
@@ -306,7 +269,6 @@ jobs:
           echo "| Concurrent mixed ops | No deadlock |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "See [TEST_COVERAGE.md](../TEST_COVERAGE.md) for detailed performance testing documentation." >> $GITHUB_STEP_SUMMARY
->>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4

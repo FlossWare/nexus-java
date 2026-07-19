@@ -1,9 +1,5 @@
 package org.flossware.nexus;
 
-<<<<<<< HEAD
-import org.openjdk.jmh.annotations.*;
-import org.openjdk.jmh.infra.Blackhole;
-=======
 import org.flossware.jnexus.ComponentMetadata;
 import org.flossware.jnexus.NexusHttpClient;
 import org.flossware.jnexus.RepoRecord;
@@ -12,7 +8,6 @@ import org.flossware.jnexus.SearchCriteria;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
 
->>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
 import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -48,21 +43,11 @@ import java.util.concurrent.TimeUnit;
 public class NexusClientBenchmark {
 
     private NexusService service;
-<<<<<<< HEAD
-=======
     private MockNexusClient mockClient;
->>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
     private List<RepoRecord> smallDataset;
     private List<RepoRecord> mediumDataset;
     private List<RepoRecord> largeDataset;
     private List<ComponentMetadata> smallMetadataDataset;
-<<<<<<< HEAD
-
-    @Setup
-    public void setup() throws IOException, InterruptedException {
-        // Create a mock NexusClient with deterministic test data
-        NexusClient mockClient = new MockNexusClient();
-=======
     private List<ComponentMetadata> mediumMetadataDataset;
     private List<ComponentMetadata> largeMetadataDataset;
 
@@ -70,7 +55,6 @@ public class NexusClientBenchmark {
     public void setup() throws IOException, InterruptedException {
         // Create a mock NexusHttpClient with deterministic test data
         mockClient = new MockNexusClient();
->>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
         service = new NexusService(mockClient);
 
         // Generate test datasets
@@ -78,22 +62,15 @@ public class NexusClientBenchmark {
         mediumDataset = generateRepoRecords(1000);
         largeDataset = generateRepoRecords(10000);
         smallMetadataDataset = generateComponentMetadata(100);
-<<<<<<< HEAD
-=======
         mediumMetadataDataset = generateComponentMetadata(1000);
         largeMetadataDataset = generateComponentMetadata(10000);
->>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
     }
 
     @TearDown
     public void tearDown() {
-<<<<<<< HEAD
-        service.clearAllCaches();
-=======
         if (service != null) {
             service.clearAllCache();
         }
->>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
     }
 
     // ==================== List Operation Benchmarks ====================
@@ -206,12 +183,8 @@ public class NexusClientBenchmark {
      */
     @Benchmark
     public void statistics_100(Blackhole bh) throws IOException, InterruptedException {
-<<<<<<< HEAD
-        RepositoryStats stats = service.calculateStatistics("test-repo-100");
-=======
         List<ComponentMetadata> components = mockClient.listComponentsWithMetadata("test-repo-100", false);
         RepositoryStats stats = service.calculateStatistics("test-repo-100", components);
->>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
         bh.consume(stats);
     }
 
@@ -221,12 +194,8 @@ public class NexusClientBenchmark {
      */
     @Benchmark
     public void statistics_1000(Blackhole bh) throws IOException, InterruptedException {
-<<<<<<< HEAD
-        RepositoryStats stats = service.calculateStatistics("test-repo-1000");
-=======
         List<ComponentMetadata> components = mockClient.listComponentsWithMetadata("test-repo-1000", false);
         RepositoryStats stats = service.calculateStatistics("test-repo-1000", components);
->>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
         bh.consume(stats);
     }
 
@@ -236,12 +205,8 @@ public class NexusClientBenchmark {
      */
     @Benchmark
     public void statistics_10000(Blackhole bh) throws IOException, InterruptedException {
-<<<<<<< HEAD
-        RepositoryStats stats = service.calculateStatistics("test-repo-10000");
-=======
         List<ComponentMetadata> components = mockClient.listComponentsWithMetadata("test-repo-10000", false);
         RepositoryStats stats = service.calculateStatistics("test-repo-10000", components);
->>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
         bh.consume(stats);
     }
 
@@ -253,11 +218,7 @@ public class NexusClientBenchmark {
      */
     @Benchmark
     public void cacheInvalidation_overhead(Blackhole bh) {
-<<<<<<< HEAD
-        service.clearAllCaches();
-=======
         service.clearAllCache();
->>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
         bh.consume(true);
     }
 
@@ -266,11 +227,7 @@ public class NexusClientBenchmark {
      * SLA: < 0.1ms
      */
     @Benchmark
-<<<<<<< HEAD
-    public void cacheCheck_beforePopulation(Blackhole bh) {
-=======
     public void cacheCheck_beforePopulation(Blackhole bh) throws IOException, InterruptedException {
->>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
         // This measures the time to check cache for non-existent entry
         service.getRepositoryRecords("non-existent-" + System.nanoTime(), null, false);
         bh.consume(true);
@@ -310,22 +267,13 @@ public class NexusClientBenchmark {
             String checksum = "sha256-" + i;
 
             metadata.add(new ComponentMetadata(
-<<<<<<< HEAD
-                id, size, path, contentType, format, created, modified, checksum
-=======
                 id, path, size, contentType, format, created, modified, checksum
->>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
             ));
         }
         return metadata;
     }
 
     /**
-<<<<<<< HEAD
-     * Mock NexusClient implementation for deterministic benchmarking.
-     */
-    private class MockNexusClient implements NexusClient {
-=======
      * Mock NexusHttpClient implementation for deterministic benchmarking.
      * <p>
      * This mock implementation provides deterministic data for benchmarking
@@ -333,7 +281,6 @@ public class NexusClientBenchmark {
      * </p>
      */
     private class MockNexusClient implements NexusHttpClient {
->>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
 
         @Override
         public List<RepoRecord> listComponents(String repository, boolean forceRefresh)
@@ -355,11 +302,6 @@ public class NexusClientBenchmark {
         public List<ComponentMetadata> listComponentsWithMetadata(
                 String repository, boolean forceRefresh)
                 throws IOException, InterruptedException {
-<<<<<<< HEAD
-            // Return metadata dataset
-            if ("test-repo-100".equals(repository)) {
-                return new ArrayList<>(smallMetadataDataset);
-=======
             // Return metadata dataset based on repository name
             if ("test-repo-100".equals(repository)) {
                 return new ArrayList<>(smallMetadataDataset);
@@ -367,27 +309,17 @@ public class NexusClientBenchmark {
                 return new ArrayList<>(mediumMetadataDataset);
             } else if ("test-repo-10000".equals(repository)) {
                 return new ArrayList<>(largeMetadataDataset);
->>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
             }
             return new ArrayList<>();
         }
 
         @Override
-<<<<<<< HEAD
-        public void deleteComponent(String repository, String componentId)
-=======
         public void deleteComponent(String componentId)
->>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
                 throws IOException, InterruptedException {
             // No-op for benchmarking
         }
 
         @Override
-<<<<<<< HEAD
-        public void clearCache() {
-            // No-op for benchmarking
-        }
-=======
         public void clearCache(String repository) {
             // No-op for benchmarking
         }
@@ -408,6 +340,5 @@ public class NexusClientBenchmark {
             // Return -1 for benchmarking (not cached)
             return -1;
         }
->>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
     }
 }

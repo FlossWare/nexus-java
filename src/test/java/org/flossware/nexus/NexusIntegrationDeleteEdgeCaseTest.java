@@ -87,14 +87,13 @@ class NexusIntegrationDeleteEdgeCaseTest {
             .thenReturn(records);
 
         // First and third succeed, second fails
-        when(mockClient.deleteComponent(anyString()))
-            .thenAnswer(invocation -> {
+        doAnswer(invocation -> {
                 String id = invocation.getArgument(0);
                 if ("id2".equals(id)) {
                     throw new IOException("Delete failed for id2");
                 }
                 return null;
-            });
+            }).when(mockClient).deleteComponent(anyString());
 
         // Should continue despite failures
         assertDoesNotThrow(() ->
@@ -118,11 +117,10 @@ class NexusIntegrationDeleteEdgeCaseTest {
         when(mockClient.listComponents(anyString(), anyBoolean()))
             .thenReturn(records);
 
-        when(mockClient.deleteComponent(anyString()))
-            .thenAnswer(invocation -> {
+        doAnswer(invocation -> {
                 Thread.sleep(10); // Simulate network call
                 return null;
-            });
+            }).when(mockClient).deleteComponent(anyString());
 
         long startTime = System.currentTimeMillis();
         service.deleteFromRepository("test-repo", null, false, null);
@@ -182,11 +180,10 @@ class NexusIntegrationDeleteEdgeCaseTest {
         when(mockClient.listComponents(anyString(), anyBoolean()))
             .thenReturn(records);
 
-        when(mockClient.deleteComponent(anyString()))
-            .thenAnswer(invocation -> {
+        doAnswer(invocation -> {
                 Thread.sleep(5); // Simulate network call
                 return null;
-            });
+            }).when(mockClient).deleteComponent(anyString());
 
         ExecutorService executor = Executors.newFixedThreadPool(2);
 
@@ -263,12 +260,11 @@ class NexusIntegrationDeleteEdgeCaseTest {
             .thenReturn(records);
 
         List<String> deleteOrder = new ArrayList<>();
-        when(mockClient.deleteComponent(anyString()))
-            .thenAnswer(invocation -> {
+        doAnswer(invocation -> {
                 String id = invocation.getArgument(0);
                 deleteOrder.add(id);
                 return null;
-            });
+            }).when(mockClient).deleteComponent(anyString());
 
         service.deleteFromRepository("test-repo", null, false, null);
 

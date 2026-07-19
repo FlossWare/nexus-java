@@ -37,7 +37,5 @@ build/
 .vscode/
 *.log
 logs/
-<<<<<<< HEAD
-=======
 .claude
->>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
+pom.xml.backup*

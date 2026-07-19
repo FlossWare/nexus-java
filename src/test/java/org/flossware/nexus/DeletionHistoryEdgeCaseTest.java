@@ -9,6 +9,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Instant;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -163,7 +164,7 @@ class DeletionHistoryEdgeCaseTest {
         assertTrue(Files.exists(outputFile), "JSON file should be created");
         String content = Files.readString(outputFile);
 
-        assertTrue(content.contains("\"totalComponents\": 2"),
+        assertTrue(content.contains("\"totalComponents\" : 2"),
             "Should contain component count");
         assertTrue(content.contains("artifact.jar"),
             "Should contain component path");
@@ -178,9 +179,9 @@ class DeletionHistoryEdgeCaseTest {
 
         String json = history.toJson();
 
-        assertTrue(json.contains("\"totalComponents\": 1"));
-        assertTrue(json.contains("\"totalSize\": 1234"));
-        assertTrue(json.contains("\"path\": \"test.jar\""));
+        assertTrue(json.contains("\"totalComponents\" : 1"));
+        assertTrue(json.contains("\"totalSize\" : 1234"));
+        assertTrue(json.contains("\"path\" : \"test.jar\""));
     }
 
     @Test
@@ -212,11 +213,15 @@ class DeletionHistoryEdgeCaseTest {
         assertTrue(json.contains("\"exportedAt\""), "Should contain exportedAt");
         assertTrue(json.contains("\"summary\""), "Should contain summary");
         assertTrue(json.contains("\"components\""), "Should contain components");
-        // When null, these fields should be absent or have null value in JSON
-        assertTrue(json.contains("\"repository\":null") || !json.contains("\"repository\""),
-            "Repository should be null or absent");
-        assertTrue(json.contains("\"criteria\":null") || !json.contains("\"criteria\""),
-            "Criteria should be null or absent");
+        // With NON_NULL, null fields are omitted from the top level.
+        // The component-level repository field is still present (non-null),
+        // so we verify criteria is absent and repository only appears inside components.
+        assertFalse(json.contains("\"criteria\""),
+            "Criteria should be absent when null");
+        int firstRepo = json.indexOf("\"repository\"");
+        int componentsStart = json.indexOf("\"components\"");
+        assertTrue(firstRepo > componentsStart,
+            "Repository should only appear inside components, not at top level");
     }
 
     @Test
@@ -283,9 +288,9 @@ class DeletionHistoryEdgeCaseTest {
 
         String json = DeletionHistory.formatAsJson(components, "maven-releases", ".*SNAPSHOT.*");
 
-        assertTrue(json.contains("\"repository\": \"maven-releases\""),
+        assertTrue(json.contains("\"repository\" : \"maven-releases\""),
             "Should include repository");
-        assertTrue(json.contains("\"regex\": \".*SNAPSHOT.*\""),
+        assertTrue(json.contains("\"regex\" : \".*SNAPSHOT.*\""),
             "Should include regex criteria");
     }
 }

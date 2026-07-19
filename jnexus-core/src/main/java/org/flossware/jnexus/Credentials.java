@@ -83,19 +83,6 @@ public interface Credentials extends HttpConfig {
 
     /**
      * Gets the maximum number of retry attempts for failed HTTP requests.
-<<<<<<< HEAD
-     *
-     * @return the maximum number of retries (default: 3)
-     */
-    int getMaxRetries();
-
-    /**
-     * Gets the initial retry delay in milliseconds for exponential backoff.
-     *
-     * @return the initial retry delay in milliseconds (default: 1000)
-     */
-    long getInitialRetryDelayMs();
-=======
      * <p>
      * Applies exponential backoff with initial delay from {@link #getInitialRetryDelayMs()}.
      * </p>
@@ -123,5 +110,4 @@ public interface Credentials extends HttpConfig {
     default long getInitialRetryDelayMs() {
         return 1000;
     }
->>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
 }

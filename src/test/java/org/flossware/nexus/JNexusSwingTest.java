@@ -181,7 +181,7 @@ class NexusSwingTest {
         method.setAccessible(true);
         JPanel panel = (JPanel) method.invoke(swing);
 
-        JButtonlistButton = findButtonByText(panel, "List");
+        JButton listButton = findButtonByText(panel, "List");
         assertNotNull(listButton, "List button should exist");
         assertEquals(KeyEvent.VK_L, listButton.getMnemonic(), "List button should have Alt+L mnemonic");
     }
@@ -192,7 +192,7 @@ class NexusSwingTest {
         method.setAccessible(true);
         JPanel panel = (JPanel) method.invoke(swing);
 
-        JButtonrefreshButton = findButtonByText(panel, "Refresh");
+        JButton refreshButton = findButtonByText(panel, "Refresh");
         assertNotNull(refreshButton, "Refresh button should exist");
         assertEquals(KeyEvent.VK_R, refreshButton.getMnemonic(), "Refresh button should have Alt+R mnemonic");
     }
@@ -203,7 +203,7 @@ class NexusSwingTest {
         method.setAccessible(true);
         JPanel panel = (JPanel) method.invoke(swing);
 
-        JButtondeleteButton = findButtonByText(panel, "Delete All");
+        JButton deleteButton = findButtonByText(panel, "Delete All");
         assertNotNull(deleteButton, "Delete All button should exist");
         assertEquals(KeyEvent.VK_D, deleteButton.getMnemonic(), "Delete All button should have Alt+D mnemonic");
     }
@@ -214,7 +214,7 @@ class NexusSwingTest {
         method.setAccessible(true);
         JPanel panel = (JPanel) method.invoke(swing);
 
-        JButtonquitButton = findButtonByText(panel, "Quit");
+        JButton quitButton = findButtonByText(panel, "Quit");
         assertNotNull(quitButton, "Quit button should exist");
         assertEquals(KeyEvent.VK_Q, quitButton.getMnemonic(), "Quit button should have Alt+Q mnemonic");
     }
@@ -225,7 +225,7 @@ class NexusSwingTest {
         method.setAccessible(true);
         JPanel panel = (JPanel) method.invoke(swing);
 
-        JButtonclearButton = findButtonByText(panel, "Clear Results");
+        JButton clearButton = findButtonByText(panel, "Clear Results");
         assertNotNull(clearButton, "Clear Results button should exist");
         assertEquals(KeyEvent.VK_C, clearButton.getMnemonic(), "Clear button should have Alt+C mnemonic");
     }
@@ -236,7 +236,7 @@ class NexusSwingTest {
         method.setAccessible(true);
         JPanel panel = (JPanel) method.invoke(swing);
 
-        JButtonstatsButton = findButtonByText(panel, "Statistics");
+        JButton statsButton = findButtonByText(panel, "Statistics");
         assertNotNull(statsButton, "Statistics button should exist");
         assertEquals(KeyEvent.VK_S, statsButton.getMnemonic(), "Statistics button should have Alt+S mnemonic");
     }
@@ -245,12 +245,12 @@ class NexusSwingTest {
     void testCreateMenuBar_createsFileMenu() throws Exception {
         var method = NexusSwing.class.getDeclaredMethod("createMenuBar");
         method.setAccessible(true);
-        MenuBar menuBar = (JMenuBar) method.invoke(swing);
+        JMenuBar menuBar = (JMenuBar) method.invoke(swing);
 
         assertNotNull(menuBar);
-        assertTrue(menuBar.getMenuCount() >= 3, "Should have at least 3 menus (File, Actions, Help)");
+        assertTrue(menuBar.getMenuCount() >= 4, "Should have at least 4 menus (File, Edit, Actions, Help)");
 
-        Menu fileMenu = menuBar.getMenu(0);
+        JMenu fileMenu = menuBar.getMenu(0);
         assertEquals("File", fileMenu.getText(), "First menu should be File");
         assertEquals(KeyEvent.VK_F, fileMenu.getMnemonic(), "File menu should have Alt+F mnemonic");
     }
@@ -259,10 +259,10 @@ class NexusSwingTest {
     void testCreateMenuBar_createsActionsMenu() throws Exception {
         var method = NexusSwing.class.getDeclaredMethod("createMenuBar");
         method.setAccessible(true);
-        MenuBar menuBar = (JMenuBar) method.invoke(swing);
+        JMenuBar menuBar = (JMenuBar) method.invoke(swing);
 
-        Menu actionsMenu = menuBar.getMenu(1);
-        assertEquals("Actions", actionsMenu.getText(), "Second menu should be Actions");
+        JMenu actionsMenu = menuBar.getMenu(2);
+        assertEquals("Actions", actionsMenu.getText(), "Third menu should be Actions");
         assertEquals(KeyEvent.VK_A, actionsMenu.getMnemonic(), "Actions menu should have Alt+A mnemonic");
     }
 
@@ -270,10 +270,10 @@ class NexusSwingTest {
     void testCreateMenuBar_createsHelpMenu() throws Exception {
         var method = NexusSwing.class.getDeclaredMethod("createMenuBar");
         method.setAccessible(true);
-        MenuBar menuBar = (JMenuBar) method.invoke(swing);
+        JMenuBar menuBar = (JMenuBar) method.invoke(swing);
 
-        Menu helpMenu = menuBar.getMenu(2);
-        assertEquals("Help", helpMenu.getText(), "Third menu should be Help");
+        JMenu helpMenu = menuBar.getMenu(3);
+        assertEquals("Help", helpMenu.getText(), "Fourth menu should be Help");
         assertEquals(KeyEvent.VK_H, helpMenu.getMnemonic(), "Help menu should have Alt+H mnemonic");
     }
 
@@ -285,11 +285,11 @@ class NexusSwingTest {
 
         assertNotNull(panel);
 
-        // Find ScrollPane containing the table
-        ScrollPane scrollPane = findComponentOfType(panel, JScrollPane.class);
+        // Find JScrollPane containing the table
+        JScrollPane scrollPane = findComponentOfType(panel, JScrollPane.class);
         assertNotNull(scrollPane, "Results panel should contain JScrollPane");
 
-        Table table = (JTable) scrollPane.getViewport().getView();
+        JTable table = (JTable) scrollPane.getViewport().getView();
         assertNotNull(table, "Scroll pane should contain JTable");
         assertEquals(7, table.getColumnCount(), "Table should have 7 columns");
     }
@@ -302,7 +302,7 @@ class NexusSwingTest {
 
         assertNotNull(panel);
 
-        Label statusLabel = findComponentOfType(panel, JLabel.class);
+        JLabel statusLabel = findComponentOfType(panel, JLabel.class);
         assertNotNull(statusLabel, "Status panel should contain JLabel");
         assertTrue(statusLabel.getText().contains("Ready"), "Status label should show 'Ready' message");
     }

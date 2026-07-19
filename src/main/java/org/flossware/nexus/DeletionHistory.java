@@ -1,12 +1,11 @@
 package org.flossware.nexus;
 
-<<<<<<< HEAD
-=======
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.flossware.jnexus.RepoRecord;
->>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,14 +14,7 @@ import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
-<<<<<<< HEAD
-import java.time.ZoneOffset;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.stream.Collectors;
-=======
-import java.util.*;
->>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
 
 /**
  * Tracks deletion history for undo/recovery reference during a session.
@@ -70,15 +62,14 @@ public class DeletionHistory {
      */
     public static final int DEFAULT_MAX_HISTORY = 1000;
 
-<<<<<<< HEAD
-=======
     /**
      * Jackson ObjectMapper configured for JSON serialization with proper Instant handling.
      */
     private static final ObjectMapper objectMapper = new ObjectMapper()
-        .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        .registerModule(new JavaTimeModule())
+        .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+        .setSerializationInclusion(JsonInclude.Include.NON_NULL);
 
->>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
     private final Deque<DeletedComponent> history = new ArrayDeque<>();
     private final int maxHistory;
 
@@ -146,12 +137,7 @@ public class DeletionHistory {
      * @return a list of the most recent deleted components, newest first
      */
     public synchronized List<DeletedComponent> getRecentDeletions(int limit) {
-<<<<<<< HEAD
-        return history.stream()
-            .sorted(Comparator.comparing(DeletedComponent::deletedAt).reversed())
-=======
         return history.reversed().stream()
->>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
             .limit(limit)
             .toList();
     }
@@ -162,13 +148,7 @@ public class DeletionHistory {
      * @return a list of all deleted components, newest first
      */
     public synchronized List<DeletedComponent> getAllDeletions() {
-<<<<<<< HEAD
-        return history.stream()
-            .sorted(Comparator.comparing(DeletedComponent::deletedAt).reversed())
-            .toList();
-=======
         return history.reversed().stream().toList();
->>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
     }
 
     /**
@@ -224,14 +204,8 @@ public class DeletionHistory {
      * @return a list of deleted components from the specified repository, newest first
      */
     public synchronized List<DeletedComponent> getDeletionsByRepository(String repository) {
-<<<<<<< HEAD
-        return history.stream()
-            .filter(d -> d.repository().equals(repository))
-            .sorted(Comparator.comparing(DeletedComponent::deletedAt).reversed())
-=======
         return history.reversed().stream()
             .filter(d -> d.repository().equals(repository))
->>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
             .toList();
     }
 
@@ -281,51 +255,6 @@ public class DeletionHistory {
      * @return JSON string representing the deletion export
      */
     public static String formatAsJson(List<DeletedComponent> components, String repository, String regexFilter) {
-<<<<<<< HEAD
-        DateTimeFormatter formatter = DateTimeFormatter.ISO_INSTANT;
-
-        StringBuilder sb = new StringBuilder();
-        sb.append("{\n");
-        sb.append("  \"exportedAt\": \"").append(formatter.format(Instant.now().atOffset(ZoneOffset.UTC))).append("\",\n");
-
-        if (repository != null) {
-            sb.append("  \"repository\": \"").append(escapeJson(repository)).append("\",\n");
-        }
-
-        if (regexFilter != null) {
-            sb.append("  \"criteria\": {\n");
-            sb.append("    \"regex\": \"").append(escapeJson(regexFilter)).append("\"\n");
-            sb.append("  },\n");
-        }
-
-        // Summary
-        long totalSize = components.stream().mapToLong(DeletedComponent::fileSize).sum();
-        sb.append("  \"summary\": {\n");
-        sb.append("    \"totalComponents\": ").append(components.size()).append(",\n");
-        sb.append("    \"totalSize\": ").append(totalSize).append("\n");
-        sb.append("  },\n");
-
-        // Components array
-        sb.append("  \"components\": [\n");
-        for (int i = 0; i < components.size(); i++) {
-            DeletedComponent comp = components.get(i);
-            sb.append("    {\n");
-            sb.append("      \"id\": \"").append(escapeJson(comp.id())).append("\",\n");
-            sb.append("      \"path\": \"").append(escapeJson(comp.path())).append("\",\n");
-            sb.append("      \"fileSize\": ").append(comp.fileSize()).append(",\n");
-            sb.append("      \"repository\": \"").append(escapeJson(comp.repository())).append("\",\n");
-            sb.append("      \"deletedAt\": \"").append(formatter.format(comp.deletedAt().atOffset(ZoneOffset.UTC))).append("\"\n");
-            sb.append("    }");
-            if (i < components.size() - 1) {
-                sb.append(",");
-            }
-            sb.append("\n");
-        }
-        sb.append("  ]\n");
-        sb.append("}\n");
-
-        return sb.toString();
-=======
         try {
             long totalSize = components.stream().mapToLong(DeletedComponent::fileSize).sum();
             ExportData export = new ExportData(
@@ -340,7 +269,6 @@ public class DeletionHistory {
             logger.error("Failed to serialize deletion history to JSON", e);
             throw new RuntimeException("JSON serialization error", e);
         }
->>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
     }
 
     /**
@@ -362,25 +290,6 @@ public class DeletionHistory {
     }
 
     /**
-<<<<<<< HEAD
-     * Escapes a string for use in JSON output.
-     * <p>
-     * Handles characters that must be escaped in JSON strings:
-     * backslash, double quote, and control characters.
-     * </p>
-     *
-     * @param text the string to escape
-     * @return the escaped string safe for JSON embedding
-     */
-    static String escapeJson(String text) {
-        if (text == null) return "";
-        return text
-            .replace("\\", "\\\\")
-            .replace("\"", "\\\"")
-            .replace("\n", "\\n")
-            .replace("\r", "\\r")
-            .replace("\t", "\\t");
-=======
      * Internal data structure for JSON export.
      */
     record ExportData(
@@ -402,6 +311,5 @@ public class DeletionHistory {
             int totalComponents,
             long totalSize
         ) {}
->>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
     }
 }

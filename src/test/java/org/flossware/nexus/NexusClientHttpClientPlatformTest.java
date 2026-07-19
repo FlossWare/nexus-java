@@ -1,6 +1,7 @@
 package org.flossware.nexus;
 
 import com.sun.net.httpserver.HttpServer;
+import org.flossware.jnexus.RepoRecord;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -56,7 +57,7 @@ class NexusClientHttpClientPlatformTest {
 
     @Test
     @DisplayName("HttpClient follows HTTP 302 redirect")
-    void testHttpClientRedirect() throws IOException {
+    void testHttpClientRedirect() throws Exception {
         // Redirect server: responds with 302 redirect
         redirectServer.createContext("/service/rest/v1/components", exchange -> {
             exchange.getResponseHeaders().add("Location", "http://localhost:" + primaryPort + "/service/rest/v1/components");
@@ -85,7 +86,7 @@ class NexusClientHttpClientPlatformTest {
 
     @Test
     @DisplayName("HttpClient handles 301 permanent redirect")
-    void testHttpClientPermanentRedirect() throws IOException {
+    void testHttpClientPermanentRedirect() throws Exception {
         // Redirect server: responds with 301 permanent redirect
         redirectServer.createContext("/service/rest/v1/components", exchange -> {
             exchange.getResponseHeaders().add("Location", "http://localhost:" + primaryPort + "/service/rest/v1/components");
@@ -113,7 +114,7 @@ class NexusClientHttpClientPlatformTest {
 
     @Test
     @DisplayName("HttpClient detects redirect loop")
-    void testHttpClientRedirectLoop() throws IOException {
+    void testHttpClientRedirectLoop() throws Exception {
         // Server redirects to itself indefinitely
         server.createContext("/service/rest/v1/components", exchange -> {
             exchange.getResponseHeaders().add("Location", "http://localhost:" + primaryPort + "/service/rest/v1/components");
@@ -131,7 +132,7 @@ class NexusClientHttpClientPlatformTest {
 
     @Test
     @DisplayName("HttpClient handles HTTP keep-alive connections")
-    void testHttpClientKeepAlive() throws IOException {
+    void testHttpClientKeepAlive() throws Exception {
         server.createContext("/service/rest/v1/components", exchange -> {
             exchange.getResponseHeaders().add("Connection", "keep-alive");
             exchange.getResponseHeaders().add("Keep-Alive", "timeout=5, max=100");
@@ -155,7 +156,7 @@ class NexusClientHttpClientPlatformTest {
 
     @Test
     @DisplayName("HttpClient handles chunked transfer encoding")
-    void testHttpClientChunkedTransferEncoding() throws IOException {
+    void testHttpClientChunkedTransferEncoding() throws Exception {
         server.createContext("/service/rest/v1/components", exchange -> {
             exchange.getResponseHeaders().add("Transfer-Encoding", "chunked");
             String response = "{\"items\":[{\"id\":\"test\",\"assets\":[{\"path\":\"test.jar\",\"fileSize\":1024}]}]}";
@@ -182,7 +183,7 @@ class NexusClientHttpClientPlatformTest {
 
     @Test
     @DisplayName("HttpClient handles gzip-compressed responses")
-    void testHttpClientGzipCompression() throws IOException {
+    void testHttpClientGzipCompression() throws Exception {
         server.createContext("/service/rest/v1/components", exchange -> {
             exchange.getResponseHeaders().add("Content-Encoding", "gzip");
             String response = "{\"items\":[{\"id\":\"test\",\"assets\":[{\"path\":\"test.jar\",\"fileSize\":1024}]}]}";
@@ -210,7 +211,7 @@ class NexusClientHttpClientPlatformTest {
 
     @Test
     @DisplayName("HttpClient handles response caching headers")
-    void testHttpClientResponseCaching() throws IOException {
+    void testHttpClientResponseCaching() throws Exception {
         java.util.concurrent.atomic.AtomicInteger requestCount = new java.util.concurrent.atomic.AtomicInteger(0);
 
         server.createContext("/service/rest/v1/components", exchange -> {
@@ -242,7 +243,7 @@ class NexusClientHttpClientPlatformTest {
 
     @Test
     @DisplayName("HttpClient handles custom headers")
-    void testHttpClientCustomHeaders() throws IOException {
+    void testHttpClientCustomHeaders() throws Exception {
         java.util.concurrent.atomic.AtomicReference<String> userAgent = new java.util.concurrent.atomic.AtomicReference<>();
 
         server.createContext("/service/rest/v1/components", exchange -> {

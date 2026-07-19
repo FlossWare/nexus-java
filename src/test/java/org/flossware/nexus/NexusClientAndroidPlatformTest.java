@@ -1,6 +1,7 @@
 package org.flossware.nexus;
 
 import com.sun.net.httpserver.HttpServer;
+import org.flossware.jnexus.RepoRecord;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -51,7 +52,7 @@ class NexusClientAndroidPlatformTest {
     @Test
     @DisplayName("OkHttp handles connection pooling under concurrent load")
     @Timeout(value = 30, unit = TimeUnit.SECONDS)
-    void testOkHttpConnectionPooling() throws IOException {
+    void testOkHttpConnectionPooling() throws Exception {
         AtomicInteger activeConnections = new AtomicInteger(0);
         AtomicInteger maxConcurrent = new AtomicInteger(0);
 
@@ -106,7 +107,7 @@ class NexusClientAndroidPlatformTest {
 
     @Test
     @DisplayName("OkHttp handles network state changes (simulated)")
-    void testOkHttpNetworkStateChange() throws IOException {
+    void testOkHttpNetworkStateChange() throws Exception {
         AtomicInteger requestCount = new AtomicInteger(0);
 
         server.createContext("/service/rest/v1/components", exchange -> {
@@ -152,7 +153,7 @@ class NexusClientAndroidPlatformTest {
     @Test
     @DisplayName("OkHttp handles request timeout on slow network")
     @Timeout(value = 30, unit = TimeUnit.SECONDS)
-    void testOkHttpRequestTimeout() throws IOException {
+    void testOkHttpRequestTimeout() throws Exception {
         server.createContext("/service/rest/v1/components", exchange -> {
             try {
                 // Simulate slow network (10 second delay, but client timeout should be 5)
@@ -172,7 +173,7 @@ class NexusClientAndroidPlatformTest {
 
     @Test
     @DisplayName("OkHttp handles large response payload")
-    void testOkHttpLargeResponsePayload() throws IOException {
+    void testOkHttpLargeResponsePayload() throws Exception {
         server.createContext("/service/rest/v1/components", exchange -> {
             // Generate a large response (10MB)
             StringBuilder json = new StringBuilder("{\"items\":[");
@@ -201,7 +202,7 @@ class NexusClientAndroidPlatformTest {
 
     @Test
     @DisplayName("OkHttp handles multiple authentication attempts")
-    void testOkHttpMultipleAuthAttempts() throws IOException {
+    void testOkHttpMultipleAuthAttempts() throws Exception {
         AtomicInteger attemptCount = new AtomicInteger(0);
 
         server.createContext("/service/rest/v1/components", exchange -> {
@@ -233,7 +234,7 @@ class NexusClientAndroidPlatformTest {
 
     @Test
     @DisplayName("OkHttp handles SSL/TLS handshake")
-    void testOkHttpSSLHandshake() throws IOException {
+    void testOkHttpSSLHandshake() throws Exception {
         // This test verifies that OkHttp can establish HTTPS connections
         // In actual Android environment, this would connect to real HTTPS endpoint
         // For testing, we just verify HTTP behavior is correct
@@ -257,7 +258,7 @@ class NexusClientAndroidPlatformTest {
 
     @Test
     @DisplayName("OkHttp handles request/response interceptor failures")
-    void testOkHttpInterceptorChain() throws IOException {
+    void testOkHttpInterceptorChain() throws Exception {
         // Simulate an interceptor that validates content-type
         server.createContext("/service/rest/v1/components", exchange -> {
             String contentType = exchange.getRequestHeaders().getFirst("Content-Type");
@@ -280,7 +281,7 @@ class NexusClientAndroidPlatformTest {
 
     @Test
     @DisplayName("OkHttp handles response code validation")
-    void testOkHttpResponseCodeValidation() throws IOException {
+    void testOkHttpResponseCodeValidation() throws Exception {
         server.createContext("/service/rest/v1/components", exchange -> {
             // Return OK (200)
             String response = "{\"items\":[{\"id\":\"test\",\"assets\":[{\"path\":\"test.jar\",\"fileSize\":1024}]}]}";
@@ -301,7 +302,7 @@ class NexusClientAndroidPlatformTest {
 
     @Test
     @DisplayName("OkHttp handles proxy authentication (if configured)")
-    void testOkHttpProxyAuthentication() throws IOException {
+    void testOkHttpProxyAuthentication() throws Exception {
         // This test verifies proxy handling behavior
         // In actual Android, proxy might be configured via system properties
         server.createContext("/service/rest/v1/components", exchange -> {
@@ -324,7 +325,7 @@ class NexusClientAndroidPlatformTest {
     @Test
     @DisplayName("OkHttp connection pool doesn't exhaust resources")
     @Timeout(value = 30, unit = TimeUnit.SECONDS)
-    void testOkHttpConnectionPoolExhaustion() throws IOException {
+    void testOkHttpConnectionPoolExhaustion() throws Exception {
         server.createContext("/service/rest/v1/components", exchange -> {
             String response = "{\"items\":[{\"id\":\"test\",\"assets\":[{\"path\":\"test.jar\",\"fileSize\":1024}]}]}";
             byte[] bytes = response.getBytes();

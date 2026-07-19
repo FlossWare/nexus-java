@@ -426,11 +426,6 @@ public class Nexus implements Callable<Integer> {
                 }
                 System.out.println();
 
-<<<<<<< HEAD
-                // Export before delete if requested
-                if (exportBeforeDeletePath != null && !dryRun) {
-                    List<RepoRecord> recordsToExport = service.getRepositoryRecords(repository, regexFilter, true);
-=======
                 // Fetch records once for export and delete (optimization to avoid double HTTP fetch)
                 List<RepoRecord> allRecords = null;
                 if (exportBeforeDeletePath != null && !dryRun) {
@@ -443,7 +438,6 @@ public class Nexus implements Callable<Integer> {
                             .filter(record -> record.path().matches(regexFilter))
                             .toList();
 
->>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
                     if (!recordsToExport.isEmpty()) {
                         List<DeletionHistory.DeletedComponent> exportComponents =
                             DeletionHistory.fromRepoRecords(recordsToExport, repository);
@@ -459,16 +453,12 @@ public class Nexus implements Callable<Integer> {
                     }
                 }
 
-<<<<<<< HEAD
-                service.deleteFromRepository(repository, regexFilter, dryRun);
-=======
                 // Use pre-fetched records if available (avoids duplicate fetch), otherwise fetch normally
                 if (allRecords != null) {
                     service.deleteFromRepositoryWithRecords(repository, regexFilter, dryRun, allRecords);
                 } else {
                     service.deleteFromRepository(repository, regexFilter, dryRun);
                 }
->>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
 
                 // Show deletion history summary after the operation
                 if (!dryRun && !parent.deletionHistory.isEmpty()) {

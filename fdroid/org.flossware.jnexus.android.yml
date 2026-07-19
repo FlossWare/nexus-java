@@ -1,6 +1,6 @@
 Categories:
   - Development
-License: Apache-2.0
+License: GPL-3.0-only
 AuthorName: FlossWare
 AuthorEmail: sfloess@redhat.com
 AuthorWebSite: https://github.com/FlossWare
@@ -29,9 +29,9 @@ Description: |-
   * Profile-based configuration for multiple environments
 
 Builds:
-  - versionName: '2.0.0'
+  - versionName: '2.0'
     versionCode: 3
-    commit: v2.0.0
+    commit: v2.0
     subdir: jnexus-android
     sudo:
       - apt-get update
@@ -44,7 +44,7 @@ Builds:
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags
-CurrentVersion: 2.0.0
+CurrentVersion: 2.0
 CurrentVersionCode: 3
 
 MaintainerNotes: |-

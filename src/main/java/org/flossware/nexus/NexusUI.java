@@ -296,7 +296,7 @@ public class NexusUI {
         Label title = new Label("Nexus Repository Manager");
         title.setLocation(2, 3);
         title.setSize(30, 1);
-        title.setAlignment(JLabel.ALIGN_LEFT);
+        title.setAlignment(Label.ALIGN_LEFT);
 
         // Repository and Regex on same line
         Label repoLabel = new Label("Repo:");

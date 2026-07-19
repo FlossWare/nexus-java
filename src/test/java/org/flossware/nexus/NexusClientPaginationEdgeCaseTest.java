@@ -1,6 +1,7 @@
 package org.flossware.nexus;
 
 import com.sun.net.httpserver.HttpServer;
+import org.flossware.jnexus.ComponentMetadata;
 import org.flossware.jnexus.RepoRecord;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;

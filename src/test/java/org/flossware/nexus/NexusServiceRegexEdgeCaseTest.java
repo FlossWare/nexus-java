@@ -1,6 +1,8 @@
 package org.flossware.nexus;
 
+import org.flossware.jnexus.ComponentMetadata;
 import org.flossware.jnexus.RepoRecord;
+import org.flossware.jnexus.SearchCriteria;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

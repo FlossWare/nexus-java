@@ -1,9 +1,6 @@
 package org.flossware.nexus;
 
-<<<<<<< HEAD
-=======
 import org.flossware.jnexus.RepoRecord;
->>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -196,10 +193,10 @@ class DeletionHistoryTest {
         assertTrue(Files.exists(exportPath));
         String content = Files.readString(exportPath);
 
-        // Verify JSON structure
+        // Verify JSON structure (Jackson pretty-printer uses " : " with spaces)
         assertTrue(content.contains("\"exportedAt\""));
         assertTrue(content.contains("\"summary\""));
-        assertTrue(content.contains("\"totalComponents\": 2"));
+        assertTrue(content.contains("\"totalComponents\" : 2"));
         assertTrue(content.contains("\"components\""));
         assertTrue(content.contains("\"id1\""));
         assertTrue(content.contains("\"id2\""));
@@ -227,7 +224,7 @@ class DeletionHistoryTest {
 
         assertNotNull(json);
         assertTrue(json.contains("\"exportedAt\""));
-        assertTrue(json.contains("\"totalComponents\": 1"));
+        assertTrue(json.contains("\"totalComponents\" : 1"));
         assertTrue(json.contains("\"id1\""));
         assertTrue(json.contains("path/artifact.jar"));
     }
@@ -237,8 +234,8 @@ class DeletionHistoryTest {
         String json = history.toJson();
 
         assertNotNull(json);
-        assertTrue(json.contains("\"totalComponents\": 0"));
-        assertTrue(json.contains("\"components\": ["));
+        assertTrue(json.contains("\"totalComponents\" : 0"));
+        assertTrue(json.contains("\"components\" : [ ]"));
     }
 
     @Test
@@ -249,9 +246,9 @@ class DeletionHistoryTest {
 
         String json = DeletionHistory.formatAsJson(components, "maven-releases", ".*SNAPSHOT.*");
 
-        assertTrue(json.contains("\"repository\": \"maven-releases\""));
+        assertTrue(json.contains("\"repository\" : \"maven-releases\""));
         assertTrue(json.contains("\"criteria\""));
-        assertTrue(json.contains("\"regex\": \".*SNAPSHOT.*\""));
+        assertTrue(json.contains("\"regex\" : \".*SNAPSHOT.*\""));
     }
 
     @Test
@@ -262,8 +259,14 @@ class DeletionHistoryTest {
 
         String json = DeletionHistory.formatAsJson(components, null, null);
 
-        assertFalse(json.contains("\"repository\""));
+        // Top-level repository and criteria fields should be absent (NON_NULL),
+        // but component-level repository is still present
         assertFalse(json.contains("\"criteria\""));
+        // Verify the only "repository" occurrences are inside the components array
+        int firstRepo = json.indexOf("\"repository\"");
+        int componentsStart = json.indexOf("\"components\"");
+        assertTrue(firstRepo > componentsStart,
+            "repository should only appear inside components, not at top level");
     }
 
     @Test
@@ -285,16 +288,6 @@ class DeletionHistoryTest {
     }
 
     @Test
-<<<<<<< HEAD
-    void testEscapeJson() {
-        assertEquals("", DeletionHistory.escapeJson(null));
-        assertEquals("simple", DeletionHistory.escapeJson("simple"));
-        assertEquals("with \\\"quotes\\\"", DeletionHistory.escapeJson("with \"quotes\""));
-        assertEquals("back\\\\slash", DeletionHistory.escapeJson("back\\slash"));
-        assertEquals("new\\nline", DeletionHistory.escapeJson("new\nline"));
-        assertEquals("tab\\there", DeletionHistory.escapeJson("tab\there"));
-        assertEquals("carriage\\rreturn", DeletionHistory.escapeJson("carriage\rreturn"));
-=======
     void testJsonSerializationWithSpecialCharacters() {
         // Test that Jackson properly escapes special characters
         history.recordDeletion("id1", "path/with\"quotes.jar", 1000, "repo");
@@ -312,7 +305,6 @@ class DeletionHistoryTest {
         // Verify it's valid JSON by checking it can be parsed
         assertTrue(json.startsWith("{"));
         assertTrue(json.contains("\"components\""));
->>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
     }
 
     @Test

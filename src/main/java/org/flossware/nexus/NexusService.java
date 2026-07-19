@@ -114,12 +114,6 @@ public class NexusService {
     }
 
     /**
-<<<<<<< HEAD
-     * Constructs a new NexusService with the specified client and deletion history.
-     *
-     * @param client          the NexusHttpClient to use for HTTP operations
-     * @param deletionHistory the deletion history tracker for recording deletions
-=======
      * Constructs a new NexusService with the specified client and optional deletion history.
      * <p>
      * Allows callers to disable deletion recording by passing null for deletionHistory.
@@ -128,7 +122,6 @@ public class NexusService {
      *
      * @param client          the NexusHttpClient to use for HTTP operations
      * @param deletionHistory the deletion history tracker for recording deletions, or null to disable recording
->>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
      */
     public NexusService(NexusHttpClient client, DeletionHistory deletionHistory) {
         this.client = client;
@@ -136,8 +129,6 @@ public class NexusService {
     }
 
     /**
-<<<<<<< HEAD
-=======
      * Constructs a new NexusService with deletion recording disabled.
      * <p>
      * This is a convenience method for creating a service without deletion history tracking.
@@ -152,23 +143,17 @@ public class NexusService {
     }
 
     /**
->>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
      * Returns the deletion history tracker for this service.
      * <p>
      * The deletion history records all components deleted through this service
      * during the current session. It can be used to review what was deleted
      * and to export deletion records for manual recovery reference.
      * </p>
-<<<<<<< HEAD
-     *
-     * @return the deletion history tracker
-=======
      * <p>
      * Note: Returns null if deletion recording is disabled (service was constructed with null deletionHistory).
      * </p>
      *
      * @return the deletion history tracker, or null if recording is disabled
->>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
      */
     public DeletionHistory getDeletionHistory() {
         return deletionHistory;
@@ -418,15 +403,10 @@ public class NexusService {
                     deleted++;
                     logger.info("Deleted: {}", record.path());
 
-<<<<<<< HEAD
-                    // Record deletion in history for undo/recovery reference
-                    deletionHistory.recordDeletion(record.id(), record.path(), record.fileSize(), repository);
-=======
                     // Record deletion in history for undo/recovery reference (if enabled)
                     if (deletionHistory != null) {
                         deletionHistory.recordDeletion(record.id(), record.path(), record.fileSize(), repository);
                     }
->>>>>>> e17d8af (chore: Remove .claude directory and add to .gitignore)
 
                     // Callback: component deleted
                     if (callback != null) {
