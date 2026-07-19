@@ -1,1 +1,0 @@
-Manage Sonatype Nexus repositories on Android

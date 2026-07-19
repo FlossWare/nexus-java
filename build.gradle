@@ -1,29 +1,34 @@
-// Root build.gradle for JNexus multi-module project
-buildscript {
-    ext {
-        kotlin_version = '1.9.22'
-        compose_version = '1.5.8'
-    }
-    repositories {
-        google()
-        mavenCentral()
-    }
-    dependencies {
-        classpath 'com.android.tools.build:gradle:8.7.3'
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
-    }
+plugins {
+    id 'java-library'
 }
 
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-        maven {
-            url "https://packagecloud.io/flossware/java/maven2/"
-        }
-    }
+group = 'org.flossware'
+version = '2.0'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
 }
 
-task clean(type: Delete) {
-    delete rootProject.buildDir
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // JSON processing (Android-compatible)
+    api 'com.fasterxml.jackson.core:jackson-databind:2.21.3'
+    api 'org.json:json:20260522'
+
+    // Logging API (Android-compatible)
+    api 'org.slf4j:slf4j-api:2.0.18'
+
+    // Testing
+    testImplementation 'org.junit.jupiter:junit-jupiter:6.1.0'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.11.0'
+    testImplementation 'org.mockito:mockito-core:5.23.0'
+    testImplementation 'org.mockito:mockito-junit-jupiter:5.23.0'
+}
+
+test {
+    useJUnitPlatform()
 }

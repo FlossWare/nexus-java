@@ -6,7 +6,7 @@ on:
 
 jobs:
   publish-core:
-    name: Publish jnexus-core to Maven Central
+    name: Publish nexus-java to Maven Central
     runs-on: ubuntu-latest
     if: "!github.event.release.prerelease"
     steps:
@@ -30,10 +30,9 @@ jobs:
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
-          echo "Publishing jnexus-core version: ${VERSION}"
+          echo "Publishing nexus-java version: ${VERSION}"
 
       - name: Verify version in pom.xml
-        working-directory: jnexus-core
         run: |
           POM_VERSION=$(grep -m1 '<version>' pom.xml | sed 's/.*<version>\(.*\)<\/version>.*/\1/' | tr -d ' ')
           TAG_VERSION="${{ steps.version.outputs.version }}"
@@ -43,8 +42,7 @@ jobs:
             echo "::warning::pom.xml version (${POM_VERSION}) does not match tag (${TAG_VERSION}). Publishing with pom.xml version."
           fi
 
-      - name: Publish jnexus-core to Maven Central
-        working-directory: jnexus-core
+      - name: Publish nexus-java to Maven Central
         run: |
           mvn -B clean deploy \
             -P release \
@@ -59,18 +57,18 @@ jobs:
         run: |
           echo "## Maven Central Publishing" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Artifact:** org.flossware:jnexus-core:${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Artifact:** org.flossware:nexus-java:${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Usage (Maven):**" >> $GITHUB_STEP_SUMMARY
           echo '```xml' >> $GITHUB_STEP_SUMMARY
           echo '<dependency>' >> $GITHUB_STEP_SUMMARY
           echo '    <groupId>org.flossware</groupId>' >> $GITHUB_STEP_SUMMARY
-          echo '    <artifactId>jnexus-core</artifactId>' >> $GITHUB_STEP_SUMMARY
+          echo '    <artifactId>nexus-java</artifactId>' >> $GITHUB_STEP_SUMMARY
           echo "    <version>${{ steps.version.outputs.version }}</version>" >> $GITHUB_STEP_SUMMARY
           echo '</dependency>' >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Usage (Gradle):**" >> $GITHUB_STEP_SUMMARY
           echo '```gradle' >> $GITHUB_STEP_SUMMARY
-          echo "implementation 'org.flossware:jnexus-core:${{ steps.version.outputs.version }}'" >> $GITHUB_STEP_SUMMARY
+          echo "implementation 'org.flossware:nexus-java:${{ steps.version.outputs.version }}'" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY

@@ -1,6 +1,6 @@
 version: 2
 updates:
-  # Maven dependencies (Desktop app)
+  # Maven dependencies
   - package-ecosystem: "maven"
     directory: "/"
     schedule:
@@ -15,9 +15,9 @@ updates:
     reviewers:
       - "sfloess"
 
-  # Gradle dependencies (Core library)
+  # Gradle dependencies
   - package-ecosystem: "gradle"
-    directory: "/jnexus-core"
+    directory: "/"
     schedule:
       interval: "weekly"
       day: "monday"
@@ -25,25 +25,8 @@ updates:
     labels:
       - "dependencies"
       - "gradle"
-      - "core"
     commit-message:
-      prefix: "deps(core):"
-    reviewers:
-      - "sfloess"
-
-  # Gradle dependencies (Android app)
-  - package-ecosystem: "gradle"
-    directory: "/jnexus-android"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-    open-pull-requests-limit: 5
-    labels:
-      - "dependencies"
-      - "gradle"
-      - "android"
-    commit-message:
-      prefix: "deps(android):"
+      prefix: "deps(gradle):"
     reviewers:
       - "sfloess"
 

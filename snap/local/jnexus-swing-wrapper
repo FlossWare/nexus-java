@@ -1,3 +1,0 @@
-#!/bin/bash
-exec "$JAVA_HOME/bin/java" --enable-preview --enable-native-access=ALL-UNNAMED \
-  -cp "$SNAP/jar/jnexus.jar" org.flossware.jnexus.JNexusSwing "$@"
