@@ -17,7 +17,7 @@ repositories {
 dependencies {
     // JSON processing (Android-compatible)
     api 'com.fasterxml.jackson.core:jackson-databind:2.21.3'
-    api 'org.json:json:20260522'
+    api 'org.json:json:20260719'
 
     // Logging API (Android-compatible)
     api 'org.slf4j:slf4j-api:2.0.18'
